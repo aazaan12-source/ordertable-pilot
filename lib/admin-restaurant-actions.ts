@@ -3,7 +3,7 @@
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { LeadStatus, Prisma, RestaurantStatus, SubscriptionStatus, TableStatus } from "@prisma/client";
+import { LeadStatus, Prisma, RestaurantStatus, SubscriptionStatus, TableStatus, UserRole } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/permissions";
 import { absoluteTableQrUrl } from "@/lib/qr";
@@ -20,11 +20,24 @@ function positiveInt(value: FormDataEntryValue | null, fallback: number, max = 5
   return Math.min(max, Math.max(1, Math.floor(parsed)));
 }
 
-function redirectNewRestaurantError(error: string) {
+function redirectNewRestaurantError(error: string): never {
   redirect(`/admin/restaurants/new?error=${encodeURIComponent(error)}`);
 }
 
-async function createSampleMenu(tx: Prisma.TransactionClient, restaurantId: string) {
+function safeNumber(value: FormDataEntryValue | null, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+function safeDate(value: FormDataEntryValue | null) {
+  if (!value) return null;
+  const parsed = new Date(String(value));
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+type MenuWriter = Pick<Prisma.TransactionClient, "category" | "menuItem">;
+
+async function createSampleMenu(tx: MenuWriter, restaurantId: string) {
   for (const [categoryIndex, categoryName] of sampleCategoryNames.entries()) {
     const category = await tx.category.create({
       data: { restaurantId, name: categoryName, sortOrder: categoryIndex + 1 }
@@ -126,8 +139,11 @@ export async function createRestaurantWithTablesAndManager(formData: FormData) {
   const emailExists = await db.user.findUnique({ where: { email: managerEmail } });
   if (emailExists) redirectNewRestaurantError("manager-email-already-exists");
 
-  const restaurant = await db.$transaction(async (tx) => {
-    const created = await tx.restaurant.create({
+  const passwordHash = await bcrypt.hash(managerPassword, 12);
+  let restaurant: { id: string } | null = null;
+
+  try {
+    restaurant = await db.restaurant.create({
       data: {
         name,
         slug,
@@ -139,59 +155,69 @@ export async function createRestaurantWithTablesAndManager(formData: FormData) {
         status: formString(formData, "status", "ACTIVE") === "INACTIVE" ? RestaurantStatus.INACTIVE : RestaurantStatus.ACTIVE,
         subscriptionStatus: formString(formData, "subscriptionStatus", "PILOT") as SubscriptionStatus,
         orderingEnabled: formData.get("orderingEnabled") !== "false",
-        pilotStartDate: formData.get("pilotStartDate") ? new Date(String(formData.get("pilotStartDate"))) : null,
-        pilotEndDate: formData.get("pilotEndDate") ? new Date(String(formData.get("pilotEndDate"))) : null,
-        serviceChargePercent: Number(formData.get("serviceChargePercent") || 0),
-        taxPercent: Number(formData.get("taxPercent") || 0),
-        customerCancelWindowMinutes: positiveInt(formData.get("customerCancelWindowMinutes"), 3, 60)
-      }
+        pilotStartDate: safeDate(formData.get("pilotStartDate")),
+        pilotEndDate: safeDate(formData.get("pilotEndDate")),
+        serviceChargePercent: safeNumber(formData.get("serviceChargePercent"), 0),
+        taxPercent: safeNumber(formData.get("taxPercent"), 0),
+        customerCancelWindowMinutes: positiveInt(formData.get("customerCancelWindowMinutes"), 3, 60),
+        tables: {
+          create: Array.from({ length: tableCount }, (_, index) => {
+            const tableNumber = startingTableNumber + index;
+            return { tableNumber, qrUrl: absoluteTableQrUrl(slug, tableNumber), status: TableStatus.EMPTY };
+          })
+        },
+        users: {
+          create: {
+            name: managerName,
+            email: managerEmail,
+            phone: managerPhone,
+            passwordHash,
+            role: UserRole.RESTAURANT_MANAGER,
+            isActive: formData.get("managerIsActive") !== "false"
+          }
+        },
+        subscriptions: {
+          create: {
+            planName: formString(formData, "subscriptionStatus", "PILOT"),
+            monthlyPrice: safeNumber(formData.get("monthlyPrice"), 0),
+            status: "ACTIVE",
+            startDate: new Date()
+          }
+        },
+        activityLogs: {
+          create: {
+            userId: admin.id,
+            action: "RESTAURANT_CREATED",
+            description: `${name} created with ${tableCount} tables`
+          }
+        }
+      },
+      select: { id: true }
     });
-
-    for (let tableNumber = startingTableNumber; tableNumber < startingTableNumber + tableCount; tableNumber++) {
-      await tx.restaurantTable.create({
-        data: { restaurantId: created.id, tableNumber, qrUrl: absoluteTableQrUrl(created.slug, tableNumber), status: TableStatus.EMPTY }
-      });
+  } catch (error) {
+    console.error("[createRestaurantWithTablesAndManager] failed", { error, slug, managerEmail, tableCount });
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      redirectNewRestaurantError("duplicate-record");
     }
+    redirectNewRestaurantError("server-error");
+  }
 
-    await tx.user.create({
-      data: {
-        name: managerName,
-        email: managerEmail,
-        phone: managerPhone,
-        passwordHash: await bcrypt.hash(managerPassword, 12),
-        role: "RESTAURANT_MANAGER",
-        restaurantId: created.id,
-        isActive: formData.get("managerIsActive") !== "false"
-      }
+  if (!restaurant) redirectNewRestaurantError("server-error");
+
+  if (leadId) {
+    await db.platformLead.update({
+      where: { id: leadId },
+      data: { status: "CONVERTED", convertedRestaurantId: restaurant.id }
+    }).catch((error) => {
+      console.error("[createRestaurantWithTablesAndManager] lead conversion update failed", { error, leadId, restaurantId: restaurant.id });
     });
+  }
 
-    if (menuSetup === "sample") {
-      await createSampleMenu(tx, created.id);
-    }
-
-    await tx.subscription.create({
-      data: {
-        restaurantId: created.id,
-        planName: String(created.subscriptionStatus),
-        monthlyPrice: Number(formData.get("monthlyPrice") || 0),
-        status: "ACTIVE",
-        startDate: new Date()
-      }
+  if (menuSetup === "sample") {
+    await createSampleMenu(db, restaurant.id).catch((error) => {
+      console.error("[createRestaurantWithTablesAndManager] sample menu creation failed", { error, restaurantId: restaurant.id });
     });
-
-    if (leadId) {
-      await tx.platformLead.update({
-        where: { id: leadId },
-        data: { status: "CONVERTED", convertedRestaurantId: created.id }
-      }).catch(() => undefined);
-    }
-
-    await tx.activityLog.create({
-      data: { userId: admin.id, restaurantId: created.id, action: "RESTAURANT_CREATED", description: `${created.name} created with ${tableCount} tables` }
-    });
-
-    return created;
-  });
+  }
 
   revalidatePath("/admin/restaurants");
   redirect(`/admin/restaurants/${restaurant.id}`);

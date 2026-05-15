@@ -35,7 +35,9 @@ export default async function NewRestaurantPage({
     "missing-required-fields": "Please fill restaurant name, slug, city, manager email, and manager password.",
     "password-mismatch": "Manager temporary password and confirmation do not match.",
     "slug-already-exists": "This restaurant URL slug already exists. Please choose another.",
-    "manager-email-already-exists": "This manager email already exists. Use a different email or edit the existing manager account."
+    "manager-email-already-exists": "This manager email already exists. Use a different email or edit the existing manager account.",
+    "duplicate-record": "A restaurant, manager, or table with these details already exists. Please change the slug or manager email.",
+    "server-error": "The restaurant could not be created because the server/database rejected the request. Check Vercel logs for the printed createRestaurantWithTablesAndManager error."
   };
 
   return (
