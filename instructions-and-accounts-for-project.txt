@@ -1,0 +1,365 @@
+Do not store real secrets in this file if this repository is public.
+
+This file is a project handover and memory document. Use placeholders for private accounts, passwords, database URLs, API keys, and access tokens.
+
+============================================================
+1. Project Basic Details
+============================================================
+
+Project name:
+OrderTable Pilot
+
+Local folder:
+D:\Codex work\ordertable-pilot
+
+Purpose:
+QR-based restaurant table ordering platform for pilot restaurant with 20 tables.
+
+Tech stack:
+- Next.js
+- React
+- TypeScript
+- Tailwind CSS
+- Prisma
+- PostgreSQL
+- Vercel
+- Supabase
+- GitHub
+
+============================================================
+2. Local Development Details
+============================================================
+
+Local project path:
+D:\Codex work\ordertable-pilot
+
+Local development command:
+npm run dev
+
+Local app URL:
+http://localhost:3000
+
+Important local test URLs:
+http://localhost:3000/login
+http://localhost:3000/admin
+http://localhost:3000/dashboard
+http://localhost:3000/r/demo-restaurant-islamabad/t/1
+http://localhost:3000/r/demo-restaurant-islamabad/t/20
+
+============================================================
+3. GitHub Account / Repository Details
+============================================================
+
+GitHub account used:
+[WRITE GITHUB USERNAME HERE]
+
+GitHub email:
+[WRITE GITHUB EMAIL HERE]
+
+Repository name:
+ordertable-pilot
+
+Repository URL:
+https://github.com/[YOUR_USERNAME]/ordertable-pilot
+
+Branch:
+main
+
+Commands used:
+
+cd "D:\Codex work\ordertable-pilot"
+git init
+git add .
+git commit -m "Prepare OrderTable pilot for deployment"
+git branch -M main
+git remote add origin https://github.com/[YOUR_USERNAME]/ordertable-pilot.git
+git push -u origin main
+
+Notes:
+- Replace [YOUR_USERNAME] with actual GitHub username.
+- Do not store GitHub password or access token in this file.
+- If GitHub asks for login, use browser login or GitHub authentication.
+
+============================================================
+4. Supabase Account / Database Details
+============================================================
+
+Supabase account used:
+[WRITE SUPABASE EMAIL HERE]
+
+Supabase project name:
+ordertable-pilot
+
+Supabase project URL:
+[WRITE SUPABASE PROJECT DASHBOARD URL HERE]
+
+Database provider:
+Supabase PostgreSQL
+
+Database host:
+[WRITE HOST HERE IF NEEDED]
+
+Database name:
+postgres
+
+DATABASE_URL:
+[DO NOT WRITE REAL DATABASE PASSWORD HERE]
+
+Use this placeholder:
+postgresql://postgres:[PASSWORD]@[HOST]:[PORT]/postgres
+
+Notes:
+- Real DATABASE_URL should be stored in local .env and Vercel environment variables.
+- Do not commit .env file.
+- Do not write real database password in this file unless the owner intentionally wants to store it.
+- Prefer pooled connection string for Vercel/serverless deployment if Supabase provides one.
+
+Supabase setup steps:
+1. Create Supabase account.
+2. Create new project named ordertable-pilot.
+3. Copy PostgreSQL connection string.
+4. Add DATABASE_URL to local .env.
+5. Add DATABASE_URL to Vercel environment variables.
+6. Run Prisma migration or db push.
+7. Run seed command.
+
+============================================================
+5. Vercel Account / Deployment Details
+============================================================
+
+Vercel account used:
+[WRITE VERCEL EMAIL HERE]
+
+Vercel project name:
+ordertable-pilot
+
+Vercel project dashboard URL:
+[WRITE VERCEL PROJECT DASHBOARD URL HERE]
+
+Production deployment URL:
+[WRITE VERCEL LIVE URL HERE]
+
+Example:
+https://ordertable-pilot.vercel.app
+
+Framework:
+Next.js
+
+Install command:
+npm install
+
+Build command:
+npm run build
+
+Output:
+Default Next.js output
+
+Environment variables added in Vercel:
+
+DATABASE_URL=
+NEXTAUTH_SECRET=
+NEXTAUTH_URL=
+APP_URL=
+
+Optional if used:
+
+CLOUDINARY_CLOUD_NAME=
+CLOUDINARY_API_KEY=
+CLOUDINARY_API_SECRET=
+
+Notes:
+- NEXTAUTH_URL should match the Vercel live URL.
+- APP_URL should match the Vercel live URL.
+- If Vercel URL changes, update both NEXTAUTH_URL and APP_URL.
+- Redeploy after changing environment variables.
+- Do not store real environment secrets in this text file.
+
+============================================================
+6. Prisma Database Commands
+============================================================
+
+If migrations exist:
+
+npx prisma generate
+npx prisma migrate deploy
+npx prisma db seed
+
+If migrations do not exist and this is pilot setup:
+
+npx prisma generate
+npx prisma db push
+npx prisma db seed
+
+Open Prisma Studio locally:
+npx prisma studio
+
+============================================================
+7. Default Demo Logins
+============================================================
+
+Include demo login credentials only if they are seed/demo credentials.
+
+Platform Admin:
+Email:
+admin@ordertable.pk
+
+Password:
+Admin12345
+
+Restaurant Manager:
+Email:
+manager@demo.com
+
+Password:
+Manager12345
+
+Important:
+These are demo credentials for pilot/testing.
+Change them before real public use.
+
+============================================================
+8. Demo Restaurant Details
+============================================================
+
+Restaurant name:
+Demo Restaurant Islamabad
+
+Slug:
+demo-restaurant-islamabad
+
+Branch:
+F-7 Islamabad
+
+City:
+Islamabad
+
+Tables:
+1 to 20
+
+Customer QR URL pattern:
+https://[VERCEL_LIVE_URL]/r/demo-restaurant-islamabad/t/[TABLE_NUMBER]
+
+Examples:
+
+Table 1:
+https://[VERCEL_LIVE_URL]/r/demo-restaurant-islamabad/t/1
+
+Table 20:
+https://[VERCEL_LIVE_URL]/r/demo-restaurant-islamabad/t/20
+
+============================================================
+9. Online Testing Checklist
+============================================================
+
+1. Open live app URL.
+2. Open /login.
+3. Login as admin.
+4. Confirm demo restaurant exists.
+5. Login as manager.
+6. Open /dashboard.
+7. Open customer URL /r/demo-restaurant-islamabad/t/1.
+8. Add food item to cart.
+9. Confirm estimated bill.
+10. Place order.
+11. Confirm order appears in manager dashboard.
+12. Update order status.
+13. Print kitchen slip.
+14. Print customer bill.
+15. Mark order paid.
+16. Refresh browser and confirm data persists.
+17. Test table 20 URL.
+18. Test invalid table 999 and confirm friendly error.
+
+============================================================
+10. Important Project URLs
+============================================================
+
+Local:
+http://localhost:3000
+
+Login:
+https://[VERCEL_LIVE_URL]/login
+
+Admin:
+https://[VERCEL_LIVE_URL]/admin
+
+Dashboard:
+https://[VERCEL_LIVE_URL]/dashboard
+
+Customer table 1:
+https://[VERCEL_LIVE_URL]/r/demo-restaurant-islamabad/t/1
+
+Customer table 20:
+https://[VERCEL_LIVE_URL]/r/demo-restaurant-islamabad/t/20
+
+============================================================
+11. Security Notes
+============================================================
+
+- Do not commit .env file.
+- Do not store real passwords in GitHub.
+- Do not store Supabase database password in README.
+- Do not expose NEXTAUTH_SECRET.
+- Change demo passwords before real launch.
+- Use strong passwords for GitHub, Supabase, and Vercel.
+- Enable 2FA on GitHub, Supabase, and Vercel if possible.
+- Keep database backups enabled.
+- Use HTTPS live URL only.
+- Do not use localhost or 192.168.x.x URLs for real restaurant QR codes.
+
+============================================================
+12. Deployment Troubleshooting
+============================================================
+
+If npm run build fails:
+- Check TypeScript errors.
+- Check missing imports.
+- Check Prisma generate.
+- Check environment variables.
+
+If login fails on Vercel:
+- Check NEXTAUTH_URL.
+- Check NEXTAUTH_SECRET.
+- Redeploy after updating env variables.
+
+If database fails:
+- Check DATABASE_URL.
+- Check Supabase database password.
+- Check Prisma migration/db push.
+- Check Supabase project is active.
+
+If demo restaurant is missing:
+- Run seed command again.
+- Make sure seed uses upsert and does not duplicate badly.
+
+If QR page fails:
+- Check restaurant slug.
+- Check table number exists.
+- Check restaurant is active.
+- Check ordering_enabled is true.
+
+============================================================
+13. Final Notes Section
+============================================================
+
+Custom domain:
+[WRITE DOMAIN HERE LATER]
+
+Final QR domain:
+[WRITE FINAL DOMAIN HERE LATER]
+
+Restaurant real pilot name:
+[WRITE RESTAURANT NAME HERE]
+
+Restaurant manager contact:
+[WRITE CONTACT HERE]
+
+Pilot start date:
+[WRITE DATE HERE]
+
+Pilot end date:
+[WRITE DATE HERE]
+
+Important:
+This file should be committed to GitHub only if it does not contain real secrets.
+If private passwords or real database URLs are added inside it later, do not commit it.
