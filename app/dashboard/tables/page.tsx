@@ -4,6 +4,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { CopyUrlButton } from "@/components/dashboard/copy-url-button";
 import { TableQrImage } from "@/components/dashboard/table-qr-image";
+import { FinancialAmount } from "@/components/dashboard/financial-amount";
+import { Button } from "@/components/ui/button";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +32,7 @@ export default async function TablesPage() {
   return (
     <main className="p-4 lg:p-6">
       <h1 className="text-2xl font-bold">Tables</h1>
-      <p className="mb-5 text-sm text-muted-foreground">Pilot restaurant has 20 QR-linked tables.</p>
+      <p className="mb-5 text-sm text-muted-foreground">Table-wise current orders, bill requests, QR links, and payment state.</p>
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {tables.map((table) => {
           const latestOrder = table.orders[0];
@@ -57,6 +60,12 @@ export default async function TablesPage() {
                     <p>Latest order: <strong>{latestOrder.orderNumber}</strong></p>
                     <p className="text-muted-foreground">Status: {latestOrder.status.replaceAll("_", " ")}</p>
                     <p className="text-muted-foreground">Payment: {latestOrder.paymentStatus}</p>
+                    <p className="font-semibold">Bill: <FinancialAmount value={latestOrder.total.toString()} /></p>
+                    <div className="flex flex-wrap gap-2 pt-2">
+                      <Link href={`/dashboard/orders/${latestOrder.id}`}><Button size="sm" variant="outline">View</Button></Link>
+                      <Link href={`/dashboard/orders/${latestOrder.id}/edit`}><Button size="sm" variant="outline">Edit Bill</Button></Link>
+                      <Link href={`/dashboard/orders/${latestOrder.id}/print/bill`} target="_blank"><Button size="sm" variant="outline">Print Bill</Button></Link>
+                    </div>
                   </div>
                 ) : (
                   <p className="mt-3 text-sm text-muted-foreground">No order yet</p>

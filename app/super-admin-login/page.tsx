@@ -5,6 +5,7 @@ import { createSuperAdminSession } from "@/lib/super-admin-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 
 async function loginSuperAdmin(formData: FormData) {
   "use server";
@@ -34,7 +35,7 @@ export default async function SuperAdminLoginPage({
         <CardContent>
           <form action={loginSuperAdmin} className="space-y-4">
             <Input name="email" type="email" placeholder="Email" defaultValue="admin@ordertable.pk" required />
-            <Input name="password" type="password" placeholder="Password" defaultValue="Admin12345" required />
+            <PasswordInput name="password" placeholder="Password" defaultValue="Admin12345" required />
             {error ? <p className="text-sm text-destructive">Login failed. Check super admin credentials.</p> : null}
             <Button className="w-full" size="lg">Sign in as Super Admin</Button>
           </form>

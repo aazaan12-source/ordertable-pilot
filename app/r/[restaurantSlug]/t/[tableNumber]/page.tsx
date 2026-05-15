@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { RestaurantStatus } from "@prisma/client";
+import { RestaurantStatus, TableStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { OrderMenu } from "@/components/customer/order-menu";
 import { RecentOrderLink } from "@/components/customer/recent-order-link";
@@ -38,6 +38,7 @@ export default async function CustomerTablePage({
   if (!restaurant) return <Message title="Restaurant not found" body="This QR code does not match an active restaurant." />;
   if (restaurant.status !== RestaurantStatus.ACTIVE) return <Message title="Restaurant inactive" body="This restaurant is not accepting online orders right now." />;
   if (restaurant.tables.length === 0) return <Message title="Invalid table QR code" body="Please ask the restaurant staff for help." />;
+  if (restaurant.tables[0].status === TableStatus.INACTIVE) return <Message title="Table inactive" body="This table QR is currently inactive. Please contact restaurant staff." />;
   if (!restaurant.orderingEnabled) return <Message title="Ordering paused" body="Online ordering is temporarily paused. Please call the waiter." />;
 
   return (

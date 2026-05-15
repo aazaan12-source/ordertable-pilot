@@ -8,7 +8,8 @@ const styles: Record<string, string> = {
   SERVED: "bg-slate-100 text-slate-800",
   BILL_REQUESTED: "bg-purple-100 text-purple-800",
   PAID: "bg-green-100 text-green-800",
-  CANCELLED: "bg-red-100 text-red-800"
+  CANCELLED: "bg-red-100 text-red-800",
+  INACTIVE: "bg-slate-200 text-slate-700"
 };
 
 export function StatusBadge({ status }: { status: string }) {

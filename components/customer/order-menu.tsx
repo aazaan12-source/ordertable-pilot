@@ -148,33 +148,33 @@ export function OrderMenu({
 
   return (
     <div className="min-h-screen pb-28">
-      <header className="sticky top-0 z-10 border-b bg-background/95 px-4 py-3 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b bg-background/95 px-3 py-2 backdrop-blur sm:px-4 sm:py-3">
         <div className="mx-auto flex max-w-5xl items-center justify-between">
-          <div>
+          <div className="min-w-0">
             <p className="text-xs uppercase tracking-wide text-muted-foreground">OrderTable</p>
-            <h1 className="text-xl font-bold">{editOrder ? `Edit ${editOrder.orderNumber}` : restaurant.name}</h1>
-            <p className="text-sm text-muted-foreground">{[restaurant.branchName, restaurant.city].filter(Boolean).join(", ")}</p>
+            <h1 className="truncate text-base font-bold sm:text-xl">{editOrder ? `Edit ${editOrder.orderNumber}` : restaurant.name}</h1>
+            <p className="truncate text-xs text-muted-foreground sm:text-sm">{[restaurant.branchName, restaurant.city].filter(Boolean).join(", ")}</p>
           </div>
-          <div className="rounded-md bg-primary px-3 py-2 text-sm font-semibold text-primary-foreground">Table {tableNumber}</div>
+          <div className="shrink-0 rounded-md bg-primary px-2 py-2 text-xs font-semibold text-primary-foreground sm:px-3 sm:text-sm">Table {tableNumber}</div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-6xl px-4 py-5">
+      <main className="mx-auto max-w-6xl px-2 py-3 sm:px-4 sm:py-5">
         {editOrder ? (
           <Link href={`/order/${editOrder.id}/status`} className="mb-4 block rounded-md border bg-white p-3 text-sm font-semibold text-primary">
             Back to order status
           </Link>
         ) : null}
-        <div className="grid gap-5 lg:grid-cols-[190px_1fr]">
-          <aside className="lg:sticky lg:top-24 lg:self-start">
-            <div className="rounded-lg border bg-white p-3">
-              <p className="mb-2 px-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">Categories</p>
-              <div className="flex gap-2 overflow-x-auto pb-1 lg:block lg:space-y-2 lg:overflow-visible">
+        <div className="grid grid-cols-[82px_minmax(0,1fr)] gap-2 sm:grid-cols-[112px_minmax(0,1fr)] sm:gap-3 lg:grid-cols-[190px_1fr] lg:gap-5">
+          <aside className="sticky top-[65px] z-10 self-start sm:top-20 lg:top-24">
+            <div className="max-h-[calc(100vh-155px)] overflow-y-auto rounded-lg border bg-white p-1.5 sm:p-3">
+              <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground sm:px-2 sm:text-xs">Categories</p>
+              <div className="space-y-1.5 sm:space-y-2">
                 {categories.map((category) => (
                   <button
                     key={category.id}
                     onClick={() => setActiveCategory(category.id)}
-                    className={`w-full shrink-0 rounded-md px-3 py-2 text-left text-sm font-semibold transition ${
+                    className={`w-full rounded-md px-1.5 py-2 text-left text-[11px] font-semibold leading-tight transition sm:px-3 sm:text-sm ${
                       activeCategory === category.id ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-border"
                     }`}
                   >
@@ -185,36 +185,36 @@ export function OrderMenu({
             </div>
           </aside>
 
-          <div className="grid gap-4 md:grid-cols-2">
+          <div className="grid min-w-0 gap-2 sm:gap-3 md:grid-cols-2 lg:gap-4">
             {visibleItems.map((item) => {
               const cartItem = cartById.get(item.id);
               return (
-                <Card key={item.id} className="overflow-hidden">
+                <Card key={item.id} className="grid min-w-0 grid-cols-[82px_minmax(0,1fr)] overflow-hidden sm:grid-cols-[104px_minmax(0,1fr)] md:block">
                   <img
                     src={menuImageFor(item.name, item.category.name, item.imageUrl)}
                     alt={item.name}
-                    className="h-44 w-full object-cover"
+                    className="h-full min-h-[106px] w-full object-cover md:h-36 md:min-h-0 lg:h-44"
                     loading="lazy"
                   />
-                  <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <h2 className="font-semibold">{item.name}</h2>
-                        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.description}</p>
+                  <CardContent className="min-w-0 p-2 sm:p-3 lg:p-4">
+                    <div className="flex min-w-0 items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <h2 className="line-clamp-2 text-sm font-semibold leading-tight sm:text-base">{item.name}</h2>
+                        <p className="mt-1 line-clamp-2 text-xs text-muted-foreground sm:text-sm">{item.description}</p>
                       </div>
-                      <p className="shrink-0 font-bold">{formatCurrency(item.price)}</p>
+                      <p className="shrink-0 text-xs font-bold sm:text-sm lg:text-base">{formatCurrency(item.price)}</p>
                     </div>
-                    <div className="mt-3 flex items-center justify-between">
+                    <div className="mt-2 flex flex-wrap items-center justify-between gap-2 sm:mt-3">
                       {cartItem ? (
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1 sm:gap-2">
                           <Button size="icon" variant="outline" onClick={() => changeQty(item.id, -1)}><Minus className="h-4 w-4" /></Button>
-                          <span className="w-8 text-center font-semibold">{cartItem.quantity}</span>
+                          <span className="w-6 text-center text-sm font-semibold sm:w-8">{cartItem.quantity}</span>
                           <Button size="icon" variant="outline" onClick={() => changeQty(item.id, 1)}><Plus className="h-4 w-4" /></Button>
                         </div>
                       ) : (
-                        <span className="text-sm text-muted-foreground">Freshly prepared</span>
+                        <span className="text-[11px] text-muted-foreground sm:text-sm">Freshly prepared</span>
                       )}
-                      <Button onClick={() => addItem(item)}>{cartItem ? "Add more" : "Add"}</Button>
+                      <Button size="sm" onClick={() => addItem(item)}>{cartItem ? "Add" : "Add"}</Button>
                     </div>
                   </CardContent>
                 </Card>

@@ -9,7 +9,7 @@ export function AdminNav() {
           <Link href="/">Website</Link>
           <Link href="/admin">Overview</Link>
           <Link href="/admin/restaurants">Restaurants</Link>
-          <Link href="/admin/requests">Requests</Link>
+          <Link href="/admin/onboarding-requests">Onboarding</Link>
           <Link href="/admin/billing">Billing</Link>
           <Link href="/admin/restaurants/new">New Restaurant</Link>
           <Link href="/admin/logout">Logout</Link>

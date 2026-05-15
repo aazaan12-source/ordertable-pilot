@@ -5,8 +5,8 @@ export function tableQrUrl(slug: string, tableNumber: number) {
 }
 
 export function absoluteTableQrUrl(slug: string, tableNumber: number) {
-  const baseUrl = process.env.APP_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
-  return `${baseUrl}${tableQrUrl(slug, tableNumber)}`;
+  const baseUrl = process.env.APP_URL || process.env.NEXTAUTH_URL || "";
+  return baseUrl ? `${baseUrl}${tableQrUrl(slug, tableNumber)}` : tableQrUrl(slug, tableNumber);
 }
 
 export async function qrDataUrl(value: string) {

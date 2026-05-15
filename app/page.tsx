@@ -62,8 +62,18 @@ export default function PublicHomePage() {
               A practical QR ordering platform with live manager dashboard, waiter call alerts, kitchen slips, customer bills, super-admin onboarding, and 20-table pilot support.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
-              <Link href="/r/demo-restaurant-islamabad/t/1"><Button size="lg" className="bg-white text-black hover:bg-white/90">Try Customer Demo <ArrowRight className="h-5 w-5" /></Button></Link>
-              <Link href="/dashboard/orders"><Button size="lg" variant="outline" className="border-white/40 bg-white/10 text-white hover:bg-white hover:text-black">Open Dashboard</Button></Link>
+              <div>
+                <Link href="/request-restaurant"><Button size="lg" className="bg-white text-black hover:bg-white/90">Request Restaurant Setup</Button></Link>
+                <p className="mt-1 text-xs text-white/75">Send your details for super-admin onboarding.</p>
+              </div>
+              <div>
+                <Link href="/demo/customer"><Button size="lg" variant="outline" className="border-white/40 bg-white/10 text-white hover:bg-white hover:text-black">View Customer Demo <ArrowRight className="h-5 w-5" /></Button></Link>
+                <p className="mt-1 text-xs text-white/75">Read-only training view. No real order is placed.</p>
+              </div>
+              <div>
+                <Link href="/demo/dashboard"><Button size="lg" variant="outline" className="border-white/40 bg-white/10 text-white hover:bg-white hover:text-black">View Manager Demo</Button></Link>
+                <p className="mt-1 text-xs text-white/75">Read-only dashboard preview. No restaurant data is edited.</p>
+              </div>
             </div>
           </div>
 
@@ -141,7 +151,7 @@ export default function PublicHomePage() {
               <p className="mt-1 text-sm text-muted-foreground">Use table 1 from your browser or scan table QR codes from the manager dashboard.</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Link href="/r/demo-restaurant-islamabad/t/1"><Button>Customer Table 1</Button></Link>
+              <Link href="/demo/customer"><Button>Read-Only Customer Demo</Button></Link>
               <Link href="/login?demo=manager"><Button variant="outline">Manager Login</Button></Link>
             </div>
           </CardContent>

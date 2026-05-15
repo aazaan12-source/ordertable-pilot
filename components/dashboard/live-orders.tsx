@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BellRing, Printer, Receipt, RefreshCw } from "lucide-react";
+import { BellRing, Edit3, Eye, PlusCircle, Printer, Receipt, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/dashboard/status-badge";
+import { FinancialAmount } from "@/components/dashboard/financial-amount";
 import { formatCurrency, formatPkTime } from "@/lib/utils";
 
 const statuses = ["PENDING", "ACCEPTED", "PREPARING", "READY", "SERVED", "BILL_REQUESTED", "PAID", "CANCELLED"];
@@ -31,12 +32,14 @@ type Order = {
   id: string;
   orderNumber: string;
   status: string;
+  source: string;
   subtotal: string;
   serviceCharges: string;
   tax: string;
   discount: string;
   total: string;
   paymentStatus: string;
+  paymentMethod?: string | null;
   specialNote: string | null;
   createdAt: string;
   table: { tableNumber: number };
@@ -144,7 +147,7 @@ export function LiveOrders({ initialOrders }: { initialOrders: Order[]; restaura
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <CardTitle>{order.orderNumber} - Table {order.table.tableNumber}</CardTitle>
-                    <p className="text-sm text-muted-foreground">{formatPkTime(order.createdAt)}</p>
+                    <p className="text-sm text-muted-foreground">{formatPkTime(order.createdAt)} · {sourceLabel(order.source)}</p>
                     {hasBillRequest ? <p className="mt-1 text-sm font-semibold text-primary">Bill requested</p> : null}
                   </div>
                   <StatusBadge status={order.status} />
@@ -156,7 +159,7 @@ export function LiveOrders({ initialOrders }: { initialOrders: Order[]; restaura
                     <div key={item.id} className="rounded-md bg-muted p-3">
                       <div className="flex justify-between gap-3 font-medium">
                         <span>{item.quantity} x {item.itemName}</span>
-                        <span>{formatCurrency(item.totalPrice)}</span>
+                        <FinancialAmount value={item.totalPrice} fallback={formatCurrency(item.totalPrice)} />
                       </div>
                       <p className="text-sm text-muted-foreground">{formatCurrency(item.unitPrice)} x {item.quantity}</p>
                       {item.specialInstruction ? <p className="mt-1 text-sm text-muted-foreground">Note: {item.specialInstruction}</p> : null}
@@ -172,9 +175,27 @@ export function LiveOrders({ initialOrders }: { initialOrders: Order[]; restaura
                   <div className="border-t pt-2">
                     <BillRow label="Total" value={order.total} strong />
                   </div>
-                  <p className="pt-1 text-muted-foreground">Payment: {order.paymentStatus}</p>
+                  <p className="pt-1 text-muted-foreground">Payment: {order.paymentStatus}{order.paymentMethod ? ` · ${order.paymentMethod}` : ""}</p>
                 </div>
                 <div className="mt-4 flex flex-wrap gap-2">
+                  <Link href={`/dashboard/orders/${order.id}`}>
+                    <Button variant="outline">
+                      <Eye className="h-4 w-4" />
+                      View
+                    </Button>
+                  </Link>
+                  <Link href={`/dashboard/orders/${order.id}/edit`}>
+                    <Button variant="outline">
+                      <Edit3 className="h-4 w-4" />
+                      Edit
+                    </Button>
+                  </Link>
+                  <Link href={`/dashboard/orders/${order.id}/edit#add-items`}>
+                    <Button variant="outline">
+                      <PlusCircle className="h-4 w-4" />
+                      Add Items
+                    </Button>
+                  </Link>
                   <Link href={`/dashboard/orders/${order.id}/print/kitchen`} target="_blank">
                     <Button variant="outline">
                       <Printer className="h-4 w-4" />
@@ -212,9 +233,15 @@ function BillRow({ label, value, strong }: { label: string; value: string; stron
   return (
     <div className={strong ? "flex justify-between gap-3 text-lg font-bold" : "flex justify-between gap-3"}>
       <span>{label}</span>
-      <span>{formatCurrency(value)}</span>
+      <FinancialAmount value={value} fallback={formatCurrency(value)} />
     </div>
   );
+}
+
+function sourceLabel(source: string) {
+  if (source === "MANUAL_DASHBOARD") return "Manual";
+  if (source === "WAITER_ENTRY") return "Waiter Entry";
+  return "Online QR";
 }
 
 function playNotification() {

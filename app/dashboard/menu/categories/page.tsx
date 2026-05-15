@@ -36,9 +36,11 @@ async function deleteCategory(formData: FormData) {
   const id = String(formData.get("id"));
   const category = await db.category.findFirst({ where: { id, restaurantId: restaurant.id } });
   if (!category) return;
-  await db.category.updateMany({ where: { id, restaurantId: restaurant.id }, data: { isActive: false } });
-  await db.menuItem.updateMany({ where: { categoryId: id, restaurantId: restaurant.id }, data: { isActive: false, isAvailable: false } });
-  await db.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "CATEGORY_DELETED", description: `${category.name} archived with its menu items` } });
+  await db.$transaction(async (tx) => {
+    await tx.menuItem.deleteMany({ where: { categoryId: id, restaurantId: restaurant.id } });
+    await tx.category.deleteMany({ where: { id, restaurantId: restaurant.id } });
+    await tx.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "CATEGORY_DELETED", description: `${category.name} permanently deleted with its menu items` } });
+  });
   revalidatePath("/dashboard/menu/categories");
   revalidatePath("/dashboard/menu/items");
 }
@@ -53,7 +55,7 @@ export default async function CategoriesPage() {
   return (
     <main className="p-4 lg:p-6">
       <h1 className="text-2xl font-bold">Menu Categories</h1>
-      <p className="mt-1 text-sm text-muted-foreground">Keep categories short and clear. Deleted categories are archived so old order history stays safe.</p>
+      <p className="mt-1 text-sm text-muted-foreground">Keep categories short and clear. Delete removes the category and its menu items from the current menu.</p>
 
       <div className="mt-5 grid gap-5 lg:grid-cols-[360px_1fr]">
         <Card>
@@ -82,7 +84,7 @@ export default async function CategoriesPage() {
                   <span>{category._count.menuItems} menu items</span>
                   <form action={deleteCategory}>
                     <input type="hidden" name="id" value={category.id} />
-                    <Button variant="destructive" size="sm">Delete / Archive</Button>
+                    <Button variant="destructive" size="sm">Delete</Button>
                   </form>
                 </div>
               </CardContent>

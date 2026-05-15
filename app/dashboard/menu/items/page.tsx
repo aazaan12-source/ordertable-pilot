@@ -62,8 +62,10 @@ async function deleteMenuItem(formData: FormData) {
   const id = String(formData.get("id"));
   const item = await db.menuItem.findFirst({ where: { id, restaurantId: restaurant.id } });
   if (!item) return;
-  await db.menuItem.updateMany({ where: { id, restaurantId: restaurant.id }, data: { isActive: false, isAvailable: false } });
-  await db.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "MENU_ITEM_DELETED", description: `${item.name} archived` } });
+  await db.$transaction(async (tx) => {
+    await tx.menuItem.deleteMany({ where: { id, restaurantId: restaurant.id } });
+    await tx.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "MENU_ITEM_DELETED", description: `${item.name} permanently deleted` } });
+  });
   revalidatePath("/dashboard/menu/items");
 }
 
@@ -131,7 +133,7 @@ export default async function MenuItemsPage() {
                     <p>{item.category.name} · {formatCurrency(item.price.toString())}</p>
                     <form action={deleteMenuItem}>
                       <input type="hidden" name="id" value={item.id} />
-                      <Button variant="destructive" size="sm">Delete / Archive</Button>
+                      <Button variant="destructive" size="sm">Delete</Button>
                     </form>
                   </div>
                 </div>

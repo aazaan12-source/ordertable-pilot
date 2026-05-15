@@ -136,3 +136,165 @@ npm run prisma:seed
 ```
 
 5. Deploy the Next.js app.
+
+## Multi-Restaurant SaaS Admin
+
+Super admin can manage many restaurants from `/admin/restaurants`. Each restaurant has its own slug, manager login, tables, QR URLs, menu categories, menu items, orders, reports, and billing records.
+
+### Add A Restaurant
+
+1. Login as super admin at `/super-admin-login`.
+2. Open `/admin/restaurants`.
+3. Click `Add New Restaurant`.
+4. Complete restaurant details, table count, manager login, and menu setup.
+5. Choose empty menu or sample menu.
+6. Click `Create Restaurant`.
+7. Open the restaurant detail page, then open QR Codes to print/download table QR codes.
+
+The create flow generates table records automatically. A restaurant with slug `cafe-aroma-islamabad` and 15 tables gets QR paths:
+
+```txt
+/r/cafe-aroma-islamabad/t/1
+/r/cafe-aroma-islamabad/t/15
+```
+
+If `APP_URL` or `NEXTAUTH_URL` is configured, QR display uses the full live URL. Otherwise it stores relative paths so the platform is not tied to localhost.
+
+### Edit Table Count
+
+Open `/admin/restaurants/{restaurantId}/tables`.
+
+- Increasing count creates missing tables.
+- Reducing count marks extra tables as `INACTIVE`.
+- Past order history is not deleted.
+- Inactive table QR scans show a friendly inactive-table message.
+
+### Manage Restaurant Menu
+
+Super admin menu pages:
+
+```txt
+/admin/restaurants/{restaurantId}/menu/categories
+/admin/restaurants/{restaurantId}/menu/items
+```
+
+All categories and menu items are scoped to the selected restaurant. The page header shows which restaurant and branch are being managed to prevent accidental edits to the wrong tenant.
+
+### Manager Login
+
+Open `/admin/restaurants/{restaurantId}/manager` to create, edit, activate/deactivate, or reset the restaurant manager login. Manager users are scoped by `restaurantId` and only see their own dashboard.
+
+### Onboarding Requests
+
+Public request page:
+
+```txt
+/request-restaurant
+```
+
+Super admin request management:
+
+```txt
+/admin/onboarding-requests
+```
+
+Super admin can mark requests as contacted/closed and convert a request into a restaurant by opening the pre-filled Add Restaurant form.
+
+### Tenant Isolation Notes
+
+- Super admin can access all restaurants.
+- Restaurant managers are restricted to their own `restaurantId`.
+- Customer QR pages find restaurants by slug and tables by restaurant/table number.
+- Inactive restaurants, disabled ordering, and inactive tables block customer ordering with friendly messages.
+- Menu, tables, orders, reports, and dashboard APIs are filtered by restaurant ownership.
+
+## Restaurant Manager Operations
+
+OrderTable can now be used as one order and billing platform for both QR orders and staff-entered orders.
+
+### Manual Orders
+
+Managers can create waiter/cashier orders from:
+
+```txt
+/dashboard/orders/new
+```
+
+The manual order form lets staff choose a table, select menu items, add quantities, write item instructions, add a custom item, add waiter/customer details, apply a discount, and send the order to the kitchen. Manual orders are saved in the same `Order` and `OrderItem` tables as online QR orders.
+
+Order sources:
+
+- `ONLINE_QR`
+- `MANUAL_DASHBOARD`
+- `WAITER_ENTRY`
+
+### Order Detail And Editing
+
+Order detail:
+
+```txt
+/dashboard/orders/{orderId}
+```
+
+Edit order/bill:
+
+```txt
+/dashboard/orders/{orderId}/edit
+```
+
+Managers can add mid-meal items, edit quantities, remove items by setting quantity to `0`, add custom items, edit notes, update discounts, update payment method/status, and recalculate totals. Paid order edits show a warning and are logged. Cancelled orders cannot be edited.
+
+### Printing
+
+Kitchen slip:
+
+```txt
+/dashboard/orders/{orderId}/print/kitchen
+```
+
+Added-items-only slip:
+
+```txt
+/dashboard/orders/{orderId}/print/kitchen?addedOnly=1
+```
+
+Customer bill:
+
+```txt
+/dashboard/orders/{orderId}/print/bill
+```
+
+Kitchen slips and bills include order source and waiter name when available. Print pages are thermal-printer friendly and use browser print.
+
+### Payments
+
+Managers can mark orders paid from the order card/detail page and select payment method:
+
+- Cash
+- Card
+- JazzCash
+- EasyPaisa
+- Bank Transfer
+- Other
+
+Payment writes `paymentStatus`, `paymentMethod`, `paidAt`, `amountPaid`, and `balanceDue`.
+
+### Hide / Show Financials
+
+The manager dashboard sidebar includes `Hide Financials` / `Show Financials`. This stores a local browser preference and masks dashboard/report values as `Rs. *****`. Printed customer bills still show the real bill.
+
+### Monthly Financial Statement
+
+Reports page:
+
+```txt
+/dashboard/reports
+```
+
+Printable monthly statement:
+
+```txt
+/dashboard/reports/monthly/print?month=YYYY-MM
+```
+
+Use browser Print and choose Save as PDF. The report includes paid/unpaid/cancelled counts, gross sales, discounts, service charges, tax, net paid sales, sales by payment method, sales by source, top items, daily sales, and table-wise sales.

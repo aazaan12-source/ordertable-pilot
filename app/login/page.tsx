@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 
 export default function LoginPage() {
   return (
@@ -63,7 +64,7 @@ function LoginForm() {
         <CardContent>
           <form onSubmit={onSubmit} className="space-y-4">
             <Input type="email" placeholder="Email" value={email} onChange={(e) => setEmail(e.target.value)} required />
-            <Input type="password" placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
+            <PasswordInput placeholder="Password" value={password} onChange={(e) => setPassword(e.target.value)} required />
             {error ? <p className="text-sm text-destructive">{error}</p> : null}
             <Button className="w-full" size="lg" disabled={loading}>
               {loading ? "Signing in..." : "Sign in"}

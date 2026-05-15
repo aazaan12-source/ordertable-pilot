@@ -22,6 +22,7 @@ export const authOptions: NextAuthOptions = {
         if (user.role !== "RESTAURANT_MANAGER") return null;
         const valid = await bcrypt.compare(credentials.password, user.passwordHash);
         if (!valid) return null;
+        await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch(() => undefined);
         return {
           id: user.id,
           name: user.name,

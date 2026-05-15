@@ -34,7 +34,10 @@ export default async function AdminHome() {
           <h1 className="text-2xl font-bold">Super Admin Control Center</h1>
           <p className="text-sm text-muted-foreground">Manage restaurant accounts, onboarding requests, account recovery, billing, and platform revenue.</p>
         </div>
-        <Link href="/admin/restaurants/new"><Button>Create Restaurant</Button></Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/admin/restaurants"><Button variant="outline">Manage Restaurants</Button></Link>
+          <Link href="/admin/restaurants/new"><Button>Create Restaurant</Button></Link>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-4">
@@ -83,7 +86,7 @@ export default async function AdminHome() {
                 <p>{lead.city} · {lead.expectedTables} tables · {lead.status}</p>
               </div>
             ))}
-            <Link href="/admin/requests"><Button className="w-full">View Requests</Button></Link>
+            <Link href="/admin/onboarding-requests"><Button className="w-full">View Onboarding Requests</Button></Link>
           </CardContent>
         </Card>
       </div>

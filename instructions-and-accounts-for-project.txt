@@ -363,3 +363,123 @@ Pilot end date:
 Important:
 This file should be committed to GitHub only if it does not contain real secrets.
 If private passwords or real database URLs are added inside it later, do not commit it.
+
+============================================================
+14. Multi-Restaurant Admin Guide
+============================================================
+
+- Super admin can add many restaurants from /admin/restaurants.
+- Each restaurant has its own slug.
+- Each restaurant has its own manager login.
+- Each restaurant has its own tables.
+- Each table gets its own QR code.
+- QR URL pattern:
+  https://[LIVE_URL]/r/[restaurant-slug]/t/[table-number]
+
+Main super admin routes:
+
+/admin/restaurants
+/admin/restaurants/new
+/admin/restaurants/[restaurantId]
+/admin/restaurants/[restaurantId]/edit
+/admin/restaurants/[restaurantId]/tables
+/admin/restaurants/[restaurantId]/qr-codes
+/admin/restaurants/[restaurantId]/menu/categories
+/admin/restaurants/[restaurantId]/menu/items
+/admin/restaurants/[restaurantId]/manager
+/admin/onboarding-requests
+
+============================================================
+15. Adding New Restaurant Checklist
+============================================================
+
+1. Login as super admin.
+2. Go to Admin > Restaurants.
+3. Click Add New Restaurant.
+4. Enter restaurant details.
+5. Enter table count.
+6. Create manager login.
+7. Choose empty or sample menu.
+8. Review and create.
+9. Open QR Codes page.
+10. Print/download QR codes.
+11. Test customer QR URL.
+12. Login as restaurant manager and test dashboard.
+
+============================================================
+16. Changing Table Count Checklist
+============================================================
+
+1. Open restaurant detail.
+2. Go to Manage Tables.
+3. Enter new table count.
+4. Confirm changes.
+5. New tables are added if count increased.
+6. Extra tables are deactivated if count decreased.
+7. Past order history is not deleted.
+8. Regenerate or print new QR codes if needed.
+
+Important:
+Do not write real passwords, Supabase secrets, GitHub tokens, or production database URLs in this file.
+
+============================================================
+17. Restaurant Manager Operations Guide
+============================================================
+
+Creating manual order:
+1. Login as restaurant manager.
+2. Open /dashboard/orders.
+3. Click Create Manual Order.
+4. Select table number.
+5. Add menu item quantities and item instructions.
+6. Add custom item if needed.
+7. Add waiter/customer details if needed.
+8. Click Send to Kitchen.
+
+Sending order to kitchen:
+1. Open order detail page after creation.
+2. Click Print Kitchen Slip.
+3. Use browser print dialog for thermal printer.
+
+Printing kitchen slip:
+- Full slip:
+  /dashboard/orders/[orderId]/print/kitchen
+- Added items only:
+  /dashboard/orders/[orderId]/print/kitchen?addedOnly=1
+
+Editing bill/order:
+1. Open /dashboard/orders/[orderId].
+2. Click Edit Order/Bill.
+3. Change quantities, notes, discount, tax/service settings, or payment method.
+4. Set quantity to 0 to remove an item.
+5. Save changes.
+
+Adding items during meal:
+1. Open order detail.
+2. Click Edit Order/Bill or Add Items.
+3. Add quantities under Add items during meal.
+4. Save.
+5. Print Added Items Slip if kitchen only needs new items.
+
+Printing final customer bill:
+1. Open order detail.
+2. Click Print Customer Bill.
+3. Print or save as PDF from browser.
+
+Marking payment:
+1. Open order detail.
+2. Select payment method.
+3. Click Mark Paid.
+
+Hiding/showing financial records:
+1. Use Hide Financials / Show Financials in dashboard sidebar.
+2. Hidden values display as Rs. *****.
+3. This is only local browser display privacy.
+
+Creating monthly financial statement:
+1. Open /dashboard/reports.
+2. Select month and filters.
+3. Click Print / Save Monthly PDF.
+4. In browser print dialog, choose Save as PDF.
+
+Do not store secrets in this file.

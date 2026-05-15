@@ -34,6 +34,7 @@ enum TableStatus {
   SERVED
   BILL_REQUESTED
   PAID
+  INACTIVE
 }
 
 enum OrderStatus {
@@ -50,6 +51,8 @@ enum OrderStatus {
 enum PaymentStatus {
   UNPAID
   PAID
+  PARTIAL
+  REFUNDED
 }
 
 enum PaymentMethod {
@@ -57,7 +60,14 @@ enum PaymentMethod {
   CARD
   JAZZCASH
   EASYPAISA
+  BANK_TRANSFER
   OTHER
+}
+
+enum OrderSource {
+  ONLINE_QR
+  MANUAL_DASHBOARD
+  WAITER_ENTRY
 }
 
 enum WaiterRequestType {
@@ -95,7 +105,9 @@ model User {
   role         UserRole
   restaurantId String?
   restaurant   Restaurant? @relation(fields: [restaurantId], references: [id])
+  phone        String?
   isActive     Boolean     @default(true)
+  lastLoginAt  DateTime?
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   activityLogs ActivityLog[]
@@ -186,15 +198,22 @@ model Order {
   table             RestaurantTable @relation(fields: [tableId], references: [id])
   orderNumber       String
   customerSessionId String?
+  source            OrderSource   @default(ONLINE_QR)
   status            OrderStatus   @default(PENDING)
   subtotal          Decimal       @db.Decimal(10, 2)
   serviceCharges    Decimal       @db.Decimal(10, 2)
   tax               Decimal       @db.Decimal(10, 2)
   discount          Decimal       @default(0) @db.Decimal(10, 2)
   total             Decimal       @db.Decimal(10, 2)
+  amountPaid        Decimal?      @db.Decimal(10, 2)
+  balanceDue        Decimal?      @db.Decimal(10, 2)
   specialNote       String?
+  customerName      String?
+  customerPhone     String?
+  waiterName        String?
   paymentStatus     PaymentStatus @default(UNPAID)
   paymentMethod     PaymentMethod?
+  paidAt            DateTime?
   cancelledAt       DateTime?
   cancellationReason String?
   printedKitchenAt  DateTime?
@@ -220,7 +239,9 @@ model OrderItem {
   unitPrice           Decimal   @db.Decimal(10, 2)
   totalPrice          Decimal   @db.Decimal(10, 2)
   specialInstruction  String?
+  addedAfterInitialOrder Boolean @default(false)
   createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 }
 
 model WaiterRequest {
@@ -307,6 +328,7 @@ model ActivityLog {
   restaurant   Restaurant? @relation(fields: [restaurantId], references: [id])
   userId       String?
   user         User?       @relation(fields: [userId], references: [id])
+  orderId      String?
   action       String
   description  String
   createdAt    DateTime    @default(now())

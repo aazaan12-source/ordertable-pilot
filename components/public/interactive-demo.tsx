@@ -9,24 +9,28 @@ const steps = [
     key: "scan",
     title: "Customer scans QR",
     body: "Every table gets its own QR code. Guests open the menu without downloading an app.",
+    hint: "Read-only example of the guest opening a table menu.",
     icon: QrCode
   },
   {
     key: "order",
     title: "Order goes live",
     body: "The manager dashboard receives the order automatically with table number, notes, and bill total.",
+    hint: "Shows the dashboard flow without changing real orders.",
     icon: ClipboardList
   },
   {
     key: "kitchen",
     title: "Kitchen slip prints",
     body: "Kitchen gets a compact roll-printer slip focused only on food prep and instructions.",
+    hint: "Explains printing; public visitors cannot print slips.",
     icon: ChefHat
   },
   {
     key: "bill",
     title: "Bill and waiter alerts",
     body: "Customers can call waiter or ask for bill. The dashboard announces the table with bell and voice.",
+    hint: "Training preview of alerts and bill requests.",
     icon: Bell
   }
 ];
@@ -64,6 +68,9 @@ export function InteractiveDemo() {
             >
               <StepIcon className="mb-2 h-5 w-5" />
               <span className="text-sm font-bold">{step.title}</span>
+              <span className={`mt-1 block text-[11px] leading-snug ${active === index ? "text-primary-foreground/80" : "text-muted-foreground"}`}>
+                {step.hint}
+              </span>
             </button>
           );
         })}
@@ -74,6 +81,7 @@ export function InteractiveDemo() {
           <p className="text-sm text-muted-foreground">Selected step</p>
           <h3 className="mt-1 text-2xl font-black">{current.title}</h3>
           <p className="mt-2 text-sm text-muted-foreground">{current.body}</p>
+          <p className="mt-2 text-xs text-muted-foreground">Training note: this public demo only explains the operation. It does not edit menu data, create orders, or update restaurant records.</p>
           <div className="mt-4 flex gap-2">
             <Button type="button" variant="outline" onClick={() => setActive((value) => Math.max(0, value - 1))} disabled={active === 0}>
               Previous

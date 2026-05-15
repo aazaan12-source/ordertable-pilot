@@ -1,4 +1,4 @@
-import { OrderStatus, PaymentStatus, TableStatus, type Prisma } from "@prisma/client";
+import { OrderSource, OrderStatus, PaymentStatus, TableStatus, type Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 
 export async function nextOrderNumber(restaurantId: string) {
@@ -26,6 +26,12 @@ export const orderStatusLabels: Record<OrderStatus, string> = {
   BILL_REQUESTED: "Bill Requested",
   PAID: "Paid",
   CANCELLED: "Cancelled"
+};
+
+export const orderSourceLabels: Record<OrderSource, string> = {
+  ONLINE_QR: "Online QR",
+  MANUAL_DASHBOARD: "Manual",
+  WAITER_ENTRY: "Waiter Entry"
 };
 
 export const tableStatusByOrder: Partial<Record<OrderStatus, TableStatus>> = {
@@ -79,6 +85,8 @@ export function serializeOrder(order: Prisma.OrderGetPayload<{
     orderNumber: order.orderNumber,
     status: order.status,
     statusLabel: orderStatusLabels[order.status],
+    source: order.source,
+    sourceLabel: orderSourceLabels[order.source],
     paymentStatus: order.paymentStatus,
     paymentMethod: order.paymentMethod,
     specialNote: order.specialNote,
@@ -92,6 +100,12 @@ export function serializeOrder(order: Prisma.OrderGetPayload<{
     cancellationReason: order.cancellationReason,
     printedKitchenAt: order.printedKitchenAt?.toISOString() || null,
     printedBillAt: order.printedBillAt?.toISOString() || null,
+    paidAt: order.paidAt?.toISOString() || null,
+    customerName: order.customerName,
+    customerPhone: order.customerPhone,
+    waiterName: order.waiterName,
+    amountPaid: order.amountPaid?.toString() || null,
+    balanceDue: order.balanceDue?.toString() || null,
     cancelInfo: {
       canCancel: cancelInfo.canCancel,
       expiresAt: cancelInfo.expiresAt.toISOString(),

@@ -34,6 +34,9 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
           status: nextStatus,
           paymentStatus: paymentStatusForOrderStatus(nextStatus, order.paymentStatus),
           paymentMethod: nextStatus === "PAID" ? parsed.data.paymentMethod || "CASH" : order.paymentMethod,
+          paidAt: nextStatus === "PAID" ? new Date() : order.paidAt,
+          amountPaid: nextStatus === "PAID" ? order.total : order.amountPaid,
+          balanceDue: nextStatus === "PAID" ? 0 : order.balanceDue,
           cancelledAt: nextStatus === "CANCELLED" ? new Date() : order.cancelledAt,
           cancellationReason: nextStatus === "CANCELLED" ? "Cancelled by restaurant manager" : order.cancellationReason
         }

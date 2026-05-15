@@ -1,6 +1,8 @@
 import { db } from "@/lib/db";
 import { getManagerRestaurant } from "@/lib/permissions";
 import { LiveOrders } from "@/components/dashboard/live-orders";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
 
 export const dynamic = "force-dynamic";
 
@@ -15,8 +17,13 @@ export default async function OrdersPage() {
 
   return (
     <main className="p-4 lg:p-6">
-      <h1 className="text-2xl font-bold">Live Orders</h1>
-      <p className="mb-5 text-sm text-muted-foreground">Auto-refreshes every 5 seconds.</p>
+      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-bold">Live Orders</h1>
+          <p className="text-sm text-muted-foreground">Auto-refreshes every 5 seconds. Handles online QR and manual orders.</p>
+        </div>
+        <Link href="/dashboard/orders/new"><Button>Create Manual Order</Button></Link>
+      </div>
       <LiveOrders initialOrders={JSON.parse(JSON.stringify(orders))} restaurantName={restaurant.name} />
     </main>
   );

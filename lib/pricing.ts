@@ -18,3 +18,23 @@ export function calculateTotals(
   const total = Math.max(0, subtotal + serviceCharges + tax - discount);
   return { subtotal, serviceCharges, tax, discount, total };
 }
+
+export function calculateTotalsFromOrderItems(
+  items: { quantity: number; unitPrice: number }[],
+  serviceChargePercent: Prisma.Decimal | number | string,
+  taxPercent: Prisma.Decimal | number | string,
+  discountInput: Prisma.Decimal | number | string = 0
+) {
+  return calculateTotals(
+    items.map((item) => item.quantity * item.unitPrice),
+    serviceChargePercent,
+    taxPercent,
+    discountInput
+  );
+}
+
+export function formatMoney(value: Prisma.Decimal | number | string, hideFinancials = false) {
+  if (hideFinancials) return "Rs. *****";
+  const amount = toNumber(value);
+  return `Rs. ${Math.round(amount).toLocaleString("en-PK")}`;
+}

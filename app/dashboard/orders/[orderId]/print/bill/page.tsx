@@ -4,6 +4,7 @@ import { getManagerRestaurant } from "@/lib/permissions";
 import { AutoPrint } from "@/components/dashboard/auto-print";
 import { PrintControls } from "@/components/dashboard/print-controls";
 import { formatCurrency, formatPkDateTime } from "@/lib/utils";
+import { orderSourceLabels } from "@/lib/order-utils";
 
 export const dynamic = "force-dynamic";
 
@@ -28,8 +29,10 @@ export default async function CustomerBillPage({ params }: { params: Promise<{ o
         <p className="mt-2 text-center text-sm font-bold">CUSTOMER BILL</p>
         <div className="my-2 border-t border-dashed border-black" />
         <Meta label="Order" value={order.orderNumber} />
+        <Meta label="Source" value={orderSourceLabels[order.source]} />
         <Meta label="Table" value={String(order.table.tableNumber)} />
         <Meta label="Date" value={formatPkDateTime(order.createdAt)} />
+        {order.waiterName ? <Meta label="Waiter" value={order.waiterName} /> : null}
         <div className="my-2 border-t border-dashed border-black" />
         <div className="space-y-3">
           {order.items.map((item) => (
@@ -53,6 +56,7 @@ export default async function CustomerBillPage({ params }: { params: Promise<{ o
           <span>{formatCurrency(order.total.toString())}</span>
         </div>
         <p className="mt-2 text-xs">Payment Status: {order.paymentStatus}</p>
+        <p className="text-xs">Payment Method: {order.paymentMethod || "Not selected"}</p>
         <p className="mt-4 text-center text-xs">Thank you for dining with us.</p>
       </section>
     </main>

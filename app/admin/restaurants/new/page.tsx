@@ -1,101 +1,22 @@
-import bcrypt from "bcryptjs";
-import { redirect } from "next/navigation";
 import { SubscriptionStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/permissions";
-import { tableQrUrl } from "@/lib/qr";
+import { createRestaurantWithTablesAndManager } from "@/lib/admin-restaurant-actions";
+import { slugifyRestaurant } from "@/lib/admin-restaurant-utils";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PasswordInput } from "@/components/ui/password-input";
 
 export const dynamic = "force-dynamic";
 
-const templates: Record<string, { label: string; tables: number; plan: SubscriptionStatus; monthlyPrice: number; service: number; tax: number }> = {
-  pilot: { label: "Pilot Restaurant", tables: 20, plan: "PILOT", monthlyPrice: 0, service: 0, tax: 0 },
-  cafe: { label: "Small Cafe", tables: 10, plan: "STARTER", monthlyPrice: 5000, service: 0, tax: 0 },
-  dining: { label: "Full Restaurant", tables: 30, plan: "GROWTH", monthlyPrice: 15000, service: 0, tax: 0 },
-  premium: { label: "Premium Multi-Section", tables: 50, plan: "PRO", monthlyPrice: 30000, service: 0, tax: 0 }
+const templates: Record<string, { label: string; tables: number; plan: SubscriptionStatus; price: number }> = {
+  pilot: { label: "Pilot Restaurant", tables: 20, plan: "PILOT", price: 0 },
+  cafe: { label: "Small Cafe", tables: 10, plan: "STARTER", price: 5000 },
+  dining: { label: "Full Restaurant", tables: 30, plan: "GROWTH", price: 15000 },
+  premium: { label: "Premium Multi-Section", tables: 50, plan: "PRO", price: 30000 }
 };
-
-async function createRestaurant(formData: FormData) {
-  "use server";
-  const user = await requirePlatformAdmin();
-  const slug = String(formData.get("slug") || "").trim().toLowerCase();
-  const tableCount = Math.max(1, Number(formData.get("tableCount") || 0));
-  const managerEmail = String(formData.get("managerEmail") || "").trim().toLowerCase();
-  const managerPassword = String(formData.get("managerPassword") || "Manager12345");
-  const subscriptionStatus = String(formData.get("subscriptionStatus") || "PILOT") as SubscriptionStatus;
-  const monthlyPrice = Number(formData.get("monthlyPrice") || 0);
-  const leadId = String(formData.get("leadId") || "");
-
-  const restaurant = await db.$transaction(async (tx) => {
-    const created = await tx.restaurant.create({
-      data: {
-        name: String(formData.get("name") || ""),
-        slug,
-        branchName: String(formData.get("branchName") || ""),
-        city: String(formData.get("city") || ""),
-        address: String(formData.get("address") || ""),
-        phone: String(formData.get("phone") || ""),
-        status: formData.get("status") === "INACTIVE" ? "INACTIVE" : "ACTIVE",
-        subscriptionStatus,
-        orderingEnabled: true,
-        pilotStartDate: new Date(),
-        serviceChargePercent: Number(formData.get("serviceChargePercent") || 0),
-        taxPercent: Number(formData.get("taxPercent") || 0),
-        customerCancelWindowMinutes: Number(formData.get("customerCancelWindowMinutes") || 3)
-      }
-    });
-
-    for (let tableNumber = 1; tableNumber <= tableCount; tableNumber++) {
-      await tx.restaurantTable.create({ data: { restaurantId: created.id, tableNumber, qrUrl: tableQrUrl(slug, tableNumber) } });
-    }
-
-    if (managerEmail) {
-      await tx.user.create({
-        data: {
-          name: String(formData.get("managerName") || "Restaurant Manager"),
-          email: managerEmail,
-          passwordHash: await bcrypt.hash(managerPassword, 12),
-          role: "RESTAURANT_MANAGER",
-          restaurantId: created.id
-        }
-      });
-    }
-
-    await tx.subscription.create({
-      data: {
-        restaurantId: created.id,
-        planName: subscriptionStatus,
-        monthlyPrice,
-        status: "ACTIVE",
-        startDate: new Date()
-      }
-    });
-
-    if (monthlyPrice > 0) {
-      await tx.billingInvoice.create({
-        data: {
-          restaurantId: created.id,
-          billingMonth: new Date().toISOString().slice(0, 7),
-          planName: subscriptionStatus,
-          amount: monthlyPrice,
-          status: "DUE"
-        }
-      });
-    }
-
-    if (leadId) {
-      await tx.platformLead.update({ where: { id: leadId }, data: { status: "CONVERTED", convertedRestaurantId: created.id } }).catch(() => undefined);
-    }
-
-    await tx.activityLog.create({ data: { userId: user.id, restaurantId: created.id, action: "RESTAURANT_CREATED", description: created.name } });
-    return created;
-  });
-
-  redirect(`/admin/restaurants/${restaurant.id}`);
-}
 
 export default async function NewRestaurantPage({
   searchParams
@@ -106,13 +27,15 @@ export default async function NewRestaurantPage({
   const { template = "pilot", lead: leadId } = await searchParams;
   const selected = templates[template] || templates.pilot;
   const lead = leadId ? await db.platformLead.findUnique({ where: { id: leadId } }) : null;
-  const slugSuggestion = (lead?.restaurantName || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+  const restaurantName = lead?.restaurantName || "";
+  const branch = "Main Branch";
+  const slugSuggestion = slugifyRestaurant(`${restaurantName}-${lead?.city || ""}`) || "";
 
   return (
-    <main className="mx-auto max-w-5xl p-4 lg:p-6">
+    <main className="mx-auto max-w-6xl p-4 lg:p-6">
       <div className="mb-5">
-        <h1 className="text-2xl font-bold">Create Restaurant Account</h1>
-        <p className="text-sm text-muted-foreground">Use a template, account request, or phone call details to create a manager account and table QR codes.</p>
+        <h1 className="text-2xl font-bold">Add New Restaurant</h1>
+        <p className="text-sm text-muted-foreground">Create restaurant details, table QR codes, manager login, and optional sample menu in one clean flow.</p>
       </div>
 
       <div className="mb-5 flex flex-wrap gap-2">
@@ -123,36 +46,101 @@ export default async function NewRestaurantPage({
         ))}
       </div>
 
-      <Card>
-        <CardHeader><CardTitle>{selected.label}</CardTitle></CardHeader>
-        <CardContent>
-          <form action={createRestaurant} className="grid gap-4 md:grid-cols-2">
-            <input type="hidden" name="leadId" value={lead?.id || ""} />
-            <Input name="name" placeholder="Restaurant name" defaultValue={lead?.restaurantName || ""} required />
+      <form action={createRestaurantWithTablesAndManager} className="space-y-5">
+        <input type="hidden" name="leadId" value={lead?.id || ""} />
+
+        <StepCard step="Step 1" title="Basic Restaurant Details" description="This information appears in admin, QR flows, receipts, and manager dashboards.">
+          <div className="grid gap-3 md:grid-cols-2">
+            <Input name="name" placeholder="Restaurant name" defaultValue={restaurantName} required />
             <Input name="slug" placeholder="restaurant-slug" defaultValue={slugSuggestion} required />
-            <Input name="branchName" placeholder="Branch" defaultValue="Main Branch" required />
+            <Input name="branchName" placeholder="Branch name" defaultValue={branch} required />
             <Input name="city" placeholder="City" defaultValue={lead?.city || ""} required />
-            <Input className="md:col-span-2" name="address" placeholder="Address" required />
-            <Input name="phone" placeholder="Phone" defaultValue={lead?.phone || ""} required />
-            <Input name="tableCount" type="number" placeholder="Tables" defaultValue={lead?.expectedTables || selected.tables} />
-            <select name="subscriptionStatus" defaultValue={selected.plan} className="h-10 rounded-md border bg-white px-3 text-sm">
-              <option value="PILOT">PILOT</option>
-              <option value="STARTER">STARTER</option>
-              <option value="GROWTH">GROWTH</option>
-              <option value="PRO">PRO</option>
+            <Input name="phone" placeholder="Phone" defaultValue={lead?.phone || ""} />
+            <Input name="logoUrl" placeholder="Logo URL optional" />
+            <Input className="md:col-span-2" name="address" placeholder="Location/address" defaultValue="" required />
+            <select name="status" defaultValue="ACTIVE" className="h-10 rounded-md border bg-white px-3 text-sm">
+              <option value="ACTIVE">Active</option>
+              <option value="INACTIVE">Inactive</option>
             </select>
-            <Input name="monthlyPrice" type="number" placeholder="Monthly platform fee" defaultValue={selected.monthlyPrice} />
-            <Input name="serviceChargePercent" type="number" placeholder="Service charge %" defaultValue={selected.service} />
-            <Input name="taxPercent" type="number" placeholder="Tax %" defaultValue={selected.tax} />
-            <Input name="customerCancelWindowMinutes" type="number" placeholder="Cancel window minutes" defaultValue={3} />
-            <Input name="managerName" placeholder="Manager name" defaultValue={lead?.contactName || "Restaurant Manager"} />
-            <Input name="managerEmail" type="email" placeholder="Manager email" defaultValue={lead?.email || ""} />
-            <Input name="managerPassword" placeholder="Manager password" defaultValue="Manager12345" />
-            <Textarea className="md:col-span-2" name="notes" placeholder="Internal onboarding notes" defaultValue={lead?.message || ""} />
-            <Button className="md:col-span-2">Create Restaurant Account</Button>
-          </form>
-        </CardContent>
-      </Card>
+            <select name="orderingEnabled" defaultValue="true" className="h-10 rounded-md border bg-white px-3 text-sm">
+              <option value="true">Ordering enabled</option>
+              <option value="false">Ordering disabled</option>
+            </select>
+            <select name="subscriptionStatus" defaultValue={selected.plan} className="h-10 rounded-md border bg-white px-3 text-sm">
+              <option value="PILOT">Pilot</option>
+              <option value="STARTER">Starter</option>
+              <option value="GROWTH">Growth</option>
+              <option value="PRO">Pro</option>
+              <option value="EXPIRED">Expired</option>
+            </select>
+            <Input name="monthlyPrice" type="number" defaultValue={selected.price} placeholder="Monthly platform fee" />
+            <Input name="pilotStartDate" type="date" />
+            <Input name="pilotEndDate" type="date" />
+            <Input name="serviceChargePercent" type="number" defaultValue={0} placeholder="Service charge %" />
+            <Input name="taxPercent" type="number" defaultValue={0} placeholder="Tax %" />
+            <Input name="customerCancelWindowMinutes" type="number" defaultValue={3} placeholder="Customer cancel window minutes" />
+          </div>
+        </StepCard>
+
+        <StepCard step="Step 2" title="Tables & QR Codes" description="The system automatically creates one table record and one QR URL for every table number.">
+          <div className="grid gap-3 md:grid-cols-3">
+            <Input name="tableCount" type="number" min={1} max={500} defaultValue={lead?.expectedTables || selected.tables} placeholder="Number of tables" required />
+            <Input name="startingTableNumber" type="number" min={1} defaultValue={1} placeholder="Starting table number" />
+            <Input name="tablePrefix" placeholder="Optional prefix for display only" />
+          </div>
+          <p className="mt-2 text-xs text-muted-foreground">Example: 10 tables from starting number 1 creates table QR links 1 to 10.</p>
+        </StepCard>
+
+        <StepCard step="Step 3" title="Restaurant Manager Login" description="The manager will only be able to access this restaurant's dashboard.">
+          <div className="grid gap-3 md:grid-cols-2">
+            <Input name="managerName" placeholder="Manager name" defaultValue={lead?.contactName || ""} required />
+            <Input name="managerEmail" type="email" placeholder="Manager email" defaultValue={lead?.email || ""} required />
+            <Input name="managerPhone" placeholder="Manager phone optional" defaultValue={lead?.phone || ""} />
+            <PasswordInput name="managerPassword" placeholder="Temporary password" defaultValue="Manager12345" required />
+            <select name="managerIsActive" defaultValue="true" className="h-10 rounded-md border bg-white px-3 text-sm">
+              <option value="true">Manager active</option>
+              <option value="false">Manager disabled</option>
+            </select>
+          </div>
+        </StepCard>
+
+        <StepCard step="Step 4" title="Initial Menu Setup" description="Start empty or create a sample menu that the restaurant can edit later.">
+          <div className="grid gap-3 md:grid-cols-2">
+            <label className="rounded-lg border p-4">
+              <input type="radio" name="menuSetup" value="empty" defaultChecked /> <strong>Empty menu</strong>
+              <p className="mt-1 text-sm text-muted-foreground">Create categories and items manually after restaurant setup.</p>
+            </label>
+            <label className="rounded-lg border p-4">
+              <input type="radio" name="menuSetup" value="sample" /> <strong>Sample menu</strong>
+              <p className="mt-1 text-sm text-muted-foreground">Create Burgers, Pizza, BBQ, Karahi, Drinks, and Desserts with sample items.</p>
+            </label>
+          </div>
+          <Textarea className="mt-3" name="notes" placeholder="Internal onboarding notes optional" defaultValue={lead?.message || ""} />
+        </StepCard>
+
+        <StepCard step="Step 5" title="Review and Create" description="After creation, open the restaurant detail page to print QR codes or manage menu.">
+          <div className="grid gap-2 text-sm text-muted-foreground md:grid-cols-2">
+            <p>Restaurant: <strong className="text-foreground">{restaurantName || "Entered above"}</strong></p>
+            <p>Branch: <strong className="text-foreground">{branch}</strong></p>
+            <p>Tables: <strong className="text-foreground">{lead?.expectedTables || selected.tables}</strong></p>
+            <p>Plan: <strong className="text-foreground">{selected.plan}</strong></p>
+          </div>
+          <Button className="mt-4 w-full" size="lg">Create Restaurant</Button>
+        </StepCard>
+      </form>
     </main>
+  );
+}
+
+function StepCard({ step, title, description, children }: { step: string; title: string; description: string; children: React.ReactNode }) {
+  return (
+    <Card>
+      <CardHeader>
+        <p className="text-xs font-bold uppercase tracking-wide text-primary">{step}</p>
+        <CardTitle>{title}</CardTitle>
+        <p className="text-sm text-muted-foreground">{description}</p>
+      </CardHeader>
+      <CardContent>{children}</CardContent>
+    </Card>
   );
 }

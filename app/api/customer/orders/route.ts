@@ -73,6 +73,7 @@ export async function POST(request: NextRequest) {
           restaurantId: restaurant.id,
           tableId: table.id,
           orderNumber,
+          source: "ONLINE_QR",
           status: "PENDING",
           subtotal: totals.subtotal,
           serviceCharges: totals.serviceCharges,
