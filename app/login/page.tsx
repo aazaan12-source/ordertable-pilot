@@ -1,7 +1,7 @@
 "use client";
 
 import { Suspense, useState } from "react";
-import { signIn } from "next-auth/react";
+import { getSession, signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -50,7 +50,13 @@ function LoginForm() {
       setError("Login failed. Check your email and password.");
       return;
     }
-    router.push(search.get("callbackUrl") || "/dashboard");
+    const session = await getSession();
+    const callbackUrl = search.get("callbackUrl");
+    if (session?.user?.role === "PLATFORM_ADMIN") {
+      router.push(callbackUrl?.startsWith("/admin") ? callbackUrl : "/admin");
+    } else {
+      router.push(callbackUrl || "/dashboard");
+    }
     router.refresh();
   }
 
@@ -59,7 +65,7 @@ function LoginForm() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>OrderTable Login</CardTitle>
-          <p className="text-sm text-muted-foreground">Sign in as restaurant manager. Super admin uses a separate login.</p>
+          <p className="text-sm text-muted-foreground">Sign in as restaurant manager or platform admin.</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit} className="space-y-4">
@@ -72,7 +78,7 @@ function LoginForm() {
           </form>
           <div className="mt-5 rounded-md bg-muted p-3 text-xs text-muted-foreground">
             <p>Manager: manager@demo.com / Manager12345</p>
-            <p>Super admin: /super-admin-login</p>
+            <p>Super admin: admin@ordertable.pk / Admin12345</p>
           </div>
         </CardContent>
       </Card>

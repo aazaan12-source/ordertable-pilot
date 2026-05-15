@@ -9,13 +9,16 @@ declare module "next-auth" {
       email?: string | null;
       role: UserRole;
       restaurantId?: string | null;
+      isActive?: boolean;
     };
   }
 }
 
 declare module "next-auth/jwt" {
   interface JWT {
+    id?: string;
     role: UserRole;
     restaurantId?: string | null;
+    isActive?: boolean;
   }
 }
