@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
-import { Pencil, RefreshCw, XCircle } from "lucide-react";
+import { Bell, Pencil, ReceiptText, RefreshCw, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/dashboard/status-badge";
@@ -51,13 +51,20 @@ export function OrderStatusPanel({ initialOrder }: { initialOrder: OrderSnapshot
   const [warning, setWarning] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [lastStatus, setLastStatus] = useState(initialOrder.status);
 
   async function loadOrder(silent = false) {
     try {
       const response = await fetch(`/api/customer/orders/${order.id}`, { cache: "no-store" });
       if (!response.ok) throw new Error("status failed");
       const payload = await response.json();
-      setOrder(payload.order);
+      const nextOrder = payload.order as OrderSnapshot;
+      if (nextOrder.status !== lastStatus) {
+        notifyStatus(nextOrder);
+        setLastStatus(nextOrder.status);
+      }
+      setOrder(nextOrder);
       setWarning("");
     } catch {
       if (!silent) setWarning("Connection issue. Retrying...");
@@ -68,6 +75,48 @@ export function OrderStatusPanel({ initialOrder }: { initialOrder: OrderSnapshot
     const timer = setInterval(() => loadOrder(true), 4000);
     return () => clearInterval(timer);
   }, [order.id]);
+
+  async function enableNotifications() {
+    playTone();
+    if ("Notification" in window) {
+      const permission = await Notification.requestPermission();
+      setNotificationsEnabled(permission === "granted");
+      setMessage(permission === "granted" ? "Notifications enabled for this order." : "Browser notifications were not allowed.");
+    } else {
+      setMessage("This browser does not support notifications.");
+    }
+  }
+
+  function notifyStatus(nextOrder: OrderSnapshot) {
+    playTone();
+    const title = `Order ${nextOrder.orderNumber}: ${nextOrder.statusLabel}`;
+    const body =
+      nextOrder.status === "READY"
+        ? "Your order is ready. Please wait for service."
+        : nextOrder.status === "SERVED"
+          ? "Your order has been served. You can request the bill from the order page."
+          : `Latest status: ${nextOrder.statusLabel}`;
+    if ("Notification" in window && Notification.permission === "granted") {
+      new Notification(title, { body });
+    }
+  }
+
+  function playTone() {
+    try {
+      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const context = new AudioContextClass();
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+      oscillator.frequency.value = 880;
+      gain.gain.value = 0.05;
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.22);
+    } catch {
+      // Browser may block audio until user interaction.
+    }
+  }
 
   async function cancelOrder() {
     if (!confirm("Cancel this order?")) return;
@@ -118,6 +167,11 @@ export function OrderStatusPanel({ initialOrder }: { initialOrder: OrderSnapshot
             <p className="mt-1 text-sm">Payment: <strong>{order.paymentStatus}</strong></p>
           </div>
 
+          <Button variant="outline" className="mt-4 w-full" onClick={enableNotifications}>
+            <Bell className="h-4 w-4" />
+            {notificationsEnabled ? "Notifications Enabled" : "Enable Order Notifications"}
+          </Button>
+
           <div className="mt-5 space-y-3">
             {order.items.map((item) => (
               <div key={item.id} className="rounded-md bg-muted p-3 text-sm">
@@ -166,6 +220,14 @@ export function OrderStatusPanel({ initialOrder }: { initialOrder: OrderSnapshot
             ) : null}
           </div>
           {message ? <p className="mt-3 text-sm text-muted-foreground">{message}</p> : null}
+
+          {order.status === "SERVED" && order.paymentStatus === "UNPAID" ? (
+            <div className="mt-5 animate-pulse rounded-lg border-2 border-primary bg-primary/10 p-4 text-center">
+              <ReceiptText className="mx-auto h-8 w-8 text-primary" />
+              <h2 className="mt-2 text-xl font-black">Ready for bill?</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Your order is served. Ask for the bill when you are ready.</p>
+            </div>
+          ) : null}
 
           <RequestButtons orderId={order.id} />
           <FeedbackForm orderId={order.id} />

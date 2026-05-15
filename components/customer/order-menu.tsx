@@ -3,11 +3,12 @@
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Minus, Plus, ShoppingCart, Trash2, Utensils } from "lucide-react";
+import { Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/utils";
+import { menuImageFor } from "@/lib/menu-images";
 
 type MenuItem = {
   id: string;
@@ -158,39 +159,48 @@ export function OrderMenu({
         </div>
       </header>
 
-      <main className="mx-auto max-w-5xl px-4 py-5">
+      <main className="mx-auto max-w-6xl px-4 py-5">
         {editOrder ? (
           <Link href={`/order/${editOrder.id}/status`} className="mb-4 block rounded-md border bg-white p-3 text-sm font-semibold text-primary">
             Back to order status
           </Link>
         ) : null}
-        <div className="mb-5 flex gap-2 overflow-x-auto pb-2">
-          {categories.map((category) => (
-            <Button
-              key={category.id}
-              variant={activeCategory === category.id ? "default" : "outline"}
-              onClick={() => setActiveCategory(category.id)}
-              className="shrink-0"
-            >
-              {category.name}
-            </Button>
-          ))}
-        </div>
+        <div className="grid gap-5 lg:grid-cols-[190px_1fr]">
+          <aside className="lg:sticky lg:top-24 lg:self-start">
+            <div className="rounded-lg border bg-white p-3">
+              <p className="mb-2 px-2 text-xs font-bold uppercase tracking-wide text-muted-foreground">Categories</p>
+              <div className="flex gap-2 overflow-x-auto pb-1 lg:block lg:space-y-2 lg:overflow-visible">
+                {categories.map((category) => (
+                  <button
+                    key={category.id}
+                    onClick={() => setActiveCategory(category.id)}
+                    className={`w-full shrink-0 rounded-md px-3 py-2 text-left text-sm font-semibold transition ${
+                      activeCategory === category.id ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-border"
+                    }`}
+                  >
+                    {category.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </aside>
 
-        <div className="grid gap-4 md:grid-cols-2">
-          {visibleItems.map((item) => {
-            const cartItem = cartById.get(item.id);
-            return (
-              <Card key={item.id} className="overflow-hidden">
-                <CardContent className="flex gap-4 p-4">
-                  <div className="flex h-24 w-24 shrink-0 items-center justify-center rounded-md bg-muted">
-                    <Utensils className="h-9 w-9 text-muted-foreground" />
-                  </div>
-                  <div className="min-w-0 flex-1">
+          <div className="grid gap-4 md:grid-cols-2">
+            {visibleItems.map((item) => {
+              const cartItem = cartById.get(item.id);
+              return (
+                <Card key={item.id} className="overflow-hidden">
+                  <img
+                    src={menuImageFor(item.name, item.category.name, item.imageUrl)}
+                    alt={item.name}
+                    className="h-44 w-full object-cover"
+                    loading="lazy"
+                  />
+                  <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <h2 className="font-semibold">{item.name}</h2>
-                        <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>
+                        <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.description}</p>
                       </div>
                       <p className="shrink-0 font-bold">{formatCurrency(item.price)}</p>
                     </div>
@@ -206,11 +216,11 @@ export function OrderMenu({
                       )}
                       <Button onClick={() => addItem(item)}>{cartItem ? "Add more" : "Add"}</Button>
                     </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
+                  </CardContent>
+                </Card>
+              );
+            })}
+          </div>
         </div>
 
         {cart.length > 0 ? (

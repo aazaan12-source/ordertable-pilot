@@ -1,0 +1,120 @@
+OrderTable Pilot - Project URLs
+
+Replace https://YOUR-VERCEL-LIVE-URL with the real Vercel deployment URL.
+
+============================================================
+LOCAL URLS
+============================================================
+
+Local app:
+http://localhost:3000
+
+Local public website:
+http://localhost:3000/
+
+Local manager login:
+http://localhost:3000/login
+
+Local super admin login:
+http://localhost:3000/super-admin-login
+
+Local manager dashboard:
+http://localhost:3000/dashboard/orders
+
+Local super admin dashboard:
+http://localhost:3000/admin
+
+Local QR codes page:
+http://localhost:3000/dashboard/qr-codes
+
+Local customer table 1:
+http://localhost:3000/r/demo-restaurant-islamabad/t/1
+
+Local customer table 20:
+http://localhost:3000/r/demo-restaurant-islamabad/t/20
+
+============================================================
+LAN / PHONE TEST URLS
+============================================================
+
+LAN app:
+http://192.168.18.103:3000
+
+LAN public website:
+http://192.168.18.103:3000/
+
+LAN manager login:
+http://192.168.18.103:3000/login
+
+LAN super admin login:
+http://192.168.18.103:3000/super-admin-login
+
+LAN manager dashboard:
+http://192.168.18.103:3000/dashboard/orders
+
+LAN super admin dashboard:
+http://192.168.18.103:3000/admin
+
+LAN QR codes page:
+http://192.168.18.103:3000/dashboard/qr-codes
+
+LAN customer table 1:
+http://192.168.18.103:3000/r/demo-restaurant-islamabad/t/1
+
+LAN customer table 20:
+http://192.168.18.103:3000/r/demo-restaurant-islamabad/t/20
+
+============================================================
+LIVE VERCEL URLS
+============================================================
+
+Live public website:
+https://YOUR-VERCEL-LIVE-URL/
+
+Live manager login:
+https://YOUR-VERCEL-LIVE-URL/login
+
+Live super admin login:
+https://YOUR-VERCEL-LIVE-URL/super-admin-login
+
+Live manager dashboard:
+https://YOUR-VERCEL-LIVE-URL/dashboard/orders
+
+Live super admin dashboard:
+https://YOUR-VERCEL-LIVE-URL/admin
+
+Live restaurants control:
+https://YOUR-VERCEL-LIVE-URL/admin/restaurants
+
+Live restaurant requests:
+https://YOUR-VERCEL-LIVE-URL/admin/requests
+
+Live billing:
+https://YOUR-VERCEL-LIVE-URL/admin/billing
+
+Live QR codes page:
+https://YOUR-VERCEL-LIVE-URL/dashboard/qr-codes
+
+Live customer table 1:
+https://YOUR-VERCEL-LIVE-URL/r/demo-restaurant-islamabad/t/1
+
+Live customer table 20:
+https://YOUR-VERCEL-LIVE-URL/r/demo-restaurant-islamabad/t/20
+
+Live invalid table test:
+https://YOUR-VERCEL-LIVE-URL/r/demo-restaurant-islamabad/t/999
+
+============================================================
+DEMO LOGINS
+============================================================
+
+Manager:
+Email: manager@demo.com
+Password: Manager12345
+
+Super Admin:
+Email: admin@ordertable.pk
+Password: Admin12345
+
+Important:
+Change demo passwords before real public use.

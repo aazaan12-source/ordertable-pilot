@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import { PrismaClient, UserRole, RestaurantStatus, SubscriptionStatus } from "@prisma/client";
+import { seededMenuImages } from "../lib/menu-images";
 
 const prisma = new PrismaClient();
 
@@ -129,6 +130,7 @@ async function main() {
           price: item.price,
           description: item.description,
           categoryId: category.id,
+          imageUrl: seededMenuImages[item.name.toLowerCase()] || null,
           isActive: true,
           isAvailable: true
         },
@@ -139,7 +141,7 @@ async function main() {
           name: item.name,
           description: item.description,
           price: item.price,
-          imageUrl: null,
+          imageUrl: seededMenuImages[item.name.toLowerCase()] || null,
           sortOrder: itemIndex + 1
         }
       });

@@ -1,12 +1,18 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
+import { ArrowRight, BellRing, CheckCircle2, ClipboardList, QrCode, ReceiptText, ShieldCheck, Smartphone } from "lucide-react";
 import { db } from "@/lib/db";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { InteractiveDemo } from "@/components/public/interactive-demo";
 
 export const dynamic = "force-dynamic";
+
+const heroImage = "https://images.pexels.com/photos/25003368/pexels-photo-25003368.jpeg?auto=compress&cs=tinysrgb&w=1800";
+const kitchenImage = "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=1200&q=80";
+const tableImage = "https://images.pexels.com/photos/6127315/pexels-photo-6127315.jpeg?auto=compress&cs=tinysrgb&w=1200";
 
 async function submitRestaurantRequest(formData: FormData) {
   "use server";
@@ -35,78 +41,156 @@ async function submitRestaurantRequest(formData: FormData) {
 export default function PublicHomePage() {
   return (
     <main className="min-h-screen bg-background">
-      <section className="border-b bg-white">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
-          <div>
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">OrderTable Pilot</p>
-            <h1 className="text-2xl font-black">QR table ordering for restaurants</h1>
+      <section className="relative min-h-[92vh] overflow-hidden bg-black text-white">
+        <img src={heroImage} alt="Restaurant table with assorted dishes" className="absolute inset-0 h-full w-full object-cover opacity-55" />
+        <div className="absolute inset-0 bg-black/45" />
+        <header className="relative z-10 border-b border-white/15">
+          <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
+            <Link href="/" className="text-xl font-black">OrderTable</Link>
+            <nav className="flex items-center gap-2">
+              <Link href="/login"><Button variant="outline" className="border-white/40 bg-white/10 text-white hover:bg-white hover:text-black">Manager</Button></Link>
+              <Link href="/super-admin-login"><Button className="bg-white text-black hover:bg-white/90">Super Admin</Button></Link>
+            </nav>
           </div>
-          <div className="flex gap-2">
-            <Link href="/login"><Button variant="outline">Login</Button></Link>
-            <Link href="/r/demo-restaurant-islamabad/t/1"><Button>Demo Menu</Button></Link>
-          </div>
-        </div>
-      </section>
+        </header>
 
-      <section className="mx-auto grid max-w-6xl gap-6 px-4 py-8 lg:grid-cols-[1.1fr_0.9fr]">
-        <div className="space-y-5">
-          <div>
-            <h2 className="text-4xl font-black leading-tight">Take table orders, print kitchen slips, and track restaurant billing from one platform.</h2>
-            <p className="mt-3 max-w-2xl text-muted-foreground">
-              Customers scan a table QR code, place orders from their phone, call the waiter, request bills, and managers receive everything live in the restaurant dashboard.
+        <div className="relative z-10 mx-auto grid max-w-6xl gap-8 px-4 pb-10 pt-16 lg:grid-cols-[1.05fr_0.95fr]">
+          <div className="flex flex-col justify-center">
+            <p className="w-fit rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wide">QR ordering for real restaurant pilots</p>
+            <h1 className="mt-5 max-w-3xl text-5xl font-black leading-tight md:text-6xl">Let guests order from the table while your team runs the floor faster.</h1>
+            <p className="mt-5 max-w-2xl text-lg text-white/85">
+              A practical QR ordering platform with live manager dashboard, waiter call alerts, kitchen slips, customer bills, super-admin onboarding, and 20-table pilot support.
             </p>
+            <div className="mt-7 flex flex-wrap gap-3">
+              <Link href="/r/demo-restaurant-islamabad/t/1"><Button size="lg" className="bg-white text-black hover:bg-white/90">Try Customer Demo <ArrowRight className="h-5 w-5" /></Button></Link>
+              <Link href="/dashboard/orders"><Button size="lg" variant="outline" className="border-white/40 bg-white/10 text-white hover:bg-white hover:text-black">Open Dashboard</Button></Link>
+            </div>
           </div>
 
-          <div className="grid gap-4 md:grid-cols-3">
-            <Feature title="20+ Tables" body="Generate table QR codes and manage live table activity." />
-            <Feature title="Kitchen Ready" body="Print roll-printer kitchen slips and customer bills." />
-            <Feature title="Super Admin" body="Create restaurant accounts, track invoices, and recover logins." />
-          </div>
-
-          <Card>
-            <CardHeader><CardTitle>Contact super admin</CardTitle></CardHeader>
-            <CardContent className="space-y-2 text-sm text-muted-foreground">
-              <p>Phone: 03000000000</p>
-              <p>Email: support@ordertable.pk</p>
-              <p>Restaurant owners can request a new account using the form. The platform admin will contact you and configure your tables, manager login, and monthly billing.</p>
+          <Card className="bg-white/95 text-foreground shadow-2xl">
+            <CardHeader>
+              <CardTitle className="text-2xl">Request a restaurant account</CardTitle>
+              <p className="text-sm text-muted-foreground">Send your table count and contact details to the platform super admin.</p>
+            </CardHeader>
+            <CardContent>
+              <form action={submitRestaurantRequest} className="space-y-3">
+                <Input name="restaurantName" placeholder="Restaurant name" required />
+                <Input name="contactName" placeholder="Owner/contact name" required />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Input name="phone" placeholder="Phone / WhatsApp" required />
+                  <Input name="city" placeholder="City" required />
+                </div>
+                <Input name="email" type="email" placeholder="Email optional" />
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <Input name="expectedTables" type="number" placeholder="Number of tables" defaultValue={20} />
+                  <select name="planInterest" defaultValue="Pilot" className="h-10 w-full rounded-md border bg-white px-3 text-sm">
+                    <option value="Pilot">Pilot</option>
+                    <option value="Starter">Starter</option>
+                    <option value="Growth">Growth</option>
+                    <option value="Pro">Pro</option>
+                  </select>
+                </div>
+                <Textarea name="message" placeholder="Branch details, requirements, or best time to call" />
+                <Button className="w-full" size="lg">Send Request</Button>
+              </form>
             </CardContent>
           </Card>
         </div>
+      </section>
 
+      <section className="mx-auto max-w-6xl px-4 py-10">
+        <InteractiveDemo />
+      </section>
+
+      <section className="mx-auto grid max-w-6xl gap-5 px-4 py-8 md:grid-cols-4">
+        <Feature icon={QrCode} title="Table QR Codes" body="Create QR codes for each table and keep the customer flow app-free." />
+        <Feature icon={ClipboardList} title="Live Orders" body="New orders arrive automatically with status controls and payment state." />
+        <Feature icon={BellRing} title="Waiter Voice Alert" body="Bell and speech alerts tell staff exactly which table needs service." />
+        <Feature icon={ReceiptText} title="Print Receipts" body="Print kitchen slips and customer bills for thermal roll printers." />
+      </section>
+
+      <section className="mx-auto grid max-w-6xl gap-6 px-4 py-10 lg:grid-cols-2">
+        <VisualPanel
+          image={kitchenImage}
+          label="Operations"
+          title="Made for busy restaurant service"
+          points={["Kitchen slip printing", "Bill requested workflow", "Manager-side status updates", "Customer cancellation window"]}
+        />
+        <VisualPanel
+          image={tableImage}
+          label="Platform"
+          title="Super admin control for many restaurants"
+          points={["Restaurant account creation", "Monthly billing records", "Account recovery tools", "Online restaurant requests"]}
+        />
+      </section>
+
+      <section className="border-y bg-white">
+        <div className="mx-auto grid max-w-6xl gap-5 px-4 py-10 md:grid-cols-3">
+          <Metric value="20" label="demo tables ready" />
+          <Metric value="4s" label="dashboard refresh cycle" />
+          <Metric value="3 min" label="default cancellation window" />
+        </div>
+      </section>
+
+      <section className="mx-auto max-w-6xl px-4 py-10">
         <Card>
-          <CardHeader>
-            <CardTitle>Request restaurant account</CardTitle>
-            <p className="text-sm text-muted-foreground">This request appears inside the super-admin panel.</p>
-          </CardHeader>
-          <CardContent>
-            <form action={submitRestaurantRequest} className="space-y-3">
-              <Input name="restaurantName" placeholder="Restaurant name" required />
-              <Input name="contactName" placeholder="Owner/contact name" required />
-              <Input name="phone" placeholder="Phone / WhatsApp" required />
-              <Input name="email" type="email" placeholder="Email optional" />
-              <Input name="city" placeholder="City" required />
-              <Input name="expectedTables" type="number" placeholder="Number of tables" defaultValue={20} />
-              <select name="planInterest" defaultValue="Pilot" className="h-10 w-full rounded-md border bg-white px-3 text-sm">
-                <option value="Pilot">Pilot</option>
-                <option value="Starter">Starter</option>
-                <option value="Growth">Growth</option>
-                <option value="Pro">Pro</option>
-              </select>
-              <Textarea name="message" placeholder="Requirements, branch details, or best time to call" />
-              <Button className="w-full">Send Request</Button>
-            </form>
+          <CardContent className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-primary">Ready to test</p>
+              <h2 className="text-2xl font-black">Open the demo restaurant and place a live order.</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Use table 1 from your browser or scan table QR codes from the manager dashboard.</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <Link href="/r/demo-restaurant-islamabad/t/1"><Button>Customer Table 1</Button></Link>
+              <Link href="/login?demo=manager"><Button variant="outline">Manager Login</Button></Link>
+            </div>
           </CardContent>
         </Card>
+        <p className="mt-4 text-xs text-muted-foreground">Photos sourced from free stock libraries: Pexels and Unsplash. Replace with real restaurant photos before final commercial launch.</p>
       </section>
     </main>
   );
 }
 
-function Feature({ title, body }: { title: string; body: string }) {
+function Feature({ icon: Icon, title, body }: { icon: typeof Smartphone; title: string; body: string }) {
   return (
     <Card>
-      <CardHeader><CardTitle className="text-base">{title}</CardTitle></CardHeader>
+      <CardHeader>
+        <div className="mb-2 flex h-10 w-10 items-center justify-center rounded-md bg-primary/10 text-primary">
+          <Icon className="h-5 w-5" />
+        </div>
+        <CardTitle className="text-base">{title}</CardTitle>
+      </CardHeader>
       <CardContent><p className="text-sm text-muted-foreground">{body}</p></CardContent>
     </Card>
+  );
+}
+
+function VisualPanel({ image, label, title, points }: { image: string; label: string; title: string; points: string[] }) {
+  return (
+    <div className="overflow-hidden rounded-lg border bg-white">
+      <img src={image} alt={title} className="h-64 w-full object-cover" />
+      <div className="p-5">
+        <p className="text-xs font-bold uppercase tracking-wide text-primary">{label}</p>
+        <h2 className="mt-1 text-2xl font-black">{title}</h2>
+        <div className="mt-4 grid gap-2">
+          {points.map((point) => (
+            <p key={point} className="flex items-center gap-2 text-sm text-muted-foreground">
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+              {point}
+            </p>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Metric({ value, label }: { value: string; label: string }) {
+  return (
+    <div className="rounded-lg border bg-background p-5 text-center">
+      <p className="text-4xl font-black text-primary">{value}</p>
+      <p className="mt-1 text-sm font-semibold text-muted-foreground">{label}</p>
+    </div>
   );
 }

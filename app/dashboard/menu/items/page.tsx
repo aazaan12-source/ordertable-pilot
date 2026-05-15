@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
+import { menuImageFor } from "@/lib/menu-images";
 
 export const dynamic = "force-dynamic";
 
@@ -23,11 +24,14 @@ async function createMenuItem(formData: FormData) {
       description: String(formData.get("description") || ""),
       price: Number(formData.get("price") || 0),
       imageUrl: String(formData.get("imageUrl") || "") || null,
+      isAvailable: formData.get("isAvailable") === "on",
+      isActive: true,
       sortOrder: Number(formData.get("sortOrder") || 0)
     }
   });
-  await db.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "menu_item_created", description: name } });
+  await db.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "MENU_ITEM_CREATED", description: name } });
   revalidatePath("/dashboard/menu/items");
+  revalidatePath(`/r/${restaurant.slug}/t/1`);
 }
 
 async function updateMenuItem(formData: FormData) {
@@ -48,7 +52,18 @@ async function updateMenuItem(formData: FormData) {
       sortOrder: Number(formData.get("sortOrder") || 0)
     }
   });
-  await db.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "menu_item_updated", description: name } });
+  await db.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "MENU_ITEM_UPDATED", description: name } });
+  revalidatePath("/dashboard/menu/items");
+}
+
+async function deleteMenuItem(formData: FormData) {
+  "use server";
+  const { user, restaurant } = await getManagerRestaurant();
+  const id = String(formData.get("id"));
+  const item = await db.menuItem.findFirst({ where: { id, restaurantId: restaurant.id } });
+  if (!item) return;
+  await db.menuItem.updateMany({ where: { id, restaurantId: restaurant.id }, data: { isActive: false, isAvailable: false } });
+  await db.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "MENU_ITEM_DELETED", description: `${item.name} archived` } });
   revalidatePath("/dashboard/menu/items");
 }
 
@@ -61,46 +76,67 @@ export default async function MenuItemsPage() {
   return (
     <main className="p-4 lg:p-6">
       <h1 className="text-2xl font-bold">Menu Items</h1>
-      <div className="mt-5 grid gap-5 xl:grid-cols-[400px_1fr]">
+      <p className="mt-1 text-sm text-muted-foreground">Add items with real food photos. Paste an image URL from your restaurant photos, Cloudinary, or a free stock source.</p>
+
+      <div className="mt-5 grid gap-5 xl:grid-cols-[380px_1fr]">
         <Card>
-          <CardHeader><CardTitle>Add menu item</CardTitle></CardHeader>
+          <CardHeader><CardTitle>Add Menu Item</CardTitle></CardHeader>
           <CardContent>
             <form action={createMenuItem} className="space-y-3">
-              <Input name="name" placeholder="Name" required />
+              <Input name="name" placeholder="Item name" required />
               <select name="categoryId" className="h-10 w-full rounded-md border bg-white px-3 text-sm" required>
                 {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
               </select>
-              <Input name="price" type="number" placeholder="Price" required />
-              <Textarea name="description" placeholder="Description" />
-              <Input name="imageUrl" placeholder="Image URL or leave blank" />
-              <Input name="sortOrder" type="number" placeholder="Sort order" defaultValue={1} />
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Input name="price" type="number" placeholder="Price" required />
+                <Input name="sortOrder" type="number" placeholder="Sort order" defaultValue={1} />
+              </div>
+              <Input name="imageUrl" placeholder="Food image URL" />
+              <Textarea name="description" placeholder="Short customer-friendly description" />
+              <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isAvailable" defaultChecked /> Available now</label>
               <Button className="w-full">Add Item</Button>
             </form>
           </CardContent>
         </Card>
-        <div className="space-y-4">
+
+        <div className="grid gap-4">
           {items.map((item) => (
-            <form key={item.id} action={updateMenuItem} className="rounded-lg border bg-white p-4">
-              <input type="hidden" name="id" value={item.id} />
-              <div className="grid gap-3 md:grid-cols-2">
-                <Input name="name" defaultValue={item.name} />
-                <select name="categoryId" className="h-10 rounded-md border bg-white px-3 text-sm" defaultValue={item.categoryId}>
-                  {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-                </select>
-                <Input name="price" type="number" defaultValue={item.price.toString()} />
-                <Input name="sortOrder" type="number" defaultValue={item.sortOrder} />
-                <Input name="imageUrl" defaultValue={item.imageUrl || ""} placeholder="Image URL" />
-                <div className="flex items-center gap-4 text-sm">
-                  <label className="flex items-center gap-2"><input type="checkbox" name="isAvailable" defaultChecked={item.isAvailable} /> Available</label>
-                  <label className="flex items-center gap-2"><input type="checkbox" name="isActive" defaultChecked={item.isActive} /> Active</label>
+            <Card key={item.id} className={!item.isActive ? "opacity-60" : ""}>
+              <CardContent className="grid gap-4 p-4 lg:grid-cols-[180px_1fr]">
+                <img src={menuImageFor(item.name, item.category.name, item.imageUrl)} alt={item.name} className="h-40 w-full rounded-md object-cover" />
+                <div>
+                  <form action={updateMenuItem} className="space-y-3">
+                    <input type="hidden" name="id" value={item.id} />
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <Input name="name" defaultValue={item.name} />
+                      <select name="categoryId" className="h-10 rounded-md border bg-white px-3 text-sm" defaultValue={item.categoryId}>
+                        {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                      </select>
+                      <Input name="price" type="number" defaultValue={item.price.toString()} />
+                      <Input name="sortOrder" type="number" defaultValue={item.sortOrder} />
+                      <Input className="md:col-span-2" name="imageUrl" defaultValue={item.imageUrl || ""} placeholder="Food image URL" />
+                    </div>
+                    <Textarea name="description" defaultValue={item.description} />
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-4 text-sm">
+                        <label className="flex items-center gap-2"><input type="checkbox" name="isAvailable" defaultChecked={item.isAvailable} /> Available</label>
+                        <label className="flex items-center gap-2"><input type="checkbox" name="isActive" defaultChecked={item.isActive} /> Active</label>
+                      </div>
+                      <div className="flex gap-2">
+                        <Button>Save</Button>
+                      </div>
+                    </div>
+                  </form>
+                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t pt-3 text-sm text-muted-foreground">
+                    <p>{item.category.name} · {formatCurrency(item.price.toString())}</p>
+                    <form action={deleteMenuItem}>
+                      <input type="hidden" name="id" value={item.id} />
+                      <Button variant="destructive" size="sm">Delete / Archive</Button>
+                    </form>
+                  </div>
                 </div>
-              </div>
-              <Textarea className="mt-3" name="description" defaultValue={item.description} />
-              <div className="mt-3 flex items-center justify-between">
-                <p className="text-sm text-muted-foreground">{item.category.name} · {formatCurrency(item.price.toString())}</p>
-                <Button>Save</Button>
-              </div>
-            </form>
+              </CardContent>
+            </Card>
           ))}
         </div>
       </div>
