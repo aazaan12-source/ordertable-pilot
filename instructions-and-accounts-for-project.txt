@@ -407,6 +407,45 @@ Main super admin routes:
 12. Login as restaurant manager and test dashboard.
 
 ============================================================
+15A. Adding New Restaurants on Live Vercel Version
+============================================================
+
+1. Login as Super Admin:
+   https://[LIVE_URL]/super-admin-login
+2. Go to:
+   https://[LIVE_URL]/admin/restaurants
+3. Click Add New Restaurant.
+4. Enter restaurant details.
+5. Confirm the generated slug.
+6. Enter table count.
+7. Create manager login.
+8. Choose empty or sample menu.
+9. Create restaurant.
+10. Open QR Codes page.
+11. Test table 1 URL.
+12. Test last table URL.
+13. Add real menu.
+14. Give manager login to restaurant.
+15. Restaurant manager logs in at:
+    https://[LIVE_URL]/login
+16. Manager opens:
+    https://[LIVE_URL]/dashboard
+17. Manager sees the same dashboard interface as the demo restaurant.
+18. Manager only sees their own restaurant data.
+19. Print/download QR codes only after APP_URL or custom domain is final.
+
+Important:
+- New restaurants are added from the Super Admin dashboard and saved in the online PostgreSQL database.
+- No code change or redeploy is needed for every new restaurant.
+- Every restaurant manager uses the same /dashboard interface.
+- The dashboard data is filtered by the manager restaurant_id.
+- QR URL pattern:
+  https://[LIVE_URL]/r/[restaurant-slug]/t/[table-number]
+
+Warning:
+Do not print final QR codes using temporary Vercel preview URLs if a custom domain will be used later. Set APP_URL to the final domain first, redeploy, then regenerate QR URLs.
+
+============================================================
 16. Changing Table Count Checklist
 ============================================================
 

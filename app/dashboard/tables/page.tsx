@@ -27,7 +27,7 @@ export default async function TablesPage() {
     },
     orderBy: { tableNumber: "asc" }
   });
-  const baseUrl = process.env.APP_URL || "http://127.0.0.1:3000";
+  const baseUrl = (process.env.APP_URL || process.env.NEXTAUTH_URL || "").replace(/\/$/, "");
 
   return (
     <main className="p-4 lg:p-6">
@@ -36,6 +36,7 @@ export default async function TablesPage() {
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {tables.map((table) => {
           const latestOrder = table.orders[0];
+          const qrUrl = baseUrl && table.qrUrl.startsWith("/") ? `${baseUrl}${table.qrUrl}` : table.qrUrl;
           const status = table.requests[0]
             ? "BILL_REQUESTED"
             : latestOrder
@@ -53,8 +54,8 @@ export default async function TablesPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">QR URL</p>
-                <TableQrImage url={`${baseUrl}${table.qrUrl}`} />
-                <p className="mt-3 break-all text-sm font-medium">{baseUrl}{table.qrUrl}</p>
+                <TableQrImage url={qrUrl} />
+                <p className="mt-3 break-all text-sm font-medium">{qrUrl}</p>
                 {latestOrder ? (
                   <div className="mt-3 space-y-1 text-sm">
                     <p>Latest order: <strong>{latestOrder.orderNumber}</strong></p>
@@ -71,7 +72,7 @@ export default async function TablesPage() {
                   <p className="mt-3 text-sm text-muted-foreground">No order yet</p>
                 )}
                 {table.requests[0] ? <p className="mt-2 text-sm font-semibold text-primary">Bill requested</p> : null}
-                <CopyUrlButton url={`${baseUrl}${table.qrUrl}`} />
+                <CopyUrlButton url={qrUrl} />
               </CardContent>
             </Card>
           );

@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getManagerRestaurant } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -133,7 +134,7 @@ export default async function MenuItemsPage() {
                     <p>{item.category.name} · {formatCurrency(item.price.toString())}</p>
                     <form action={deleteMenuItem}>
                       <input type="hidden" name="id" value={item.id} />
-                      <Button variant="destructive" size="sm">Delete</Button>
+                      <ConfirmSubmitButton message="Delete this menu item?">Delete</ConfirmSubmitButton>
                     </form>
                   </div>
                 </div>

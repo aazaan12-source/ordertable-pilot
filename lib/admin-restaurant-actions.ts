@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { LeadStatus, Prisma, RestaurantStatus, SubscriptionStatus, TableStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/permissions";
-import { tableQrUrl } from "@/lib/qr";
+import { absoluteTableQrUrl } from "@/lib/qr";
 import { imageForSeededItem, sampleCategoryNames, sampleMenuItems } from "@/lib/sample-menu";
 import { slugifyRestaurant } from "@/lib/admin-restaurant-utils";
 
@@ -18,6 +18,10 @@ function positiveInt(value: FormDataEntryValue | null, fallback: number, max = 5
   const parsed = Number(value);
   if (!Number.isFinite(parsed)) return fallback;
   return Math.min(max, Math.max(1, Math.floor(parsed)));
+}
+
+function redirectNewRestaurantError(error: string) {
+  redirect(`/admin/restaurants/new?error=${encodeURIComponent(error)}`);
 }
 
 async function createSampleMenu(tx: Prisma.TransactionClient, restaurantId: string) {
@@ -66,11 +70,11 @@ export async function syncRestaurantTables({
       if (existing) {
         await tx.restaurantTable.update({
           where: { id: existing.id },
-          data: { qrUrl: tableQrUrl(slug, tableNumber), status: existing.status === TableStatus.INACTIVE ? TableStatus.EMPTY : existing.status }
+          data: { qrUrl: absoluteTableQrUrl(slug, tableNumber), status: existing.status === TableStatus.INACTIVE ? TableStatus.EMPTY : existing.status }
         });
       } else {
         await tx.restaurantTable.create({
-          data: { restaurantId, tableNumber, qrUrl: tableQrUrl(slug, tableNumber), status: TableStatus.EMPTY }
+          data: { restaurantId, tableNumber, qrUrl: absoluteTableQrUrl(slug, tableNumber), status: TableStatus.EMPTY }
         });
       }
     }
@@ -79,7 +83,7 @@ export async function syncRestaurantTables({
       if (!desiredNumbers.has(table.tableNumber)) {
         await tx.restaurantTable.update({
           where: { id: table.id },
-          data: { status: TableStatus.INACTIVE, qrUrl: tableQrUrl(slug, table.tableNumber) }
+          data: { status: TableStatus.INACTIVE, qrUrl: absoluteTableQrUrl(slug, table.tableNumber) }
         });
       }
     }
@@ -107,15 +111,20 @@ export async function createRestaurantWithTablesAndManager(formData: FormData) {
   const startingTableNumber = positiveInt(formData.get("startingTableNumber"), 1);
   const managerEmail = formString(formData, "managerEmail").toLowerCase();
   const managerPassword = formString(formData, "managerPassword", "Manager12345");
+  const managerPasswordConfirm = formString(formData, "managerPasswordConfirm", managerPassword);
   const managerName = formString(formData, "managerName", "Restaurant Manager");
   const managerPhone = formString(formData, "managerPhone") || null;
   const menuSetup = formString(formData, "menuSetup", "empty");
   const leadId = formString(formData, "leadId");
 
-  if (!name || !slug || !city || !managerEmail || !managerPassword) return;
+  if (!name || !slug || !city || !managerEmail || !managerPassword) redirectNewRestaurantError("missing-required-fields");
+  if (managerPassword !== managerPasswordConfirm) redirectNewRestaurantError("password-mismatch");
 
   const exists = await db.restaurant.findUnique({ where: { slug } });
-  if (exists) return;
+  if (exists) redirectNewRestaurantError("slug-already-exists");
+
+  const emailExists = await db.user.findUnique({ where: { email: managerEmail } });
+  if (emailExists) redirectNewRestaurantError("manager-email-already-exists");
 
   const restaurant = await db.$transaction(async (tx) => {
     const created = await tx.restaurant.create({
@@ -140,7 +149,7 @@ export async function createRestaurantWithTablesAndManager(formData: FormData) {
 
     for (let tableNumber = startingTableNumber; tableNumber < startingTableNumber + tableCount; tableNumber++) {
       await tx.restaurantTable.create({
-        data: { restaurantId: created.id, tableNumber, qrUrl: tableQrUrl(created.slug, tableNumber), status: TableStatus.EMPTY }
+        data: { restaurantId: created.id, tableNumber, qrUrl: absoluteTableQrUrl(created.slug, tableNumber), status: TableStatus.EMPTY }
       });
     }
 
@@ -218,7 +227,7 @@ export async function updateRestaurantDetails(formData: FormData) {
   if (updated.slug !== current.slug) {
     await db.$transaction(
       current.tables.map((table) =>
-        db.restaurantTable.update({ where: { id: table.id }, data: { qrUrl: tableQrUrl(updated.slug, table.tableNumber) } })
+        db.restaurantTable.update({ where: { id: table.id }, data: { qrUrl: absoluteTableQrUrl(updated.slug, table.tableNumber) } })
       )
     );
   }
@@ -272,7 +281,7 @@ export async function updateSingleTable(formData: FormData) {
   const status = formString(formData, "status", "EMPTY") as TableStatus;
   const restaurant = await db.restaurant.findUnique({ where: { id: restaurantId } });
   if (!restaurant) return;
-  await db.restaurantTable.update({ where: { id: tableId }, data: { tableNumber, status, qrUrl: tableQrUrl(restaurant.slug, tableNumber) } });
+  await db.restaurantTable.update({ where: { id: tableId }, data: { tableNumber, status, qrUrl: absoluteTableQrUrl(restaurant.slug, tableNumber) } });
   await db.activityLog.create({ data: { userId: admin.id, restaurantId, action: "TABLES_UPDATED", description: `Table ${tableNumber} updated to ${status}` } });
   revalidatePath(`/admin/restaurants/${restaurantId}/tables`);
 }
@@ -284,7 +293,7 @@ export async function regenerateRestaurantQRCodes(formData: FormData) {
   if (!restaurant) return;
   await db.$transaction(async (tx) => {
     for (const table of restaurant.tables) {
-      await tx.restaurantTable.update({ where: { id: table.id }, data: { qrUrl: tableQrUrl(restaurant.slug, table.tableNumber) } });
+      await tx.restaurantTable.update({ where: { id: table.id }, data: { qrUrl: absoluteTableQrUrl(restaurant.slug, table.tableNumber) } });
     }
     await tx.activityLog.create({ data: { userId: admin.id, restaurantId, action: "QR_CODES_GENERATED", description: "QR URLs regenerated for all tables" } });
   });

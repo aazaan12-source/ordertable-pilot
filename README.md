@@ -160,6 +160,22 @@ The create flow generates table records automatically. A restaurant with slug `c
 
 If `APP_URL` or `NEXTAUTH_URL` is configured, QR display uses the full live URL. Otherwise it stores relative paths so the platform is not tied to localhost.
 
+New restaurants can be added dynamically from the Super Admin dashboard after deployment. The platform does not require redeployment for each restaurant because all restaurant data, tables, menus, users, QR URLs, and orders are stored in the database. Every restaurant manager uses the same `/dashboard` interface, but the dashboard loads only that manager's restaurant data.
+
+### Add A Restaurant On Vercel
+
+1. Set `APP_URL` and `NEXTAUTH_URL` to the final live URL in Vercel.
+2. Login at `/super-admin-login`.
+3. Open `/admin/restaurants`.
+4. Click `Add New Restaurant`.
+5. Enter restaurant details, confirm the slug, enter table count, and create the manager login.
+6. Choose empty or sample menu.
+7. Create the restaurant.
+8. Open QR Codes and test table 1 plus the last table before printing QR codes.
+9. Give the manager `/login` credentials. They will use the same `/dashboard` interface as the demo restaurant.
+
+If a custom domain is added later, update `APP_URL` and `NEXTAUTH_URL` in Vercel, redeploy, then use `Regenerate All QR URLs` from the restaurant QR Codes page before printing final QR codes.
+
 ### Edit Table Count
 
 Open `/admin/restaurants/{restaurantId}/tables`.

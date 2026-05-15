@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/permissions";
 import { createRestaurantCategory, deleteRestaurantCategory, updateRestaurantCategory } from "@/lib/admin-restaurant-actions";
 import { Button } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
@@ -53,7 +54,7 @@ export default async function AdminRestaurantCategoriesPage({ params }: { params
                   <form action={deleteRestaurantCategory}>
                     <input type="hidden" name="restaurantId" value={restaurant.id} />
                     <input type="hidden" name="id" value={category.id} />
-                    <Button variant="destructive" size="sm">Delete</Button>
+                    <ConfirmSubmitButton message="Delete this category and all its menu items?">Delete</ConfirmSubmitButton>
                   </form>
                 </div>
               </CardContent>

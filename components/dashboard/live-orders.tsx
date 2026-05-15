@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BellRing, Edit3, Eye, PlusCircle, Printer, Receipt, RefreshCw } from "lucide-react";
+import { BellRing, Edit3, Eye, Printer, Receipt, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/dashboard/status-badge";
@@ -82,7 +82,7 @@ export function LiveOrders({ initialOrders }: { initialOrders: Order[]; restaura
   }
 
   useEffect(() => {
-    const timer = setInterval(loadOrders, 4000);
+    const timer = setInterval(loadOrders, 1000);
     return () => clearInterval(timer);
   }, []);
 
@@ -188,12 +188,6 @@ export function LiveOrders({ initialOrders }: { initialOrders: Order[]; restaura
                     <Button variant="outline">
                       <Edit3 className="h-4 w-4" />
                       Edit
-                    </Button>
-                  </Link>
-                  <Link href={`/dashboard/orders/${order.id}/edit#add-items`}>
-                    <Button variant="outline">
-                      <PlusCircle className="h-4 w-4" />
-                      Add Items
                     </Button>
                   </Link>
                   <Link href={`/dashboard/orders/${order.id}/print/kitchen`} target="_blank">

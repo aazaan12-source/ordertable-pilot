@@ -5,7 +5,7 @@ export function tableQrUrl(slug: string, tableNumber: number) {
 }
 
 export function absoluteTableQrUrl(slug: string, tableNumber: number) {
-  const baseUrl = process.env.APP_URL || process.env.NEXTAUTH_URL || "";
+  const baseUrl = (process.env.APP_URL || process.env.NEXTAUTH_URL || "").replace(/\/$/, "");
   return baseUrl ? `${baseUrl}${tableQrUrl(slug, tableNumber)}` : tableQrUrl(slug, tableNumber);
 }
 

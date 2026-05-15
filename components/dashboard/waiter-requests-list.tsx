@@ -31,7 +31,7 @@ export function WaiterRequestsList({ initialRequests }: { initialRequests: Reque
   }
 
   useEffect(() => {
-    const timer = setInterval(loadRequests, 4000);
+    const timer = setInterval(loadRequests, 1000);
     return () => clearInterval(timer);
   }, []);
 

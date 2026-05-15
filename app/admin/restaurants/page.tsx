@@ -43,13 +43,13 @@ export default async function RestaurantsPage({
   const cities = await db.restaurant.findMany({ distinct: ["city"], select: { city: true }, orderBy: { city: "asc" } });
 
   return (
-    <main className="mx-auto max-w-7xl p-4 lg:p-6">
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
+    <main className="mx-auto max-w-7xl p-3 sm:p-4 lg:p-6">
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Restaurants</h1>
+          <h1 className="text-xl font-bold sm:text-2xl">Restaurants</h1>
           <p className="text-sm text-muted-foreground">Add and manage many restaurant accounts, tables, QR codes, menus, managers, and billing status.</p>
         </div>
-        <Link href="/admin/restaurants/new"><Button>Add New Restaurant</Button></Link>
+        <Link href="/admin/restaurants/new"><Button className="w-full sm:w-auto">Add New Restaurant</Button></Link>
       </div>
 
       <Card className="mb-5">
@@ -83,7 +83,57 @@ export default async function RestaurantsPage({
         </CardContent>
       </Card>
 
-      <div className="overflow-hidden rounded-lg border bg-white">
+      <div className="grid gap-3 lg:hidden">
+        {restaurants.map((restaurant) => {
+          const activeTables = restaurant.tables.filter((table) => table.status !== "INACTIVE").length;
+          const manager = restaurant.users[0];
+          return (
+            <Card key={restaurant.id}>
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <Link href={`/admin/restaurants/${restaurant.id}`} className="break-words text-base font-bold hover:underline">{restaurant.name}</Link>
+                    <p className="mt-1 text-xs text-muted-foreground">{restaurant.branchName} · {restaurant.city}</p>
+                    <p className="text-xs text-muted-foreground">{restaurant.phone}</p>
+                  </div>
+                  <Badge className={restaurant.status === "ACTIVE" ? "shrink-0 bg-green-100 text-green-800" : "shrink-0 bg-slate-100 text-slate-700"}>{restaurant.status}</Badge>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                  <p className="rounded-md bg-muted p-2"><strong>{activeTables}/{restaurant.tables.length}</strong><br /><span className="text-xs text-muted-foreground">Tables</span></p>
+                  <p className="rounded-md bg-muted p-2"><strong>{restaurant.menuItems.length}</strong><br /><span className="text-xs text-muted-foreground">Menu items</span></p>
+                </div>
+                <p className="mt-3 break-all text-xs text-muted-foreground">Manager: {manager?.email || "Missing"}</p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <Badge className={restaurant.orderingEnabled ? "bg-blue-100 text-blue-800" : "bg-orange-100 text-orange-800"}>{restaurant.orderingEnabled ? "Ordering On" : "Ordering Off"}</Badge>
+                  <Badge className="bg-muted text-foreground">{restaurant.subscriptionStatus}</Badge>
+                </div>
+                <div className="mt-4 grid grid-cols-2 gap-2">
+                  <Link href={`/admin/restaurants/${restaurant.id}`}><Button className="w-full" size="sm" variant="outline">View</Button></Link>
+                  <Link href={`/admin/restaurants/${restaurant.id}/edit`}><Button className="w-full" size="sm" variant="outline">Edit</Button></Link>
+                  <Link href={`/admin/restaurants/${restaurant.id}/tables`}><Button className="w-full" size="sm" variant="outline">Tables</Button></Link>
+                  <Link href={`/admin/restaurants/${restaurant.id}/qr-codes`}><Button className="w-full" size="sm" variant="outline">QR Codes</Button></Link>
+                  <Link href={`/admin/restaurants/${restaurant.id}/menu/items`}><Button className="w-full" size="sm" variant="outline">Menu</Button></Link>
+                  <Link href={`/admin/restaurants/${restaurant.id}/manager`}><Button className="w-full" size="sm" variant="outline">Manager</Button></Link>
+                </div>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <form action={toggleRestaurantStatus}>
+                    <input type="hidden" name="id" value={restaurant.id} />
+                    <input type="hidden" name="status" value={restaurant.status === "ACTIVE" ? "INACTIVE" : "ACTIVE"} />
+                    <Button className="w-full" size="sm" variant={restaurant.status === "ACTIVE" ? "destructive" : "secondary"}>{restaurant.status === "ACTIVE" ? "Deactivate" : "Activate"}</Button>
+                  </form>
+                  <form action={toggleOrdering}>
+                    <input type="hidden" name="id" value={restaurant.id} />
+                    <input type="hidden" name="orderingEnabled" value={String(!restaurant.orderingEnabled)} />
+                    <Button className="w-full" size="sm" variant="outline">{restaurant.orderingEnabled ? "Disable Ordering" : "Enable Ordering"}</Button>
+                  </form>
+                </div>
+              </CardContent>
+            </Card>
+          );
+        })}
+      </div>
+
+      <div className="hidden overflow-hidden rounded-lg border bg-white lg:block">
         <div className="grid grid-cols-[1.5fr_1fr_0.6fr_0.8fr_1fr_1fr_1.3fr] gap-3 border-b bg-muted px-4 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">
           <span>Restaurant</span>
           <span>Location</span>

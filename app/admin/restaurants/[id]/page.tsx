@@ -34,6 +34,9 @@ export default async function AdminRestaurantDetail({ params }: { params: Promis
   const revenueToday = ordersToday.reduce((sum, order) => sum + Number(order.total), 0);
   const revenueAllTime = restaurant.orders.reduce((sum, order) => sum + Number(order.total), 0);
   const manager = restaurant.users[0];
+  const baseUrl = (process.env.APP_URL || process.env.NEXTAUTH_URL || "").replace(/\/$/, "");
+  const customerUrlPattern = `${baseUrl || "[APP_URL]"}/r/${restaurant.slug}/t/[table-number]`;
+  const customerExampleUrl = `${baseUrl || ""}/r/${restaurant.slug}/t/1`;
 
   return (
     <main className="mx-auto max-w-7xl p-4 lg:p-6">
@@ -63,6 +66,21 @@ export default async function AdminRestaurantDetail({ params }: { params: Promis
       </div>
 
       <div className="mt-6 grid gap-5 lg:grid-cols-[1fr_360px]">
+        <Card className="lg:col-span-2">
+          <CardHeader><CardTitle>Live Access</CardTitle></CardHeader>
+          <CardContent className="grid gap-3 text-sm md:grid-cols-2">
+            <Info label="Customer QR Pattern" value={<span className="break-all">{customerUrlPattern}</span>} />
+            <Info label="Table 1 Example" value={<span className="break-all">{customerExampleUrl || `/r/${restaurant.slug}/t/1`}</span>} />
+            <Info label="Manager Dashboard" value="/dashboard" />
+            <Info label="Dashboard Reuse" value="Same interface as demo restaurant, filtered to this manager's restaurant data." />
+            {!baseUrl ? (
+              <p className="rounded-md border bg-amber-50 p-2 text-xs text-amber-800 md:col-span-2">
+                APP_URL/NEXTAUTH_URL is missing, so QR records may be relative. Set APP_URL in Vercel before printing final QR codes.
+              </p>
+            ) : null}
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader><CardTitle>Restaurant Overview</CardTitle></CardHeader>
           <CardContent className="grid gap-3 text-sm md:grid-cols-2">

@@ -30,7 +30,7 @@ export function ManagerAlerts() {
 
   useEffect(() => {
     loadRequests();
-    const timer = window.setInterval(loadRequests, 3000);
+    const timer = window.setInterval(loadRequests, 1000);
     return () => window.clearInterval(timer);
   }, [enabled]);
 

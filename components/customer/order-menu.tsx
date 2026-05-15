@@ -147,7 +147,7 @@ export function OrderMenu({
   }
 
   return (
-    <div className="min-h-screen pb-28">
+    <div className="min-h-screen pb-44 sm:pb-28">
       <header className="sticky top-0 z-20 border-b bg-background/95 px-3 py-2 backdrop-blur sm:px-4 sm:py-3">
         <div className="mx-auto flex max-w-5xl items-center justify-between">
           <div className="min-w-0">
@@ -272,7 +272,7 @@ export function OrderMenu({
         ) : null}
       </main>
 
-      <div className="fixed inset-x-0 bottom-0 border-t bg-white p-4 shadow-lg">
+      <div className="fixed inset-x-0 bottom-0 z-50 border-t bg-white p-4 shadow-lg">
         <div className="mx-auto flex max-w-5xl items-center justify-between gap-3">
           <div>
             <p className="text-sm text-muted-foreground">{totalQty} items</p>

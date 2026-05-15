@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { ClipboardList, LayoutDashboard, Menu, QrCode, ReceiptText, Settings, Table2, Bell } from "lucide-react";
+import { ClipboardList, LayoutDashboard, Menu, PlusCircle, QrCode, ReceiptText, Settings, Table2, Bell } from "lucide-react";
 import { FinancialPrivacyToggle } from "@/components/dashboard/financial-privacy-toggle";
 
 const links = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/orders", label: "Live Orders", icon: ClipboardList },
+  { href: "/dashboard/orders/new", label: "Create Manual Order", icon: PlusCircle },
   { href: "/dashboard/tables", label: "Tables", icon: Table2 },
   { href: "/dashboard/menu/categories", label: "Categories", icon: Menu },
   { href: "/dashboard/menu/items", label: "Menu Items", icon: Menu },

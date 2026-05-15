@@ -67,8 +67,8 @@ export default async function CustomerTablePage({
           category: { id: item.category.id, name: item.category.name }
         }))}
       />
-      <div className="mx-auto max-w-5xl px-4 pb-28">
-        <RequestButtons restaurantSlug={restaurant.slug} tableNumber={tableNo} />
+      <div className="mx-auto max-w-5xl px-4 pb-44 sm:pb-28">
+        <RequestButtons restaurantSlug={restaurant.slug} tableNumber={tableNo} pinnedMobile />
       </div>
     </>
   );

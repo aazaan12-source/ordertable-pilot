@@ -15,7 +15,7 @@ export default async function AdminQrCodesPage({ params }: { params: Promise<{ i
     include: { tables: { where: { status: { not: "INACTIVE" } }, orderBy: { tableNumber: "asc" } } }
   });
   if (!restaurant) notFound();
-  const baseUrl = process.env.APP_URL || process.env.NEXTAUTH_URL || "";
+  const baseUrl = (process.env.APP_URL || process.env.NEXTAUTH_URL || "").replace(/\/$/, "");
 
   return (
     <main className="mx-auto max-w-7xl p-4 lg:p-6">

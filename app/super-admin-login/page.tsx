@@ -11,20 +11,21 @@ async function loginSuperAdmin(formData: FormData) {
   "use server";
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const password = String(formData.get("password") || "");
+  const callbackUrl = String(formData.get("callbackUrl") || "/admin");
   const user = await db.user.findUnique({ where: { email } });
   if (!user || user.role !== "PLATFORM_ADMIN" || !user.isActive) redirect("/super-admin-login?error=1");
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) redirect("/super-admin-login?error=1");
   await createSuperAdminSession(user.id);
-  redirect("/admin");
+  redirect(callbackUrl.startsWith("/admin") ? callbackUrl : "/admin");
 }
 
 export default async function SuperAdminLoginPage({
   searchParams
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; callbackUrl?: string }>;
 }) {
-  const { error } = await searchParams;
+  const { error, callbackUrl = "/admin" } = await searchParams;
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-10">
       <Card className="w-full max-w-md">
@@ -34,6 +35,7 @@ export default async function SuperAdminLoginPage({
         </CardHeader>
         <CardContent>
           <form action={loginSuperAdmin} className="space-y-4">
+            <input type="hidden" name="callbackUrl" value={callbackUrl} />
             <Input name="email" type="email" placeholder="Email" defaultValue="admin@ordertable.pk" required />
             <PasswordInput name="password" placeholder="Password" defaultValue="Admin12345" required />
             {error ? <p className="text-sm text-destructive">Login failed. Check super admin credentials.</p> : null}

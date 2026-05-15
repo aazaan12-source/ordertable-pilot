@@ -7,11 +7,13 @@ import { Button } from "@/components/ui/button";
 export function RequestButtons({
   orderId,
   restaurantSlug,
-  tableNumber
+  tableNumber,
+  pinnedMobile = false
 }: {
   orderId?: string;
   restaurantSlug?: string;
   tableNumber?: number;
+  pinnedMobile?: boolean;
 }) {
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState("");
@@ -30,7 +32,7 @@ export function RequestButtons({
   }
 
   return (
-    <div className="mt-5 space-y-3">
+    <div className={pinnedMobile ? "fixed inset-x-0 bottom-[86px] z-40 border-t bg-white/95 px-3 py-2 shadow-lg backdrop-blur sm:static sm:mt-5 sm:border-0 sm:bg-transparent sm:p-0 sm:shadow-none" : "mt-5 space-y-3"}>
       <div className="grid grid-cols-2 gap-3">
         <Button variant="outline" onClick={() => send("CALL_WAITER")} disabled={Boolean(loading)}><Bell className="h-4 w-4" />Call Waiter</Button>
         <Button variant="secondary" onClick={() => send("BILL_REQUEST")} disabled={Boolean(loading)}><Receipt className="h-4 w-4" />Ask for Bill</Button>

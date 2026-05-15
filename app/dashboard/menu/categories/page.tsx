@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getManagerRestaurant } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -84,7 +85,7 @@ export default async function CategoriesPage() {
                   <span>{category._count.menuItems} menu items</span>
                   <form action={deleteCategory}>
                     <input type="hidden" name="id" value={category.id} />
-                    <Button variant="destructive" size="sm">Delete</Button>
+                    <ConfirmSubmitButton message="Delete this category and all its menu items?">Delete</ConfirmSubmitButton>
                   </form>
                 </div>
               </CardContent>
