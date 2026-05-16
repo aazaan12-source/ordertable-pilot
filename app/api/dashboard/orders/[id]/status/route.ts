@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { revalidatePath } from "next/cache";
 import { OrderStatus, PaymentMethod } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
@@ -64,6 +65,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
       return result;
     });
 
+    revalidatePath("/dashboard/orders");
+    revalidatePath("/dashboard/tables");
     return NextResponse.json({ order: updated });
   } catch (error) {
     console.error("dashboard update order status failed", error);

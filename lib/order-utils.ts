@@ -41,7 +41,7 @@ export const tableStatusByOrder: Partial<Record<OrderStatus, TableStatus>> = {
   READY: "PREPARING",
   SERVED: "SERVED",
   BILL_REQUESTED: "BILL_REQUESTED",
-  PAID: "PAID",
+  PAID: "EMPTY",
   CANCELLED: "EMPTY"
 };
 

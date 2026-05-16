@@ -39,13 +39,9 @@ export default async function TablesPage() {
           const qrUrl = baseUrl && table.qrUrl.startsWith("/") ? `${baseUrl}${table.qrUrl}` : table.qrUrl;
           const status = table.requests[0]
             ? "BILL_REQUESTED"
-            : latestOrder
-              ? latestOrder.status === "PAID"
-                ? "PAID"
-                : latestOrder.status === "CANCELLED"
-                  ? "EMPTY"
-                  : latestOrder.status
-              : "EMPTY";
+            : table.status === "PAID" && latestOrder?.status === "PAID"
+              ? "EMPTY"
+              : table.status;
           return (
             <Card key={table.id}>
               <CardHeader>

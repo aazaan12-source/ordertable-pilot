@@ -141,12 +141,14 @@ export async function updateDashboardOrder(formData: FormData) {
   const totals = calculateTotalsFromOrderItems(allDrafts, servicePercent, taxPercent, discount);
   const paymentStatus = (text(formData, "paymentStatus") || order.paymentStatus) as PaymentStatus;
   const paymentMethod = text(formData, "paymentMethod") as PaymentMethod | "";
+  const nextStatus = paymentStatus === "PAID" ? OrderStatus.PAID : order.status;
 
   await db.$transaction(async (tx) => {
     await tx.orderItem.deleteMany({ where: { orderId: order.id } });
     await tx.order.update({
       where: { id: order.id },
       data: {
+        status: nextStatus,
         subtotal: totals.subtotal,
         serviceCharges: totals.serviceCharges,
         tax: totals.tax,
@@ -162,6 +164,18 @@ export async function updateDashboardOrder(formData: FormData) {
         customerPhone: text(formData, "customerPhone") || null,
         waiterName: text(formData, "waiterName") || null,
         items: { create: allDrafts }
+      }
+    });
+    const activeOrders = await tx.order.findMany({
+      where: { tableId: order.tableId, status: { notIn: ["PAID", "CANCELLED"] } },
+      orderBy: { createdAt: "desc" }
+    });
+    await tx.restaurantTable.update({
+      where: { id: order.tableId },
+      data: {
+        status: paymentStatus === "PAID"
+          ? nextTableStatusAfterClosing(activeOrders)
+          : tableStatusByOrder[nextStatus] || "ACTIVE_ORDER"
       }
     });
     await tx.activityLog.create({
@@ -182,6 +196,7 @@ export async function updateDashboardOrder(formData: FormData) {
 
   revalidatePath(`/dashboard/orders/${order.id}`);
   revalidatePath("/dashboard/orders");
+  revalidatePath("/dashboard/tables");
   redirect(`/dashboard/orders/${order.id}`);
 }
 
@@ -205,6 +220,7 @@ export async function markOrderPaid(formData: FormData) {
   });
   revalidatePath("/dashboard/orders");
   revalidatePath(`/dashboard/orders/${order.id}`);
+  revalidatePath("/dashboard/tables");
 }
 
 export async function updateOrderStatusFromDetail(formData: FormData) {
@@ -226,9 +242,21 @@ export async function updateOrderStatusFromDetail(formData: FormData) {
         cancellationReason: status === "CANCELLED" ? "Cancelled by restaurant manager" : order.cancellationReason
       }
     });
-    await tx.restaurantTable.update({ where: { id: order.tableId }, data: { status: tableStatusByOrder[status] || "ACTIVE_ORDER" } });
+    const activeOrders = await tx.order.findMany({
+      where: { tableId: order.tableId, status: { notIn: ["PAID", "CANCELLED"] } },
+      orderBy: { createdAt: "desc" }
+    });
+    await tx.restaurantTable.update({
+      where: { id: order.tableId },
+      data: {
+        status: status === "PAID" || status === "CANCELLED"
+          ? nextTableStatusAfterClosing(activeOrders)
+          : tableStatusByOrder[status] || "ACTIVE_ORDER"
+      }
+    });
     await tx.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, orderId: order.id, action: status === "CANCELLED" ? "ORDER_CANCELLED_BY_MANAGER" : "ORDER_STATUS_UPDATED", description: `${order.orderNumber} changed to ${status}` } });
   });
   revalidatePath(`/dashboard/orders/${order.id}`);
   revalidatePath("/dashboard/orders");
+  revalidatePath("/dashboard/tables");
 }
