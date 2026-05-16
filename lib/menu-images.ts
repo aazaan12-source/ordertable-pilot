@@ -4,7 +4,7 @@ const categoryImages: Record<string, string> = {
   bbq: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=900&q=80",
   karahi: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=900&q=80",
   drinks: "https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=900&q=80",
-  desserts: "https://upload.wikimedia.org/wikipedia/commons/8/88/Gulab_Jamun_%28homemade%21%29_bright.jpg"
+  desserts: "https://upload.wikimedia.org/wikipedia/commons/5/56/Gulab_Jamun.jpg"
 };
 
 const itemImages: Record<string, string> = {
@@ -20,14 +20,14 @@ const itemImages: Record<string, string> = {
   "half chicken karahi": "https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=900&q=80",
   "full chicken karahi": "https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=900&q=80",
   "mutton karahi": "https://images.unsplash.com/photo-1565557623262-b51c2513a641?auto=format&fit=crop&w=900&q=80",
-  pepsi: "https://upload.wikimedia.org/wikipedia/commons/8/89/Pepsi_can_2016.png",
-  "pepsi can": "https://upload.wikimedia.org/wikipedia/commons/8/89/Pepsi_can_2016.png",
+  pepsi: "https://upload.wikimedia.org/wikipedia/commons/d/dd/Pepsi_Can.jpg",
+  "pepsi can": "https://upload.wikimedia.org/wikipedia/commons/d/dd/Pepsi_Can.jpg",
   coke: "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=900&q=80",
   "coca cola": "https://images.unsplash.com/photo-1622483767028-3f66f32aef97?auto=format&fit=crop&w=900&q=80",
   "mint margarita": "https://images.unsplash.com/photo-1502741224143-90386d7f8c82?auto=format&fit=crop&w=900&q=80",
   "fresh lime": "https://images.unsplash.com/photo-1523371054106-bbf80586c38c?auto=format&fit=crop&w=900&q=80",
-  "gulab jamun": "https://upload.wikimedia.org/wikipedia/commons/8/88/Gulab_Jamun_%28homemade%21%29_bright.jpg",
-  "gulab jamun & rasgulla sweets": "https://upload.wikimedia.org/wikipedia/commons/8/88/Gulab_Jamun_%28homemade%21%29_bright.jpg",
+  "gulab jamun": "https://upload.wikimedia.org/wikipedia/commons/5/56/Gulab_Jamun.jpg",
+  "gulab jamun & rasgulla sweets": "https://upload.wikimedia.org/wikipedia/commons/5/56/Gulab_Jamun.jpg",
   kheer: "https://images.unsplash.com/photo-1488477181946-6428a0291777?auto=format&fit=crop&w=900&q=80",
   brownie: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=900&q=80"
 };
