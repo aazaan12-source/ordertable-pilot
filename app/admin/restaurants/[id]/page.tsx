@@ -2,17 +2,25 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/permissions";
-import { toggleOrdering, toggleRestaurantStatus } from "@/lib/admin-restaurant-actions";
+import { deleteRestaurantCompletely, toggleOrdering, toggleRestaurantStatus } from "@/lib/admin-restaurant-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { formatCurrency, formatPkDateTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminRestaurantDetail({ params }: { params: Promise<{ id: string }> }) {
+export default async function AdminRestaurantDetail({
+  params,
+  searchParams
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string }>;
+}) {
   await requirePlatformAdmin();
   const { id } = await params;
+  const { error } = await searchParams;
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
   const restaurant = await db.restaurant.findUnique({
@@ -57,6 +65,12 @@ export default async function AdminRestaurantDetail({ params }: { params: Promis
         <Badge className={restaurant.orderingEnabled ? "bg-blue-100 text-blue-800" : "bg-orange-100 text-orange-800"}>{restaurant.orderingEnabled ? "Ordering Enabled" : "Ordering Disabled"}</Badge>
         <Badge className="bg-muted text-foreground">{restaurant.subscriptionStatus}</Badge>
       </div>
+
+      {error === "delete-confirmation" ? (
+        <div className="mb-5 rounded-md border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+          Restaurant was not deleted. Type the restaurant slug exactly before pressing Delete Restaurant.
+        </div>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-4">
         <Stat title="Active Tables" value={activeTables} sub={`${inactiveTables} inactive`} />
@@ -112,6 +126,24 @@ export default async function AdminRestaurantDetail({ params }: { params: Promis
               <input type="hidden" name="id" value={restaurant.id} />
               <input type="hidden" name="orderingEnabled" value={String(!restaurant.orderingEnabled)} />
               <Button className="w-full" variant="outline">{restaurant.orderingEnabled ? "Disable Ordering" : "Enable Ordering"}</Button>
+            </form>
+            <form action={deleteRestaurantCompletely} className="rounded-md border border-red-200 bg-red-50 p-3">
+              <input type="hidden" name="restaurantId" value={restaurant.id} />
+              <label className="text-xs font-semibold text-red-900">
+                Type slug to delete permanently:
+                <input
+                  name="confirmation"
+                  placeholder={restaurant.slug}
+                  className="mt-2 h-9 w-full rounded-md border bg-white px-3 text-sm text-foreground"
+                />
+              </label>
+              <ConfirmSubmitButton
+                className="mt-2 w-full"
+                message={`This will completely delete ${restaurant.name}, its manager users, tables, menu, orders, bills, and reports. This cannot be undone.`}
+                pendingText="Deleting restaurant..."
+              >
+                Delete Restaurant
+              </ConfirmSubmitButton>
             </form>
           </CardContent>
         </Card>

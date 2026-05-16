@@ -1,8 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getManagerRestaurant } from "@/lib/permissions";
-import { Button } from "@/components/ui/button";
-import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
+import { ConfirmSubmitButton, SubmitButton } from "@/components/ui/confirm-submit-button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -97,7 +96,7 @@ export default async function MenuItemsPage() {
               <Input name="imageUrl" placeholder="Food image URL" />
               <Textarea name="description" placeholder="Short customer-friendly description" />
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isAvailable" defaultChecked /> Available now</label>
-              <Button className="w-full">Add Item</Button>
+              <SubmitButton className="w-full" pendingText="Adding item...">Add Item</SubmitButton>
             </form>
           </CardContent>
         </Card>
@@ -126,7 +125,7 @@ export default async function MenuItemsPage() {
                         <label className="flex items-center gap-2"><input type="checkbox" name="isActive" defaultChecked={item.isActive} /> Active</label>
                       </div>
                       <div className="flex gap-2">
-                        <Button>Save</Button>
+                        <SubmitButton pendingText="Saving...">Save</SubmitButton>
                       </div>
                     </div>
                   </form>
@@ -134,7 +133,7 @@ export default async function MenuItemsPage() {
                     <p>{item.category.name} · {formatCurrency(item.price.toString())}</p>
                     <form action={deleteMenuItem}>
                       <input type="hidden" name="id" value={item.id} />
-                      <ConfirmSubmitButton message="Delete this menu item?">Delete</ConfirmSubmitButton>
+                      <ConfirmSubmitButton message="Delete this menu item?" pendingText="Deleting...">Delete</ConfirmSubmitButton>
                     </form>
                   </div>
                 </div>

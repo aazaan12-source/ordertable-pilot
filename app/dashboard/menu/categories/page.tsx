@@ -1,8 +1,7 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getManagerRestaurant } from "@/lib/permissions";
-import { Button } from "@/components/ui/button";
-import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
+import { ConfirmSubmitButton, SubmitButton } from "@/components/ui/confirm-submit-button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
@@ -65,7 +64,7 @@ export default async function CategoriesPage() {
             <form action={createCategory} className="space-y-3">
               <Input name="name" placeholder="Example: Burgers" required />
               <Input name="sortOrder" type="number" placeholder="Sort order" defaultValue={categories.length + 1} />
-              <Button className="w-full">Add Category</Button>
+              <SubmitButton className="w-full" pendingText="Adding category...">Add Category</SubmitButton>
             </form>
           </CardContent>
         </Card>
@@ -79,13 +78,13 @@ export default async function CategoriesPage() {
                   <Input name="name" defaultValue={category.name} />
                   <Input name="sortOrder" type="number" defaultValue={category.sortOrder} />
                   <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isActive" defaultChecked={category.isActive} /> Active</label>
-                  <Button>Save</Button>
+                  <SubmitButton pendingText="Saving...">Save</SubmitButton>
                 </form>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t pt-3 text-sm text-muted-foreground">
                   <span>{category._count.menuItems} menu items</span>
                   <form action={deleteCategory}>
                     <input type="hidden" name="id" value={category.id} />
-                    <ConfirmSubmitButton message="Delete this category and all its menu items?">Delete</ConfirmSubmitButton>
+                    <ConfirmSubmitButton message="Delete this category and all its menu items?" pendingText="Deleting...">Delete</ConfirmSubmitButton>
                   </form>
                 </div>
               </CardContent>

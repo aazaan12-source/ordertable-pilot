@@ -2,9 +2,9 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/permissions";
 import { updateRestaurantDetails } from "@/lib/admin-restaurant-actions";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { SubmitButton } from "@/components/ui/confirm-submit-button";
 
 export const dynamic = "force-dynamic";
 
@@ -12,9 +12,16 @@ function dateValue(date: Date | null) {
   return date ? date.toISOString().slice(0, 10) : "";
 }
 
-export default async function AdminRestaurantEditPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function AdminRestaurantEditPage({
+  params,
+  searchParams
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ saved?: string }>;
+}) {
   await requirePlatformAdmin();
   const { id } = await params;
+  const { saved } = await searchParams;
   const restaurant = await db.restaurant.findUnique({ where: { id } });
   if (!restaurant) notFound();
 
@@ -24,6 +31,11 @@ export default async function AdminRestaurantEditPage({ params }: { params: Prom
         <h1 className="text-2xl font-bold">Edit Restaurant</h1>
         <p className="text-sm text-muted-foreground">Changing the slug can affect existing printed QR codes. QR records will be regenerated to the latest slug.</p>
       </div>
+      {saved ? (
+        <div className="mb-4 rounded-md border border-green-200 bg-green-50 p-3 text-sm font-medium text-green-800">
+          Restaurant settings saved successfully.
+        </div>
+      ) : null}
       <Card>
         <CardHeader><CardTitle>{restaurant.name}</CardTitle></CardHeader>
         <CardContent>
@@ -53,10 +65,27 @@ export default async function AdminRestaurantEditPage({ params }: { params: Prom
             <Input name="taxPercent" type="number" defaultValue={restaurant.taxPercent.toString()} />
             <Input name="customerCancelWindowMinutes" type="number" defaultValue={restaurant.customerCancelWindowMinutes} />
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="orderingEnabled" defaultChecked={restaurant.orderingEnabled} /> Ordering enabled</label>
+            <div className="rounded-md border bg-white p-3 md:col-span-2">
+              <p className="mb-2 text-sm font-bold">Menu Setup</p>
+              <div className="grid gap-2 sm:grid-cols-3">
+                <label className="rounded-md border p-3 text-sm">
+                  <input type="radio" name="menuSetup" value="keep" defaultChecked /> Keep current menu
+                  <span className="mt-1 block text-xs text-muted-foreground">No menu changes.</span>
+                </label>
+                <label className="rounded-md border p-3 text-sm">
+                  <input type="radio" name="menuSetup" value="empty" /> No menu / clear menu
+                  <span className="mt-1 block text-xs text-muted-foreground">Deletes categories and menu items.</span>
+                </label>
+                <label className="rounded-md border p-3 text-sm">
+                  <input type="radio" name="menuSetup" value="sample" /> Add sample menu
+                  <span className="mt-1 block text-xs text-muted-foreground">Adds sample menu only if menu is empty.</span>
+                </label>
+              </div>
+            </div>
             <div className="rounded-md border border-orange-300 bg-orange-50 p-3 text-sm text-orange-950 md:col-span-2">
               Warning: confirm before changing slug on restaurants with already printed QR codes.
             </div>
-            <Button className="md:col-span-2">Save Changes</Button>
+            <SubmitButton className="md:col-span-2" pendingText="Saving restaurant...">Save Changes</SubmitButton>
           </form>
         </CardContent>
       </Card>

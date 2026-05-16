@@ -2,8 +2,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/permissions";
 import { createRestaurantCategory, deleteRestaurantCategory, updateRestaurantCategory } from "@/lib/admin-restaurant-actions";
-import { Button } from "@/components/ui/button";
-import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
+import { ConfirmSubmitButton, SubmitButton } from "@/components/ui/confirm-submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 
@@ -32,7 +31,7 @@ export default async function AdminRestaurantCategoriesPage({ params }: { params
               <input type="hidden" name="restaurantId" value={restaurant.id} />
               <Input name="name" placeholder="Example: Burgers" required />
               <Input name="sortOrder" type="number" defaultValue={restaurant.categories.length + 1} />
-              <Button className="w-full">Add Category</Button>
+              <SubmitButton className="w-full" pendingText="Adding category...">Add Category</SubmitButton>
             </form>
           </CardContent>
         </Card>
@@ -47,14 +46,14 @@ export default async function AdminRestaurantCategoriesPage({ params }: { params
                   <Input name="name" defaultValue={category.name} required />
                   <Input name="sortOrder" type="number" defaultValue={category.sortOrder} />
                   <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isActive" defaultChecked={category.isActive} /> Active</label>
-                  <Button>Save</Button>
+                  <SubmitButton pendingText="Saving...">Save</SubmitButton>
                 </form>
                 <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t pt-3 text-sm text-muted-foreground">
                   <span>{category._count.menuItems} menu items</span>
                   <form action={deleteRestaurantCategory}>
                     <input type="hidden" name="restaurantId" value={restaurant.id} />
                     <input type="hidden" name="id" value={category.id} />
-                    <ConfirmSubmitButton message="Delete this category and all its menu items?">Delete</ConfirmSubmitButton>
+                    <ConfirmSubmitButton message="Delete this category and all its menu items?" pendingText="Deleting...">Delete</ConfirmSubmitButton>
                   </form>
                 </div>
               </CardContent>

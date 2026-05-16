@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/permissions";
-import { toggleOrdering, toggleRestaurantStatus } from "@/lib/admin-restaurant-actions";
+import { deleteRestaurantCompletely, toggleOrdering, toggleRestaurantStatus } from "@/lib/admin-restaurant-actions";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { formatPkDateTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
 export default async function RestaurantsPage({
   searchParams
 }: {
-  searchParams: Promise<{ q?: string; city?: string; status?: string; subscription?: string; ordering?: string }>;
+  searchParams: Promise<{ q?: string; city?: string; status?: string; subscription?: string; ordering?: string; deleted?: string }>;
 }) {
   await requirePlatformAdmin();
   const filters = await searchParams;
@@ -83,6 +84,12 @@ export default async function RestaurantsPage({
         </CardContent>
       </Card>
 
+      {filters.deleted ? (
+        <div className="mb-5 rounded-md border border-green-200 bg-green-50 p-3 text-sm font-medium text-green-800">
+          Restaurant deleted successfully.
+        </div>
+      ) : null}
+
       <div className="grid gap-3 lg:hidden">
         {restaurants.map((restaurant) => {
           const activeTables = restaurant.tables.filter((table) => table.status !== "INACTIVE").length;
@@ -125,6 +132,17 @@ export default async function RestaurantsPage({
                     <input type="hidden" name="id" value={restaurant.id} />
                     <input type="hidden" name="orderingEnabled" value={String(!restaurant.orderingEnabled)} />
                     <Button className="w-full" size="sm" variant="outline">{restaurant.orderingEnabled ? "Disable Ordering" : "Enable Ordering"}</Button>
+                  </form>
+                  <form action={deleteRestaurantCompletely} className="col-span-2">
+                    <input type="hidden" name="restaurantId" value={restaurant.id} />
+                    <input type="hidden" name="confirmation" value={restaurant.slug} />
+                    <ConfirmSubmitButton
+                      className="w-full"
+                      message={`Completely delete ${restaurant.name}? This removes managers, tables, QR codes, menu, orders, bills, and reports. This cannot be undone.`}
+                      pendingText="Deleting restaurant..."
+                    >
+                      Delete Restaurant
+                    </ConfirmSubmitButton>
                   </form>
                 </div>
               </CardContent>
@@ -182,6 +200,16 @@ export default async function RestaurantsPage({
                   <input type="hidden" name="id" value={restaurant.id} />
                   <input type="hidden" name="orderingEnabled" value={String(!restaurant.orderingEnabled)} />
                   <Button size="sm" variant="outline">{restaurant.orderingEnabled ? "Disable Ordering" : "Enable Ordering"}</Button>
+                </form>
+                <form action={deleteRestaurantCompletely}>
+                  <input type="hidden" name="restaurantId" value={restaurant.id} />
+                  <input type="hidden" name="confirmation" value={restaurant.slug} />
+                  <ConfirmSubmitButton
+                    message={`Completely delete ${restaurant.name}? This removes managers, tables, QR codes, menu, orders, bills, and reports. This cannot be undone.`}
+                    pendingText="Deleting..."
+                  >
+                    Delete
+                  </ConfirmSubmitButton>
                 </form>
               </div>
             </div>

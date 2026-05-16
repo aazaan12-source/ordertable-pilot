@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { getManagerRestaurant } from "@/lib/permissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { formatCurrency } from "@/lib/utils";
+import { FinancialAmount } from "@/components/dashboard/financial-amount";
 
 export const dynamic = "force-dynamic";
 
@@ -30,7 +30,7 @@ export default async function DashboardHome() {
       <div className="grid gap-4 md:grid-cols-4">
         <Stat title="Pending orders" value={pending} />
         <Stat title="Paid orders" value={paid} />
-        <Stat title="Revenue today" value={formatCurrency(revenue._sum.total?.toString() || 0)} />
+        <Stat title="Revenue today" value={<FinancialAmount value={revenue._sum.total?.toString() || 0} />} />
         <Stat title="Open requests" value={waiterRequests} />
       </div>
     </main>

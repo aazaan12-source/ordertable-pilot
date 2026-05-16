@@ -228,6 +228,7 @@ export async function updateRestaurantDetails(formData: FormData) {
   const id = formString(formData, "id");
   const current = await db.restaurant.findUnique({ where: { id }, include: { tables: true } });
   if (!current) return;
+  const menuSetup = formString(formData, "menuSetup", "keep");
   const slug = slugifyRestaurant(formString(formData, "slug", current.slug));
   const updated = await db.restaurant.update({
     where: { id },
@@ -258,9 +259,65 @@ export async function updateRestaurantDetails(formData: FormData) {
     );
   }
 
+  if (menuSetup === "empty") {
+    await db.$transaction([
+      db.menuItem.deleteMany({ where: { restaurantId: id } }),
+      db.category.deleteMany({ where: { restaurantId: id } }),
+      db.activityLog.create({ data: { userId: admin.id, restaurantId: id, action: "MENU_CLEARED", description: `${updated.name} menu cleared from restaurant edit` } })
+    ]);
+  }
+
+  if (menuSetup === "sample") {
+    const categoryCount = await db.category.count({ where: { restaurantId: id } });
+    if (categoryCount === 0) {
+      await createSampleMenu(db, id);
+      await db.activityLog.create({ data: { userId: admin.id, restaurantId: id, action: "SAMPLE_MENU_CREATED", description: `${updated.name} sample menu created from restaurant edit` } });
+    } else {
+      await db.activityLog.create({ data: { userId: admin.id, restaurantId: id, action: "SAMPLE_MENU_SKIPPED", description: `${updated.name} already had menu categories; sample menu was not duplicated` } });
+    }
+  }
+
   await db.activityLog.create({ data: { userId: admin.id, restaurantId: id, action: "RESTAURANT_UPDATED", description: `${updated.name} updated` } });
   revalidatePath(`/admin/restaurants/${id}`);
   revalidatePath(`/admin/restaurants/${id}/edit`);
+  redirect(`/admin/restaurants/${id}/edit?saved=1`);
+}
+
+export async function deleteRestaurantCompletely(formData: FormData) {
+  const admin = await requirePlatformAdmin();
+  const restaurantId = formString(formData, "restaurantId");
+  const confirmation = formString(formData, "confirmation");
+  const restaurant = await db.restaurant.findUnique({
+    where: { id: restaurantId },
+    include: { users: { select: { id: true } } }
+  });
+  if (!restaurant) return;
+  if (confirmation !== restaurant.slug) {
+    redirect(`/admin/restaurants/${restaurantId}?error=delete-confirmation`);
+  }
+
+  const userIds = restaurant.users.map((user) => user.id);
+
+  await db.$transaction([
+    db.activityLog.deleteMany({ where: { OR: [{ restaurantId }, ...(userIds.length ? [{ userId: { in: userIds } }] : [])] } }),
+    db.platformLead.updateMany({ where: { convertedRestaurantId: restaurantId }, data: { convertedRestaurantId: null, status: "CONTACTED" } }),
+    db.feedback.deleteMany({ where: { restaurantId } }),
+    db.waiterRequest.deleteMany({ where: { restaurantId } }),
+    db.orderItem.deleteMany({ where: { order: { restaurantId } } }),
+    db.order.deleteMany({ where: { restaurantId } }),
+    db.menuItem.deleteMany({ where: { restaurantId } }),
+    db.category.deleteMany({ where: { restaurantId } }),
+    db.restaurantTable.deleteMany({ where: { restaurantId } }),
+    db.billingInvoice.deleteMany({ where: { restaurantId } }),
+    db.subscription.deleteMany({ where: { restaurantId } }),
+    db.user.deleteMany({ where: { restaurantId } }),
+    db.restaurant.delete({ where: { id: restaurantId } }),
+    db.activityLog.create({ data: { userId: admin.id, action: "RESTAURANT_DELETED", description: `${restaurant.name} (${restaurant.slug}) was completely deleted` } })
+  ]);
+
+  revalidatePath("/admin");
+  revalidatePath("/admin/restaurants");
+  redirect("/admin/restaurants?deleted=1");
 }
 
 export async function toggleRestaurantStatus(formData: FormData) {

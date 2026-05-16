@@ -2,8 +2,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/permissions";
 import { createRestaurantMenuItem, deleteRestaurantMenuItem, updateRestaurantMenuItem } from "@/lib/admin-restaurant-actions";
-import { Button } from "@/components/ui/button";
-import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
+import { ConfirmSubmitButton, SubmitButton } from "@/components/ui/confirm-submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -52,7 +51,7 @@ export default async function AdminRestaurantMenuItemsPage({ params }: { params:
               <Input name="imageUrl" placeholder="Food image URL" />
               <Textarea name="description" placeholder="Short description" />
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isAvailable" defaultChecked /> Available now</label>
-              <Button className="w-full">Add Item</Button>
+              <SubmitButton className="w-full" pendingText="Adding item...">Add Item</SubmitButton>
             </form>
           </CardContent>
         </Card>
@@ -81,7 +80,7 @@ export default async function AdminRestaurantMenuItemsPage({ params }: { params:
                         <label className="flex items-center gap-2"><input type="checkbox" name="isAvailable" defaultChecked={item.isAvailable} /> Available</label>
                         <label className="flex items-center gap-2"><input type="checkbox" name="isActive" defaultChecked={item.isActive} /> Active</label>
                       </div>
-                      <Button>Save</Button>
+                      <SubmitButton pendingText="Saving...">Save</SubmitButton>
                     </div>
                   </form>
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t pt-3 text-sm text-muted-foreground">
@@ -89,7 +88,7 @@ export default async function AdminRestaurantMenuItemsPage({ params }: { params:
                     <form action={deleteRestaurantMenuItem}>
                       <input type="hidden" name="restaurantId" value={restaurant.id} />
                       <input type="hidden" name="id" value={item.id} />
-                      <ConfirmSubmitButton message="Delete this menu item?">Delete</ConfirmSubmitButton>
+                      <ConfirmSubmitButton message="Delete this menu item?" pendingText="Deleting...">Delete</ConfirmSubmitButton>
                     </form>
                   </div>
                 </div>
