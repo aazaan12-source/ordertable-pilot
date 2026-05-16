@@ -14,7 +14,10 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
       take: 100
     });
-    return NextResponse.json({ orders });
+    return NextResponse.json(
+      { orders },
+      { headers: { "Cache-Control": "no-store, max-age=0" } }
+    );
   } catch (error) {
     console.error("dashboard live orders failed", error);
     return NextResponse.json({ error: "Could not load live orders." }, { status: 500 });

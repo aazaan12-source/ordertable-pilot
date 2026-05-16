@@ -21,7 +21,10 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
       include: { table: true, restaurant: true, items: true, waiterRequests: true }
     });
     if (!order) return NextResponse.json({ error: "Order not found." }, { status: 404 });
-    return NextResponse.json({ order: serializeOrder(order) });
+    return NextResponse.json(
+      { order: serializeOrder(order) },
+      { headers: { "Cache-Control": "no-store, max-age=0" } }
+    );
   } catch (error) {
     console.error("customer order status failed", error);
     return NextResponse.json({ error: "Could not load order status right now." }, { status: 500 });

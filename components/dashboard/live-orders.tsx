@@ -61,12 +61,22 @@ export function LiveOrders({ initialOrders }: { initialOrders: Order[]; restaura
   const [warning, setWarning] = useState("");
   const [updating, setUpdating] = useState("");
   const seenPending = useRef(new Set(initialOrders.filter((order) => order.status === "PENDING").map((order) => order.id)));
+  const ordersRef = useRef(initialOrders);
+  const refreshRef = useRef({ inFlight: false, sequence: 0 });
+
+  useEffect(() => {
+    ordersRef.current = orders;
+  }, [orders]);
 
   async function loadOrders() {
+    if (refreshRef.current.inFlight) return;
+    refreshRef.current.inFlight = true;
+    const sequence = ++refreshRef.current.sequence;
     try {
       const response = await fetch("/api/dashboard/orders", { cache: "no-store" });
       if (!response.ok) throw new Error("orders failed");
       const data = await response.json();
+      if (sequence !== refreshRef.current.sequence) return;
       const nextOrders: Order[] = data.orders;
       const nextPending = nextOrders.filter((order) => order.status === "PENDING");
       if (nextPending.some((order) => !seenPending.current.has(order.id))) {
@@ -78,28 +88,59 @@ export function LiveOrders({ initialOrders }: { initialOrders: Order[]; restaura
       setWarning("");
     } catch {
       setWarning("Connection issue. Retrying...");
+    } finally {
+      refreshRef.current.inFlight = false;
     }
   }
 
   useEffect(() => {
-    const timer = setInterval(loadOrders, 1000);
-    return () => clearInterval(timer);
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = async () => {
+      await loadOrders();
+      if (cancelled) return;
+      timer = setTimeout(tick, document.hidden ? 2500 : 700);
+    };
+    timer = setTimeout(tick, 700);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, []);
 
   async function updateStatus(orderId: string, status: string) {
     setUpdating(`${orderId}:${status}`);
+    const previousOrders = ordersRef.current;
+    const paymentMethod = status === "PAID" ? "CASH" : undefined;
+    setOrders((current) =>
+      current.map((order) =>
+        order.id === orderId
+          ? {
+              ...order,
+              status,
+              paymentStatus: status === "PAID" ? "PAID" : order.paymentStatus,
+              paymentMethod: paymentMethod || order.paymentMethod
+            }
+          : order
+      )
+    );
+    setWarning("");
     try {
       const response = await fetch(`/api/dashboard/orders/${orderId}/status`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status, paymentMethod: status === "PAID" ? "CASH" : undefined })
+        body: JSON.stringify({ status, paymentMethod })
       });
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
+        setOrders(previousOrders);
         setWarning(payload.error || "Could not update order. Retrying...");
         return;
       }
-      await loadOrders();
+      void loadOrders();
+    } catch {
+      setOrders(previousOrders);
+      setWarning("Connection issue. Action was not saved. Retrying...");
     } finally {
       setUpdating("");
     }

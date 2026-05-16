@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Pencil, ReceiptText, RefreshCw, XCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,14 +53,24 @@ export function OrderStatusPanel({ initialOrder }: { initialOrder: OrderSnapshot
   const [statusNotice, setStatusNotice] = useState("");
   const [loading, setLoading] = useState(false);
   const [lastStatus, setLastStatus] = useState(initialOrder.status);
+  const lastStatusRef = useRef(initialOrder.status);
+  const refreshRef = useRef({ inFlight: false, sequence: 0 });
+
+  useEffect(() => {
+    lastStatusRef.current = lastStatus;
+  }, [lastStatus]);
 
   async function loadOrder(silent = false) {
+    if (refreshRef.current.inFlight) return;
+    refreshRef.current.inFlight = true;
+    const sequence = ++refreshRef.current.sequence;
     try {
       const response = await fetch(`/api/customer/orders/${order.id}`, { cache: "no-store" });
       if (!response.ok) throw new Error("status failed");
       const payload = await response.json();
+      if (sequence !== refreshRef.current.sequence) return;
       const nextOrder = payload.order as OrderSnapshot;
-      if (nextOrder.status !== lastStatus) {
+      if (nextOrder.status !== lastStatusRef.current) {
         setStatusNotice(`Order status updated to ${nextOrder.statusLabel}. Tap here to view the latest order status.`);
         setLastStatus(nextOrder.status);
       }
@@ -68,12 +78,24 @@ export function OrderStatusPanel({ initialOrder }: { initialOrder: OrderSnapshot
       setWarning("");
     } catch {
       if (!silent) setWarning("Connection issue. Retrying...");
+    } finally {
+      refreshRef.current.inFlight = false;
     }
   }
 
   useEffect(() => {
-    const timer = setInterval(() => loadOrder(true), 1000);
-    return () => clearInterval(timer);
+    let cancelled = false;
+    let timer: ReturnType<typeof setTimeout>;
+    const tick = async () => {
+      await loadOrder(true);
+      if (cancelled) return;
+      timer = setTimeout(tick, document.hidden ? 2500 : 700);
+    };
+    timer = setTimeout(tick, 700);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [order.id]);
 
   async function cancelOrder() {

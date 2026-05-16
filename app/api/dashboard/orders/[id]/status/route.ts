@@ -67,7 +67,10 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     revalidatePath("/dashboard/orders");
     revalidatePath("/dashboard/tables");
-    return NextResponse.json({ order: updated });
+    return NextResponse.json(
+      { order: updated },
+      { headers: { "Cache-Control": "no-store, max-age=0" } }
+    );
   } catch (error) {
     console.error("dashboard update order status failed", error);
     return NextResponse.json({ error: "Could not update order status." }, { status: 500 });
