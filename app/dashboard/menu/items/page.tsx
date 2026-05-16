@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { MenuImagePicker } from "@/components/ui/menu-image-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
-import { menuImageFor } from "@/lib/menu-images";
+import { cleanSubmittedMenuImage, menuImageFor, safeStoredImageUrl } from "@/lib/menu-images";
 
 export const dynamic = "force-dynamic";
 
@@ -24,7 +24,7 @@ async function createMenuItem(formData: FormData) {
       name,
       description: String(formData.get("description") || ""),
       price: Number(formData.get("price") || 0),
-      imageUrl: String(formData.get("imageUrl") || "") || null,
+      imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")),
       isAvailable: formData.get("isAvailable") === "on",
       isActive: true,
       sortOrder: Number(formData.get("sortOrder") || 0)
@@ -47,7 +47,7 @@ async function updateMenuItem(formData: FormData) {
       name,
       description: String(formData.get("description") || ""),
       price: Number(formData.get("price") || 0),
-      imageUrl: String(formData.get("imageUrl") || "") || null,
+      imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")),
       isActive: formData.get("isActive") === "on",
       isAvailable: formData.get("isAvailable") === "on",
       sortOrder: Number(formData.get("sortOrder") || 0)
@@ -119,7 +119,7 @@ export default async function MenuItemsPage() {
                       <Input name="sortOrder" type="number" defaultValue={item.sortOrder} />
                     </div>
                     <MenuImagePicker
-                      defaultValue={item.imageUrl}
+                      defaultValue={safeStoredImageUrl(item.imageUrl)}
                       defaultItemName={item.name}
                       defaultCategoryName={item.category.name}
                       categories={categories.map((category) => ({ id: category.id, name: category.name }))}

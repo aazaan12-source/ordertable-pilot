@@ -5,6 +5,7 @@ import { ConfirmSubmitButton, SubmitButton } from "@/components/ui/confirm-submi
 import { Input } from "@/components/ui/input";
 import { MenuImagePicker } from "@/components/ui/menu-image-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cleanSubmittedMenuImage, safeStoredImageUrl } from "@/lib/menu-images";
 
 export const dynamic = "force-dynamic";
 
@@ -13,7 +14,7 @@ async function createCategory(formData: FormData) {
   const { user, restaurant } = await getManagerRestaurant();
   const name = String(formData.get("name") || "").trim();
   const sortOrder = Number(formData.get("sortOrder") || 0);
-  const imageUrl = String(formData.get("imageUrl") || "") || null;
+  const imageUrl = cleanSubmittedMenuImage(formData.get("imageUrl"));
   if (!name) return;
   await db.category.create({ data: { restaurantId: restaurant.id, name, imageUrl, sortOrder } });
   await db.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "CATEGORY_CREATED", description: name } });
@@ -25,7 +26,7 @@ async function updateCategory(formData: FormData) {
   const { user, restaurant } = await getManagerRestaurant();
   const id = String(formData.get("id"));
   const name = String(formData.get("name") || "").trim();
-  const imageUrl = String(formData.get("imageUrl") || "") || null;
+  const imageUrl = cleanSubmittedMenuImage(formData.get("imageUrl"));
   const sortOrder = Number(formData.get("sortOrder") || 0);
   const isActive = formData.get("isActive") === "on";
   await db.category.updateMany({ where: { id, restaurantId: restaurant.id }, data: { name, imageUrl, sortOrder, isActive } });
@@ -81,7 +82,7 @@ export default async function CategoriesPage() {
                   <input type="hidden" name="id" value={category.id} />
                   <Input name="name" defaultValue={category.name} />
                   <div className="md:col-span-4">
-                    <MenuImagePicker defaultValue={category.imageUrl} defaultItemName={category.name} defaultCategoryName={category.name} itemNameField="name" />
+                    <MenuImagePicker defaultValue={safeStoredImageUrl(category.imageUrl)} defaultItemName={category.name} defaultCategoryName={category.name} itemNameField="name" />
                   </div>
                   <Input name="sortOrder" type="number" defaultValue={category.sortOrder} />
                   <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isActive" defaultChecked={category.isActive} /> Active</label>

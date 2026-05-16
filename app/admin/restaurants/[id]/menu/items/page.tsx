@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MenuImagePicker } from "@/components/ui/menu-image-picker";
 import { formatCurrency } from "@/lib/utils";
-import { menuImageFor } from "@/lib/menu-images";
+import { menuImageFor, safeStoredImageUrl } from "@/lib/menu-images";
 
 export const dynamic = "force-dynamic";
 
@@ -75,7 +75,7 @@ export default async function AdminRestaurantMenuItemsPage({ params }: { params:
                       <Input name="sortOrder" type="number" defaultValue={item.sortOrder} />
                     </div>
                     <MenuImagePicker
-                      defaultValue={item.imageUrl}
+                      defaultValue={safeStoredImageUrl(item.imageUrl)}
                       defaultItemName={item.name}
                       defaultCategoryName={item.category.name}
                       categories={restaurant.categories.map((category) => ({ id: category.id, name: category.name }))}

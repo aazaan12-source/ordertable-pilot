@@ -4,6 +4,7 @@ import { db } from "@/lib/db";
 import { OrderMenu } from "@/components/customer/order-menu";
 import { RecentOrderLink } from "@/components/customer/recent-order-link";
 import { RequestButtons } from "@/components/customer/request-buttons";
+import { safeStoredImageUrl } from "@/lib/menu-images";
 
 export const dynamic = "force-dynamic";
 
@@ -57,13 +58,13 @@ export default async function CustomerTablePage({
           taxPercent: restaurant.taxPercent.toString()
         }}
         tableNumber={tableNo}
-        categories={restaurant.categories.map((category) => ({ id: category.id, name: category.name, imageUrl: category.imageUrl }))}
+        categories={restaurant.categories.map((category) => ({ id: category.id, name: category.name, imageUrl: safeStoredImageUrl(category.imageUrl) }))}
         items={restaurant.menuItems.map((item) => ({
           id: item.id,
           name: item.name,
           description: item.description,
           price: item.price.toString(),
-          imageUrl: item.imageUrl,
+          imageUrl: safeStoredImageUrl(item.imageUrl),
           category: { id: item.category.id, name: item.category.name }
         }))}
       />

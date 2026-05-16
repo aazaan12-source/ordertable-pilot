@@ -6,6 +6,7 @@ import { ConfirmSubmitButton, SubmitButton } from "@/components/ui/confirm-submi
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { MenuImagePicker } from "@/components/ui/menu-image-picker";
+import { safeStoredImageUrl } from "@/lib/menu-images";
 
 export const dynamic = "force-dynamic";
 
@@ -47,7 +48,7 @@ export default async function AdminRestaurantCategoriesPage({ params }: { params
                   <input type="hidden" name="id" value={category.id} />
                   <Input name="name" defaultValue={category.name} required />
                   <div className="md:col-span-4">
-                    <MenuImagePicker defaultValue={category.imageUrl} defaultItemName={category.name} defaultCategoryName={category.name} itemNameField="name" />
+                    <MenuImagePicker defaultValue={safeStoredImageUrl(category.imageUrl)} defaultItemName={category.name} defaultCategoryName={category.name} itemNameField="name" />
                   </div>
                   <Input name="sortOrder" type="number" defaultValue={category.sortOrder} />
                   <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isActive" defaultChecked={category.isActive} /> Active</label>

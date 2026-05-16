@@ -32,6 +32,8 @@ const itemImages: Record<string, string> = {
   brownie: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=900&q=80"
 };
 
+export const MAX_STORED_IMAGE_LENGTH = 350_000;
+
 const keywordImages: { keywords: string[]; image: string }[] = [
   { keywords: ["burger", "zinger", "beef patty"], image: itemImages["zinger burger"] },
   { keywords: ["pizza", "fajita", "supreme"], image: categoryImages.pizza },
@@ -61,6 +63,21 @@ function normalize(value?: string | null) {
   return (value || "").toLowerCase().replace(/[-_]/g, " ").trim();
 }
 
+export function safeStoredImageUrl(imageUrl?: string | null) {
+  const value = (imageUrl || "").trim();
+  if (!value) return null;
+  if (value.startsWith("data:image/")) {
+    return value.length <= MAX_STORED_IMAGE_LENGTH ? value : null;
+  }
+  if (value.length > 2_000) return null;
+  return value;
+}
+
+export function cleanSubmittedMenuImage(value: FormDataEntryValue | null) {
+  const imageUrl = String(value || "").trim();
+  return safeStoredImageUrl(imageUrl);
+}
+
 export function suggestedMenuImageFor(itemName: string, categoryName?: string | null) {
   const itemKey = normalize(itemName);
   const exact = itemImages[itemKey];
@@ -74,15 +91,17 @@ export function suggestedMenuImageFor(itemName: string, categoryName?: string | 
 }
 
 export function categoryImageFor(categoryName: string, imageUrl?: string | null) {
-  if (imageUrl) return imageUrl;
+  const safeImageUrl = safeStoredImageUrl(imageUrl);
+  if (safeImageUrl) return safeImageUrl;
   return suggestedMenuImageFor(categoryName, categoryName);
 }
 
 export function menuImageFor(itemName: string, categoryName?: string, imageUrl?: string | null) {
-  if (imageUrl?.startsWith("data:image/")) return imageUrl;
+  const safeImageUrl = safeStoredImageUrl(imageUrl);
+  if (safeImageUrl?.startsWith("data:image/")) return safeImageUrl;
   const exact = itemImages[normalize(itemName)];
   if (exact) return exact;
-  if (imageUrl) return imageUrl;
+  if (safeImageUrl) return safeImageUrl;
   return suggestedMenuImageFor(itemName, categoryName);
 }
 

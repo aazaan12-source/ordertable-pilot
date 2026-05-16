@@ -8,7 +8,7 @@ import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/permissions";
 import { absoluteTableQrUrl } from "@/lib/qr";
 import { imageForSeededItem, sampleCategoryNames, sampleMenuItems } from "@/lib/sample-menu";
-import { categoryImageFor } from "@/lib/menu-images";
+import { categoryImageFor, cleanSubmittedMenuImage } from "@/lib/menu-images";
 import { slugifyRestaurant } from "@/lib/admin-restaurant-utils";
 
 function formString(formData: FormData, key: string, fallback = "") {
@@ -399,7 +399,7 @@ export async function createRestaurantCategory(formData: FormData) {
   const restaurantId = formString(formData, "restaurantId");
   const name = formString(formData, "name");
   if (!name) return;
-  await db.category.create({ data: { restaurantId, name, imageUrl: formString(formData, "imageUrl") || null, sortOrder: Number(formData.get("sortOrder") || 0), isActive: true } });
+  await db.category.create({ data: { restaurantId, name, imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")), sortOrder: Number(formData.get("sortOrder") || 0), isActive: true } });
   await db.activityLog.create({ data: { userId: admin.id, restaurantId, action: "MENU_CATEGORY_CREATED", description: name } });
   revalidatePath(`/admin/restaurants/${restaurantId}/menu/categories`);
 }
@@ -411,7 +411,7 @@ export async function updateRestaurantCategory(formData: FormData) {
   const name = formString(formData, "name");
   await db.category.updateMany({
     where: { id, restaurantId },
-    data: { name, imageUrl: formString(formData, "imageUrl") || null, sortOrder: Number(formData.get("sortOrder") || 0), isActive: formData.get("isActive") === "on" }
+    data: { name, imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")), sortOrder: Number(formData.get("sortOrder") || 0), isActive: formData.get("isActive") === "on" }
   });
   await db.activityLog.create({ data: { userId: admin.id, restaurantId, action: "MENU_CATEGORY_UPDATED", description: name } });
   revalidatePath(`/admin/restaurants/${restaurantId}/menu/categories`);
@@ -445,7 +445,7 @@ export async function createRestaurantMenuItem(formData: FormData) {
       name,
       description: formString(formData, "description"),
       price: Number(formData.get("price") || 0),
-      imageUrl: formString(formData, "imageUrl") || null,
+      imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")),
       isActive: formData.get("isActive") !== "false",
       isAvailable: formData.get("isAvailable") === "on",
       sortOrder: Number(formData.get("sortOrder") || 0)
@@ -467,7 +467,7 @@ export async function updateRestaurantMenuItem(formData: FormData) {
       name,
       description: formString(formData, "description"),
       price: Number(formData.get("price") || 0),
-      imageUrl: formString(formData, "imageUrl") || null,
+      imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")),
       isActive: formData.get("isActive") === "on",
       isAvailable: formData.get("isAvailable") === "on",
       sortOrder: Number(formData.get("sortOrder") || 0)
