@@ -57,7 +57,7 @@ export default async function CustomerTablePage({
           taxPercent: restaurant.taxPercent.toString()
         }}
         tableNumber={tableNo}
-        categories={restaurant.categories.map((category) => ({ id: category.id, name: category.name }))}
+        categories={restaurant.categories.map((category) => ({ id: category.id, name: category.name, imageUrl: category.imageUrl }))}
         items={restaurant.menuItems.map((item) => ({
           id: item.id,
           name: item.name,

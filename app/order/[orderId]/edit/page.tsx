@@ -36,7 +36,7 @@ export default async function EditOrderPage({ params }: { params: Promise<{ orde
     <OrderMenu
       restaurant={{ name: order.restaurant.name, slug: order.restaurant.slug, logoUrl: order.restaurant.logoUrl }}
       tableNumber={order.table.tableNumber}
-      categories={order.restaurant.categories.map((category) => ({ id: category.id, name: category.name }))}
+      categories={order.restaurant.categories.map((category) => ({ id: category.id, name: category.name, imageUrl: category.imageUrl }))}
       items={order.restaurant.menuItems.map((item) => ({
         id: item.id,
         name: item.name,

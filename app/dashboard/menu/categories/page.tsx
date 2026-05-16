@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { getManagerRestaurant } from "@/lib/permissions";
 import { ConfirmSubmitButton, SubmitButton } from "@/components/ui/confirm-submit-button";
 import { Input } from "@/components/ui/input";
+import { MenuImagePicker } from "@/components/ui/menu-image-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const dynamic = "force-dynamic";
@@ -12,8 +13,9 @@ async function createCategory(formData: FormData) {
   const { user, restaurant } = await getManagerRestaurant();
   const name = String(formData.get("name") || "").trim();
   const sortOrder = Number(formData.get("sortOrder") || 0);
+  const imageUrl = String(formData.get("imageUrl") || "") || null;
   if (!name) return;
-  await db.category.create({ data: { restaurantId: restaurant.id, name, sortOrder } });
+  await db.category.create({ data: { restaurantId: restaurant.id, name, imageUrl, sortOrder } });
   await db.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "CATEGORY_CREATED", description: name } });
   revalidatePath("/dashboard/menu/categories");
 }
@@ -23,9 +25,10 @@ async function updateCategory(formData: FormData) {
   const { user, restaurant } = await getManagerRestaurant();
   const id = String(formData.get("id"));
   const name = String(formData.get("name") || "").trim();
+  const imageUrl = String(formData.get("imageUrl") || "") || null;
   const sortOrder = Number(formData.get("sortOrder") || 0);
   const isActive = formData.get("isActive") === "on";
-  await db.category.updateMany({ where: { id, restaurantId: restaurant.id }, data: { name, sortOrder, isActive } });
+  await db.category.updateMany({ where: { id, restaurantId: restaurant.id }, data: { name, imageUrl, sortOrder, isActive } });
   await db.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "CATEGORY_UPDATED", description: name } });
   revalidatePath("/dashboard/menu/categories");
 }
@@ -63,6 +66,7 @@ export default async function CategoriesPage() {
           <CardContent>
             <form action={createCategory} className="space-y-3">
               <Input name="name" placeholder="Example: Burgers" required />
+              <MenuImagePicker itemNameField="name" defaultCategoryName="Category" />
               <Input name="sortOrder" type="number" placeholder="Sort order" defaultValue={categories.length + 1} />
               <SubmitButton className="w-full" pendingText="Adding category...">Add Category</SubmitButton>
             </form>
@@ -76,6 +80,9 @@ export default async function CategoriesPage() {
                 <form action={updateCategory} className="grid gap-3 md:grid-cols-[1fr_100px_120px_100px]">
                   <input type="hidden" name="id" value={category.id} />
                   <Input name="name" defaultValue={category.name} />
+                  <div className="md:col-span-4">
+                    <MenuImagePicker defaultValue={category.imageUrl} defaultItemName={category.name} defaultCategoryName={category.name} itemNameField="name" />
+                  </div>
                   <Input name="sortOrder" type="number" defaultValue={category.sortOrder} />
                   <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isActive" defaultChecked={category.isActive} /> Active</label>
                   <SubmitButton pendingText="Saving...">Save</SubmitButton>

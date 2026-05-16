@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { formatCurrency } from "@/lib/utils";
-import { menuImageFor } from "@/lib/menu-images";
+import { categoryImageFor, menuImageFor } from "@/lib/menu-images";
 
 type MenuItem = {
   id: string;
@@ -44,7 +44,7 @@ export function OrderMenu({
     taxPercent?: string;
   };
   tableNumber: number;
-  categories: { id: string; name: string }[];
+  categories: { id: string; name: string; imageUrl?: string | null }[];
   items: MenuItem[];
   editOrder?: {
     id: string;
@@ -178,7 +178,10 @@ export function OrderMenu({
                       activeCategory === category.id ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-border"
                     }`}
                   >
-                    {category.name}
+                    <span className="flex items-center gap-1.5 sm:gap-2">
+                      <img src={categoryImageFor(category.name, category.imageUrl)} alt="" className="h-7 w-7 shrink-0 rounded object-cover sm:h-9 sm:w-9" />
+                      <span>{category.name}</span>
+                    </span>
                   </button>
                 ))}
               </div>

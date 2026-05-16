@@ -165,6 +165,7 @@ model Category {
   restaurantId String
   restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
   name         String
+  imageUrl     String?
   sortOrder    Int         @default(0)
   isActive     Boolean     @default(true)
   createdAt    DateTime    @default(now())

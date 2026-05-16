@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/permissions";
 import { absoluteTableQrUrl } from "@/lib/qr";
 import { imageForSeededItem, sampleCategoryNames, sampleMenuItems } from "@/lib/sample-menu";
+import { categoryImageFor } from "@/lib/menu-images";
 import { slugifyRestaurant } from "@/lib/admin-restaurant-utils";
 
 function formString(formData: FormData, key: string, fallback = "") {
@@ -40,7 +41,7 @@ type MenuWriter = Pick<Prisma.TransactionClient, "category" | "menuItem">;
 async function createSampleMenu(tx: MenuWriter, restaurantId: string) {
   for (const [categoryIndex, categoryName] of sampleCategoryNames.entries()) {
     const category = await tx.category.create({
-      data: { restaurantId, name: categoryName, sortOrder: categoryIndex + 1 }
+      data: { restaurantId, name: categoryName, imageUrl: categoryImageFor(categoryName), sortOrder: categoryIndex + 1 }
     });
 
     for (const [itemIndex, item] of sampleMenuItems[categoryName].entries()) {
@@ -292,6 +293,9 @@ export async function deleteRestaurantCompletely(formData: FormData) {
     include: { users: { select: { id: true } } }
   });
   if (!restaurant) return;
+  if (restaurant.status !== RestaurantStatus.INACTIVE) {
+    redirect(`/admin/restaurants/${restaurantId}?error=delete-active`);
+  }
   if (confirmation !== restaurant.slug) {
     redirect(`/admin/restaurants/${restaurantId}?error=delete-confirmation`);
   }
@@ -388,7 +392,7 @@ export async function createRestaurantCategory(formData: FormData) {
   const restaurantId = formString(formData, "restaurantId");
   const name = formString(formData, "name");
   if (!name) return;
-  await db.category.create({ data: { restaurantId, name, sortOrder: Number(formData.get("sortOrder") || 0), isActive: true } });
+  await db.category.create({ data: { restaurantId, name, imageUrl: formString(formData, "imageUrl") || null, sortOrder: Number(formData.get("sortOrder") || 0), isActive: true } });
   await db.activityLog.create({ data: { userId: admin.id, restaurantId, action: "MENU_CATEGORY_CREATED", description: name } });
   revalidatePath(`/admin/restaurants/${restaurantId}/menu/categories`);
 }
@@ -400,7 +404,7 @@ export async function updateRestaurantCategory(formData: FormData) {
   const name = formString(formData, "name");
   await db.category.updateMany({
     where: { id, restaurantId },
-    data: { name, sortOrder: Number(formData.get("sortOrder") || 0), isActive: formData.get("isActive") === "on" }
+    data: { name, imageUrl: formString(formData, "imageUrl") || null, sortOrder: Number(formData.get("sortOrder") || 0), isActive: formData.get("isActive") === "on" }
   });
   await db.activityLog.create({ data: { userId: admin.id, restaurantId, action: "MENU_CATEGORY_UPDATED", description: name } });
   revalidatePath(`/admin/restaurants/${restaurantId}/menu/categories`);

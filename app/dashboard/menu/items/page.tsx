@@ -4,6 +4,7 @@ import { getManagerRestaurant } from "@/lib/permissions";
 import { ConfirmSubmitButton, SubmitButton } from "@/components/ui/confirm-submit-button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { MenuImagePicker } from "@/components/ui/menu-image-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import { menuImageFor } from "@/lib/menu-images";
@@ -93,7 +94,7 @@ export default async function MenuItemsPage() {
                 <Input name="price" type="number" placeholder="Price" required />
                 <Input name="sortOrder" type="number" placeholder="Sort order" defaultValue={1} />
               </div>
-              <Input name="imageUrl" placeholder="Food image URL" />
+              <MenuImagePicker categories={categories.map((category) => ({ id: category.id, name: category.name }))} />
               <Textarea name="description" placeholder="Short customer-friendly description" />
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isAvailable" defaultChecked /> Available now</label>
               <SubmitButton className="w-full" pendingText="Adding item...">Add Item</SubmitButton>
@@ -116,8 +117,13 @@ export default async function MenuItemsPage() {
                       </select>
                       <Input name="price" type="number" defaultValue={item.price.toString()} />
                       <Input name="sortOrder" type="number" defaultValue={item.sortOrder} />
-                      <Input className="md:col-span-2" name="imageUrl" defaultValue={item.imageUrl || ""} placeholder="Food image URL" />
                     </div>
+                    <MenuImagePicker
+                      defaultValue={item.imageUrl}
+                      defaultItemName={item.name}
+                      defaultCategoryName={item.category.name}
+                      categories={categories.map((category) => ({ id: category.id, name: category.name }))}
+                    />
                     <Textarea name="description" defaultValue={item.description} />
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex items-center gap-4 text-sm">

@@ -5,6 +5,7 @@ import { createRestaurantCategory, deleteRestaurantCategory, updateRestaurantCat
 import { ConfirmSubmitButton, SubmitButton } from "@/components/ui/confirm-submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { MenuImagePicker } from "@/components/ui/menu-image-picker";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,7 @@ export default async function AdminRestaurantCategoriesPage({ params }: { params
             <form action={createRestaurantCategory} className="space-y-3">
               <input type="hidden" name="restaurantId" value={restaurant.id} />
               <Input name="name" placeholder="Example: Burgers" required />
+              <MenuImagePicker itemNameField="name" defaultCategoryName="Category" />
               <Input name="sortOrder" type="number" defaultValue={restaurant.categories.length + 1} />
               <SubmitButton className="w-full" pendingText="Adding category...">Add Category</SubmitButton>
             </form>
@@ -44,6 +46,9 @@ export default async function AdminRestaurantCategoriesPage({ params }: { params
                   <input type="hidden" name="restaurantId" value={restaurant.id} />
                   <input type="hidden" name="id" value={category.id} />
                   <Input name="name" defaultValue={category.name} required />
+                  <div className="md:col-span-4">
+                    <MenuImagePicker defaultValue={category.imageUrl} defaultItemName={category.name} defaultCategoryName={category.name} itemNameField="name" />
+                  </div>
                   <Input name="sortOrder" type="number" defaultValue={category.sortOrder} />
                   <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isActive" defaultChecked={category.isActive} /> Active</label>
                   <SubmitButton pendingText="Saving...">Save</SubmitButton>

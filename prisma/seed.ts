@@ -1,6 +1,7 @@
 import bcrypt from "bcryptjs";
 import { PrismaClient, UserRole, RestaurantStatus, SubscriptionStatus } from "@prisma/client";
 import { imageForSeededItem, sampleCategoryNames, sampleMenuItems } from "../lib/sample-menu";
+import { categoryImageFor } from "../lib/menu-images";
 import { absoluteTableQrUrl } from "../lib/qr";
 
 const prisma = new PrismaClient();
@@ -112,11 +113,12 @@ async function seedRestaurant(restaurantSeed: (typeof seededRestaurants)[number]
   for (const [index, categoryName] of sampleCategoryNames.entries()) {
     const category = await prisma.category.upsert({
       where: { id: `${restaurant.slug}-${categoryName.toLowerCase()}` },
-      update: { name: categoryName, sortOrder: index + 1, isActive: true },
+      update: { name: categoryName, imageUrl: categoryImageFor(categoryName), sortOrder: index + 1, isActive: true },
       create: {
         id: `${restaurant.slug}-${categoryName.toLowerCase()}`,
         restaurantId: restaurant.id,
         name: categoryName,
+        imageUrl: categoryImageFor(categoryName),
         sortOrder: index + 1
       }
     });

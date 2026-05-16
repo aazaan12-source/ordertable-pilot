@@ -71,6 +71,11 @@ export default async function AdminRestaurantDetail({
           Restaurant was not deleted. Type the restaurant slug exactly before pressing Delete Restaurant.
         </div>
       ) : null}
+      {error === "delete-active" ? (
+        <div className="mb-5 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm font-medium text-amber-800">
+          Restaurant was not deleted. Deactivate the restaurant first, then delete it if you are sure.
+        </div>
+      ) : null}
 
       <div className="grid gap-4 md:grid-cols-4">
         <Stat title="Active Tables" value={activeTables} sub={`${inactiveTables} inactive`} />
@@ -127,24 +132,34 @@ export default async function AdminRestaurantDetail({
               <input type="hidden" name="orderingEnabled" value={String(!restaurant.orderingEnabled)} />
               <Button className="w-full" variant="outline">{restaurant.orderingEnabled ? "Disable Ordering" : "Enable Ordering"}</Button>
             </form>
-            <form action={deleteRestaurantCompletely} className="rounded-md border border-red-200 bg-red-50 p-3">
-              <input type="hidden" name="restaurantId" value={restaurant.id} />
-              <label className="text-xs font-semibold text-red-900">
-                Type slug to delete permanently:
-                <input
-                  name="confirmation"
-                  placeholder={restaurant.slug}
-                  className="mt-2 h-9 w-full rounded-md border bg-white px-3 text-sm text-foreground"
-                />
-              </label>
-              <ConfirmSubmitButton
-                className="mt-2 w-full"
-                message={`This will completely delete ${restaurant.name}, its manager users, tables, menu, orders, bills, and reports. This cannot be undone.`}
-                pendingText="Deleting restaurant..."
-              >
-                Delete Restaurant
-              </ConfirmSubmitButton>
-            </form>
+            {restaurant.status === "INACTIVE" ? (
+              <form action={deleteRestaurantCompletely} className="rounded-md border border-red-200 bg-red-50 p-3">
+                <input type="hidden" name="restaurantId" value={restaurant.id} />
+                <label className="text-xs font-semibold text-red-900">
+                  Delete permanently only after deactivation. Type slug:
+                  <input
+                    name="confirmation"
+                    placeholder={restaurant.slug}
+                    className="mt-2 h-9 w-full rounded-md border bg-white px-3 text-sm text-foreground"
+                  />
+                </label>
+                <p className="mt-2 text-xs text-red-800">
+                  This deletes manager logins, tables, QR codes, menu, orders, bills, reports, requests, feedback, and restaurant records.
+                </p>
+                <ConfirmSubmitButton
+                  className="mt-2 w-auto"
+                  size="sm"
+                  message={`Permanent delete warning:\n\nThis will delete ${restaurant.name} completely, including manager logins, tables, QR codes, menu, orders, bills, reports, waiter requests, feedback, and restaurant records.\n\nThis cannot be undone.\n\nContinue only if this restaurant is no longer needed.`}
+                  pendingText="Deleting..."
+                >
+                  Delete
+                </ConfirmSubmitButton>
+              </form>
+            ) : (
+              <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+                Delete is locked while restaurant is active. Deactivate restaurant first to unlock permanent delete.
+              </div>
+            )}
           </CardContent>
         </Card>
 

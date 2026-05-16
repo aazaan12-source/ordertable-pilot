@@ -30,12 +30,55 @@ const itemImages: Record<string, string> = {
   brownie: "https://images.unsplash.com/photo-1606313564200-e75d5e30476c?auto=format&fit=crop&w=900&q=80"
 };
 
-export function menuImageFor(itemName: string, categoryName?: string, imageUrl?: string | null) {
-  const item = itemImages[itemName.toLowerCase()];
-  if (item) return item;
+const keywordImages: { keywords: string[]; image: string }[] = [
+  { keywords: ["burger", "zinger", "beef patty"], image: itemImages["zinger burger"] },
+  { keywords: ["pizza", "fajita", "supreme"], image: categoryImages.pizza },
+  { keywords: ["karahi", "kadai"], image: categoryImages.karahi },
+  { keywords: ["mutton"], image: itemImages["mutton karahi"] },
+  { keywords: ["tikka"], image: itemImages["chicken tikka"] },
+  { keywords: ["malai", "boti"], image: itemImages["malai boti"] },
+  { keywords: ["seekh", "kabab", "kebab"], image: itemImages["seekh kabab"] },
+  { keywords: ["pepsi"], image: itemImages.pepsi },
+  { keywords: ["sprite", "7up", "7 up"], image: "https://upload.wikimedia.org/wikipedia/commons/2/27/Sprite_2022.svg" },
+  { keywords: ["coke", "coca cola", "coca-cola"], image: itemImages.coke },
+  { keywords: ["margarita", "mint"], image: itemImages["mint margarita"] },
+  { keywords: ["lime", "lemon"], image: itemImages["fresh lime"] },
+  { keywords: ["gulab", "jamun"], image: itemImages["gulab jamun"] },
+  { keywords: ["kheer", "firni", "phirni"], image: itemImages.kheer },
+  { keywords: ["brownie", "cake", "chocolate"], image: itemImages.brownie },
+  { keywords: ["fries", "chips"], image: "https://images.unsplash.com/photo-1573080496219-bb080dd4f877?auto=format&fit=crop&w=900&q=80" },
+  { keywords: ["samosa"], image: "https://images.unsplash.com/photo-1601050690597-df0568f70950?auto=format&fit=crop&w=900&q=80" },
+  { keywords: ["biryani", "pulao", "rice"], image: "https://images.unsplash.com/photo-1563379091339-03246963d29a?auto=format&fit=crop&w=900&q=80" },
+  { keywords: ["chai", "tea"], image: "https://images.unsplash.com/photo-1571934811356-5cc061b6821f?auto=format&fit=crop&w=900&q=80" },
+  { keywords: ["coffee", "latte", "cappuccino"], image: "https://images.unsplash.com/photo-1509042239860-f550ce710b93?auto=format&fit=crop&w=900&q=80" },
+  { keywords: ["water", "mineral"], image: "https://images.unsplash.com/photo-1548839140-29a749e1cf4d?auto=format&fit=crop&w=900&q=80" },
+  { keywords: ["ice cream", "icecream"], image: "https://images.unsplash.com/photo-1563805042-7684c019e1cb?auto=format&fit=crop&w=900&q=80" }
+];
+
+function normalize(value?: string | null) {
+  return (value || "").toLowerCase().replace(/[-_]/g, " ").trim();
+}
+
+export function suggestedMenuImageFor(itemName: string, categoryName?: string | null) {
+  const itemKey = normalize(itemName);
+  const exact = itemImages[itemKey];
+  if (exact) return exact;
+
+  const match = keywordImages.find((entry) => entry.keywords.some((keyword) => itemKey.includes(keyword)));
+  if (match) return match.image;
+
+  const categoryKey = normalize(categoryName);
+  return categoryImages[categoryKey] || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=900&q=80";
+}
+
+export function categoryImageFor(categoryName: string, imageUrl?: string | null) {
   if (imageUrl) return imageUrl;
-  const category = categoryName ? categoryImages[categoryName.toLowerCase()] : null;
-  return category || "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?auto=format&fit=crop&w=900&q=80";
+  return suggestedMenuImageFor(categoryName, categoryName);
+}
+
+export function menuImageFor(itemName: string, categoryName?: string, imageUrl?: string | null) {
+  if (imageUrl) return imageUrl;
+  return suggestedMenuImageFor(itemName, categoryName);
 }
 
 export const seededMenuImages = itemImages;

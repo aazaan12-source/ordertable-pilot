@@ -133,17 +133,24 @@ export default async function RestaurantsPage({
                     <input type="hidden" name="orderingEnabled" value={String(!restaurant.orderingEnabled)} />
                     <Button className="w-full" size="sm" variant="outline">{restaurant.orderingEnabled ? "Disable Ordering" : "Enable Ordering"}</Button>
                   </form>
-                  <form action={deleteRestaurantCompletely} className="col-span-2">
-                    <input type="hidden" name="restaurantId" value={restaurant.id} />
-                    <input type="hidden" name="confirmation" value={restaurant.slug} />
-                    <ConfirmSubmitButton
-                      className="w-full"
-                      message={`Completely delete ${restaurant.name}? This removes managers, tables, QR codes, menu, orders, bills, and reports. This cannot be undone.`}
-                      pendingText="Deleting restaurant..."
-                    >
-                      Delete Restaurant
-                    </ConfirmSubmitButton>
-                  </form>
+                  {restaurant.status === "INACTIVE" ? (
+                    <form action={deleteRestaurantCompletely}>
+                      <input type="hidden" name="restaurantId" value={restaurant.id} />
+                      <input type="hidden" name="confirmation" value={restaurant.slug} />
+                      <ConfirmSubmitButton
+                        className="w-full"
+                        size="sm"
+                        message={`Permanent delete warning:\n\nThis will delete ${restaurant.name} completely, including manager logins, tables, QR codes, menu, orders, bills, reports, waiter requests, feedback, and restaurant records.\n\nThis cannot be undone.`}
+                        pendingText="Deleting..."
+                      >
+                        Delete
+                      </ConfirmSubmitButton>
+                    </form>
+                  ) : (
+                    <p className="col-span-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+                      Delete locked. Deactivate first.
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -201,16 +208,21 @@ export default async function RestaurantsPage({
                   <input type="hidden" name="orderingEnabled" value={String(!restaurant.orderingEnabled)} />
                   <Button size="sm" variant="outline">{restaurant.orderingEnabled ? "Disable Ordering" : "Enable Ordering"}</Button>
                 </form>
-                <form action={deleteRestaurantCompletely}>
-                  <input type="hidden" name="restaurantId" value={restaurant.id} />
-                  <input type="hidden" name="confirmation" value={restaurant.slug} />
-                  <ConfirmSubmitButton
-                    message={`Completely delete ${restaurant.name}? This removes managers, tables, QR codes, menu, orders, bills, and reports. This cannot be undone.`}
-                    pendingText="Deleting..."
-                  >
-                    Delete
-                  </ConfirmSubmitButton>
-                </form>
+                {restaurant.status === "INACTIVE" ? (
+                  <form action={deleteRestaurantCompletely}>
+                    <input type="hidden" name="restaurantId" value={restaurant.id} />
+                    <input type="hidden" name="confirmation" value={restaurant.slug} />
+                    <ConfirmSubmitButton
+                      size="sm"
+                      message={`Permanent delete warning:\n\nThis will delete ${restaurant.name} completely, including manager logins, tables, QR codes, menu, orders, bills, reports, waiter requests, feedback, and restaurant records.\n\nThis cannot be undone.`}
+                      pendingText="Deleting..."
+                    >
+                      Delete
+                    </ConfirmSubmitButton>
+                  </form>
+                ) : (
+                  <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-2 text-xs text-amber-800">Delete locked: deactivate first</span>
+                )}
               </div>
             </div>
           );
