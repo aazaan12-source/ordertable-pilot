@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Bell, BellOff, X } from "lucide-react";
+import { Bell, BellOff, Check, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { formatPkTime } from "@/lib/utils";
 
@@ -14,6 +14,8 @@ type WaiterRequest = {
 };
 
 const storageKey = "ordertable:manager-alerts-enabled";
+const announcedKey = "ordertable:announced-waiter-request-ids";
+const maxStoredRequestIds = 200;
 
 export function ManagerAlerts() {
   const [enabled, setEnabled] = useState(true);
@@ -26,6 +28,7 @@ export function ManagerAlerts() {
   useEffect(() => {
     const stored = localStorage.getItem(storageKey);
     setEnabled(stored !== "false");
+    seen.current = loadAnnouncedIds();
   }, []);
 
   useEffect(() => {
@@ -44,14 +47,15 @@ export function ManagerAlerts() {
 
       if (!initialized.current) {
         nextRequests.forEach((request) => seen.current.add(request.id));
+        saveAnnouncedIds();
         initialized.current = true;
         return;
       }
 
       const fresh = nextRequests.filter((request) => !seen.current.has(request.id));
-      fresh.forEach((request) => seen.current.add(request.id));
+      fresh.forEach((request) => markAnnounced(request.id));
       if (fresh.length > 0) {
-        const latest = fresh[0];
+        const latest = fresh.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).at(-1)!;
         setPopup(latest);
         if (enabled) {
           ringBell();
@@ -61,6 +65,32 @@ export function ManagerAlerts() {
     } catch {
       // Orders and request pages already show connection warnings; this alert stays quiet on transient failures.
     }
+  }
+
+  function loadAnnouncedIds() {
+    try {
+      const parsed = JSON.parse(localStorage.getItem(announcedKey) || "[]") as string[];
+      return new Set(parsed);
+    } catch {
+      return new Set<string>();
+    }
+  }
+
+  function saveAnnouncedIds() {
+    const ids = Array.from(seen.current).slice(-maxStoredRequestIds);
+    seen.current = new Set(ids);
+    localStorage.setItem(announcedKey, JSON.stringify(ids));
+  }
+
+  function markAnnounced(id: string) {
+    seen.current.add(id);
+    saveAnnouncedIds();
+  }
+
+  function acknowledgePopup() {
+    if (popup) markAnnounced(popup.id);
+    window.speechSynthesis?.cancel();
+    setPopup(null);
   }
 
   function toggleAlerts() {
@@ -142,10 +172,19 @@ export function ManagerAlerts() {
                 <p className="mt-1 text-sm text-muted-foreground">{formatPkTime(popup.createdAt)}</p>
                 {popup.order ? <p className="mt-1 text-sm">Order {popup.order.orderNumber}</p> : null}
               </div>
-              <button className="rounded-md p-1 hover:bg-muted" onClick={() => setPopup(null)} aria-label="Close alert">
+              <div className="flex gap-1">
+                <button className="rounded-md p-1 text-green-700 hover:bg-green-50" onClick={acknowledgePopup} aria-label="Acknowledge alert">
+                  <Check className="h-4 w-4" />
+                </button>
+                <button className="rounded-md p-1 hover:bg-muted" onClick={acknowledgePopup} aria-label="Close alert">
                 <X className="h-4 w-4" />
-              </button>
+                </button>
+              </div>
             </div>
+            <button type="button" onClick={acknowledgePopup} className="mt-3 inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold hover:bg-muted">
+              <Check className="h-4 w-4" />
+              Acknowledge
+            </button>
           </div>
         ) : null}
 

@@ -54,6 +54,22 @@ export async function POST(request: Request) {
 
     if (!restaurantId || !tableId) return NextResponse.json({ error: "Missing table information." }, { status: 400 });
 
+    const recentDuplicate = await db.waiterRequest.findFirst({
+      where: {
+        restaurantId,
+        tableId,
+        orderId,
+        type: parsed.data.type,
+        status: "PENDING",
+        createdAt: { gte: new Date(Date.now() - 8000) }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    if (recentDuplicate) {
+      return NextResponse.json({ id: recentDuplicate.id, duplicate: true });
+    }
+
     const waiterRequest = await db.$transaction(async (tx) => {
       const created = await tx.waiterRequest.create({
         data: { restaurantId, tableId, orderId, type: parsed.data.type }
