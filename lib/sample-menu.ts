@@ -24,12 +24,12 @@ export const sampleMenuItems: Record<string, { name: string; price: number; desc
     { name: "Mutton Karahi", price: 3800, description: "Traditional mutton karahi cooked to order." }
   ],
   Drinks: [
-    { name: "Pepsi", price: 150, description: "Chilled soft drink." },
+    { name: "Pepsi Can", price: 150, description: "Chilled Pepsi can." },
     { name: "Mint Margarita", price: 350, description: "Fresh mint and lemon cooler." },
     { name: "Fresh Lime", price: 300, description: "Classic fresh lime soda." }
   ],
   Desserts: [
-    { name: "Gulab Jamun", price: 250, description: "Warm gulab jamun serving." },
+    { name: "Gulab Jamun & Rasgulla Sweets", price: 300, description: "Traditional gulab jamun and rasgulla sweets serving." },
     { name: "Kheer", price: 300, description: "Creamy rice pudding." },
     { name: "Brownie", price: 450, description: "Chocolate brownie with fudge sauce." }
   ]
