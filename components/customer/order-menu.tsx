@@ -165,22 +165,22 @@ export function OrderMenu({
             Back to order status
           </Link>
         ) : null}
-        <div className="grid grid-cols-[82px_minmax(0,1fr)] gap-2 sm:grid-cols-[112px_minmax(0,1fr)] sm:gap-3 lg:grid-cols-[190px_1fr] lg:gap-5">
+        <div className="grid grid-cols-[74px_minmax(0,1fr)] gap-2 sm:grid-cols-[112px_minmax(0,1fr)] sm:gap-3 lg:grid-cols-[190px_1fr] lg:gap-5">
           <aside className="sticky top-[65px] z-10 self-start sm:top-20 lg:top-24">
-            <div className="max-h-[calc(100vh-155px)] overflow-y-auto rounded-lg border bg-white p-1.5 sm:p-3">
-              <p className="mb-2 px-1 text-[10px] font-bold uppercase tracking-wide text-muted-foreground sm:px-2 sm:text-xs">Categories</p>
-              <div className="space-y-1.5 sm:space-y-2">
+            <div className="max-h-[calc(100vh-150px)] overflow-y-auto rounded-md border bg-white p-1 sm:rounded-lg sm:p-3">
+              <p className="mb-1.5 text-center text-[9px] font-bold uppercase tracking-wide text-muted-foreground sm:mb-2 sm:px-2 sm:text-left sm:text-xs">Categories</p>
+              <div className="space-y-1 sm:space-y-2">
                 {categories.map((category) => (
                   <button
                     key={category.id}
                     onClick={() => setActiveCategory(category.id)}
-                    className={`w-full rounded-md px-1.5 py-2 text-left text-[11px] font-semibold leading-tight transition sm:px-3 sm:text-sm ${
+                    className={`w-full rounded-md px-1 py-1.5 text-center text-[10px] font-semibold leading-tight transition sm:px-3 sm:py-2 sm:text-left sm:text-sm ${
                       activeCategory === category.id ? "bg-primary text-primary-foreground" : "bg-muted hover:bg-border"
                     }`}
                   >
-                    <span className="flex items-center gap-1.5 sm:gap-2">
-                      <img src={categoryImageFor(category.name, category.imageUrl)} alt="" className="h-7 w-7 shrink-0 rounded object-cover sm:h-9 sm:w-9" />
-                      <span>{category.name}</span>
+                    <span className="flex min-w-0 flex-col items-center gap-1 sm:flex-row sm:gap-2">
+                      <img src={categoryImageFor(category.name, category.imageUrl)} alt="" className="h-8 w-8 shrink-0 rounded object-cover sm:h-9 sm:w-9" />
+                      <span className="line-clamp-2 break-words">{category.name}</span>
                     </span>
                   </button>
                 ))}
@@ -192,11 +192,11 @@ export function OrderMenu({
             {visibleItems.map((item) => {
               const cartItem = cartById.get(item.id);
               return (
-                <Card key={item.id} className="grid min-w-0 grid-cols-[82px_minmax(0,1fr)] overflow-hidden sm:grid-cols-[104px_minmax(0,1fr)] md:block">
+                <Card key={item.id} className="grid min-w-0 grid-cols-[78px_minmax(0,1fr)] overflow-hidden sm:grid-cols-[104px_minmax(0,1fr)] md:block">
                   <img
                     src={menuImageFor(item.name, item.category.name, item.imageUrl)}
                     alt={item.name}
-                    className="h-full min-h-[106px] w-full object-cover md:h-36 md:min-h-0 lg:h-44"
+                    className="h-full min-h-[112px] w-full object-cover md:h-36 md:min-h-0 lg:h-44"
                     loading="lazy"
                   />
                   <CardContent className="min-w-0 p-2 sm:p-3 lg:p-4">

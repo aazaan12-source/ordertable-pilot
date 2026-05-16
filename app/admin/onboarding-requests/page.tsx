@@ -58,8 +58,10 @@ export default async function AdminOnboardingRequestsPage({
       </Card>
 
       <div className="grid gap-4">
-        {leads.map((lead) => (
-          <Card key={lead.id}>
+        {leads.map((lead) => {
+          const converted = lead.status === "CONVERTED" || Boolean(lead.convertedRestaurantId);
+          return (
+          <Card key={lead.id} className={converted ? "bg-muted/40" : ""}>
             <CardHeader>
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -67,7 +69,7 @@ export default async function AdminOnboardingRequestsPage({
                   <p className="text-sm text-muted-foreground">{lead.contactName} · {lead.phone} · {lead.city}</p>
                   <p className="text-xs text-muted-foreground">{formatPkDateTime(lead.createdAt)}</p>
                 </div>
-                <Badge className={lead.status === "NEW" ? "bg-orange-100 text-orange-800" : "bg-muted text-foreground"}>{lead.status}</Badge>
+                <Badge className={lead.status === "NEW" ? "bg-orange-100 text-orange-800" : converted ? "bg-green-100 text-green-800" : "bg-muted text-foreground"}>{lead.status}</Badge>
               </div>
             </CardHeader>
             <CardContent>
@@ -78,24 +80,33 @@ export default async function AdminOnboardingRequestsPage({
                 <p>Source: <strong>{lead.source}</strong></p>
               </div>
               {lead.message ? <p className="mt-3 rounded-md border p-3 text-sm">{lead.message}</p> : null}
-              <div className="mt-4 flex flex-wrap gap-2">
-                <form action={updateOnboardingLeadStatus} className="flex gap-2">
-                  <input type="hidden" name="id" value={lead.id} />
-                  <select name="status" defaultValue={lead.status} className="h-10 rounded-md border bg-white px-3 text-sm">
-                    <option value="NEW">NEW</option>
-                    <option value="CONTACTED">CONTACTED</option>
-                    <option value="CONVERTED">CONVERTED</option>
-                    <option value="CLOSED">CLOSED / REJECTED</option>
-                  </select>
-                  <Button variant="outline">Update</Button>
-                </form>
-                <Link href={`/admin/restaurants/new?lead=${lead.id}`}>
-                  <Button>Convert to Restaurant</Button>
-                </Link>
-              </div>
+              {converted ? (
+                <div className="mt-4 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-800">
+                  This request has already been converted and is now read-only.
+                  {lead.convertedRestaurantId ? (
+                    <Link className="ml-2 font-bold underline" href={`/admin/restaurants/${lead.convertedRestaurantId}`}>Open restaurant</Link>
+                  ) : null}
+                </div>
+              ) : (
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <form action={updateOnboardingLeadStatus} className="flex gap-2">
+                    <input type="hidden" name="id" value={lead.id} />
+                    <select name="status" defaultValue={lead.status} className="h-10 rounded-md border bg-white px-3 text-sm">
+                      <option value="NEW">NEW</option>
+                      <option value="CONTACTED">CONTACTED</option>
+                      <option value="CLOSED">CLOSED / REJECTED</option>
+                    </select>
+                    <Button variant="outline">Update</Button>
+                  </form>
+                  <Link href={`/admin/restaurants/new?lead=${lead.id}`}>
+                    <Button>Convert to Restaurant</Button>
+                  </Link>
+                </div>
+              )}
             </CardContent>
           </Card>
-        ))}
+          );
+        })}
       </div>
       {leads.length === 0 ? <p className="rounded-lg border bg-white p-6 text-center text-muted-foreground">No onboarding requests found.</p> : null}
     </main>

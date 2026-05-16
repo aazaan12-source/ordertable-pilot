@@ -4,7 +4,7 @@ const categoryImages: Record<string, string> = {
   bbq: "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=900&q=80",
   karahi: "https://images.unsplash.com/photo-1585937421612-70a008356fbe?auto=format&fit=crop&w=900&q=80",
   drinks: "https://images.unsplash.com/photo-1544145945-f90425340c7e?auto=format&fit=crop&w=900&q=80",
-  desserts: "https://images.unsplash.com/photo-1551024506-0bccd828d307?auto=format&fit=crop&w=900&q=80"
+  desserts: "https://upload.wikimedia.org/wikipedia/commons/8/88/Gulab_Jamun_%28homemade%21%29_bright.jpg"
 };
 
 const itemImages: Record<string, string> = {
@@ -77,6 +77,9 @@ export function categoryImageFor(categoryName: string, imageUrl?: string | null)
 }
 
 export function menuImageFor(itemName: string, categoryName?: string, imageUrl?: string | null) {
+  if (imageUrl?.startsWith("data:image/")) return imageUrl;
+  const exact = itemImages[normalize(itemName)];
+  if (exact) return exact;
   if (imageUrl) return imageUrl;
   return suggestedMenuImageFor(itemName, categoryName);
 }

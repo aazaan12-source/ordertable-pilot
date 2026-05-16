@@ -37,7 +37,8 @@ export default async function NewRestaurantPage({
     "slug-already-exists": "This restaurant URL slug already exists. Please choose another.",
     "manager-email-already-exists": "This manager email already exists. Use a different email or edit the existing manager account.",
     "duplicate-record": "A restaurant, manager, or table with these details already exists. Please change the slug or manager email.",
-    "server-error": "The restaurant could not be created because the server/database rejected the request. Check Vercel logs for the printed createRestaurantWithTablesAndManager error."
+    "server-error": "The restaurant could not be created because the server/database rejected the request. Check Vercel logs for the printed createRestaurantWithTablesAndManager error.",
+    "lead-already-converted": "This onboarding request has already been converted to a restaurant. It is now read-only."
   };
 
   return (

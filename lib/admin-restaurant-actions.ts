@@ -131,6 +131,13 @@ export async function createRestaurantWithTablesAndManager(formData: FormData) {
   const menuSetup = formString(formData, "menuSetup", "empty");
   const leadId = formString(formData, "leadId");
 
+  if (leadId) {
+    const lead = await db.platformLead.findUnique({ where: { id: leadId } });
+    if (lead?.status === "CONVERTED" || lead?.convertedRestaurantId) {
+      redirectNewRestaurantError("lead-already-converted");
+    }
+  }
+
   if (!name || !slug || !city || !managerEmail || !managerPassword) redirectNewRestaurantError("missing-required-fields");
   if (managerPassword !== managerPasswordConfirm) redirectNewRestaurantError("password-mismatch");
 
@@ -508,6 +515,12 @@ export async function updateOnboardingLeadStatus(formData: FormData) {
   const admin = await requirePlatformAdmin();
   const id = formString(formData, "id");
   const status = formString(formData, "status") as LeadStatus;
+  const current = await db.platformLead.findUnique({ where: { id } });
+  if (!current || current.status === "CONVERTED" || current.convertedRestaurantId) {
+    revalidatePath("/admin/onboarding-requests");
+    revalidatePath("/admin/requests");
+    return;
+  }
   await db.platformLead.update({ where: { id }, data: { status } });
   await db.activityLog.create({ data: { userId: admin.id, action: "ONBOARDING_REQUEST_UPDATED", description: `Request ${id} changed to ${status}` } });
   revalidatePath("/admin/onboarding-requests");
