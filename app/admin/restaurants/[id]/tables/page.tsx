@@ -9,9 +9,25 @@ import { StatusBadge } from "@/components/dashboard/status-badge";
 
 export const dynamic = "force-dynamic";
 
-export default async function AdminTablesPage({ params }: { params: Promise<{ id: string }> }) {
+function tableErrorMessage(error?: string, tableNumber?: string) {
+  if (error === "duplicate-table") return `Table ${tableNumber || ""} already exists for this restaurant. Use a unique table number.`;
+  if (error === "table-not-found") return "That table record could not be found. Refresh and try again.";
+  if (error === "table-sync-failed") return "Could not update the table count. Please check the starting number and try again.";
+  if (error === "table-update-failed") return "Could not save this table. Please try again.";
+  return null;
+}
+
+export default async function AdminTablesPage({
+  params,
+  searchParams
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<{ error?: string; saved?: string; tableNumber?: string }>;
+}) {
   await requirePlatformAdmin();
   const { id } = await params;
+  const { error, saved, tableNumber } = await searchParams;
+  const errorMessage = tableErrorMessage(error, tableNumber);
   const restaurant = await db.restaurant.findUnique({
     where: { id },
     include: { tables: { include: { _count: { select: { orders: true } } }, orderBy: { tableNumber: "asc" } } }
@@ -27,6 +43,16 @@ export default async function AdminTablesPage({ params }: { params: Promise<{ id
         <h1 className="text-2xl font-bold">Manage Tables</h1>
         <p className="text-sm text-muted-foreground">Managing tables for: <strong>{restaurant.name} - {restaurant.branchName}</strong></p>
       </div>
+      {errorMessage ? (
+        <div className="mb-4 rounded-md border border-red-200 bg-red-50 p-3 text-sm font-medium text-red-700">
+          {errorMessage}
+        </div>
+      ) : null}
+      {saved ? (
+        <div className="mb-4 rounded-md border border-green-200 bg-green-50 p-3 text-sm font-medium text-green-800">
+          Table settings saved successfully.
+        </div>
+      ) : null}
 
       <Card className="mb-5">
         <CardHeader>

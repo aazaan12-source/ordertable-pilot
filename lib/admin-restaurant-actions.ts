@@ -376,12 +376,18 @@ export async function updateRestaurantTableCount(formData: FormData) {
   const startAt = positiveInt(formData.get("startingTableNumber"), 1);
   const restaurant = await db.restaurant.findUnique({ where: { id: restaurantId } });
   if (!restaurant) return;
-  await syncRestaurantTables({ restaurantId, slug: restaurant.slug, targetCount, startAt, userId: admin.id });
+  try {
+    await syncRestaurantTables({ restaurantId, slug: restaurant.slug, targetCount, startAt, userId: admin.id });
+  } catch (error) {
+    console.error("[updateRestaurantTableCount] failed", { error, restaurantId, targetCount, startAt });
+    redirect(`/admin/restaurants/${restaurantId}/tables?error=table-sync-failed`);
+  }
   revalidatePath(`/admin/restaurants/${restaurantId}`);
   revalidatePath(`/admin/restaurants/${restaurantId}/tables`);
   revalidatePath(`/admin/restaurants/${restaurantId}/qr-codes`);
   revalidatePath("/dashboard/tables");
   revalidatePath("/dashboard/qr-codes");
+  redirect(`/admin/restaurants/${restaurantId}/tables?saved=table-count`);
 }
 
 export async function updateSingleTable(formData: FormData) {
@@ -392,9 +398,32 @@ export async function updateSingleTable(formData: FormData) {
   const status = formString(formData, "status", "EMPTY") as TableStatus;
   const restaurant = await db.restaurant.findUnique({ where: { id: restaurantId } });
   if (!restaurant) return;
-  await db.restaurantTable.update({ where: { id: tableId }, data: { tableNumber, status, qrUrl: absoluteTableQrUrl(restaurant.slug, tableNumber) } });
-  await db.activityLog.create({ data: { userId: admin.id, restaurantId, action: "TABLES_UPDATED", description: `Table ${tableNumber} updated to ${status}` } });
+  const table = await db.restaurantTable.findFirst({ where: { id: tableId, restaurantId } });
+  if (!table) redirect(`/admin/restaurants/${restaurantId}/tables?error=table-not-found`);
+  const duplicate = await db.restaurantTable.findFirst({
+    where: { restaurantId, tableNumber, id: { not: tableId } },
+    select: { id: true }
+  });
+  if (duplicate) redirect(`/admin/restaurants/${restaurantId}/tables?error=duplicate-table&tableNumber=${tableNumber}`);
+
+  try {
+    await db.$transaction([
+      db.restaurantTable.update({ where: { id: tableId }, data: { tableNumber, status, qrUrl: absoluteTableQrUrl(restaurant.slug, tableNumber) } }),
+      db.activityLog.create({ data: { userId: admin.id, restaurantId, action: "TABLES_UPDATED", description: `Table ${table.tableNumber} changed to ${tableNumber} and ${status}` } })
+    ]);
+  } catch (error) {
+    console.error("[updateSingleTable] failed", { error, restaurantId, tableId, tableNumber, status });
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      redirect(`/admin/restaurants/${restaurantId}/tables?error=duplicate-table&tableNumber=${tableNumber}`);
+    }
+    redirect(`/admin/restaurants/${restaurantId}/tables?error=table-update-failed`);
+  }
+  revalidatePath(`/admin/restaurants/${restaurantId}`);
   revalidatePath(`/admin/restaurants/${restaurantId}/tables`);
+  revalidatePath(`/admin/restaurants/${restaurantId}/qr-codes`);
+  revalidatePath("/dashboard/tables");
+  revalidatePath("/dashboard/qr-codes");
+  redirect(`/admin/restaurants/${restaurantId}/tables?saved=table`);
 }
 
 export async function regenerateRestaurantQRCodes(formData: FormData) {
