@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { OrderMenu } from "@/components/customer/order-menu";
 import { safeStoredImageUrl } from "@/lib/menu-images";
+import { sortMenuItemsForDisplay } from "@/lib/menu-ordering";
 
 export default async function EditOrderPage({ params }: { params: Promise<{ orderId: string }> }) {
   const { orderId } = await params;
@@ -16,7 +17,7 @@ export default async function EditOrderPage({ params }: { params: Promise<{ orde
           menuItems: {
             where: { isActive: true, isAvailable: true },
             include: { category: true },
-            orderBy: [{ category: { sortOrder: "asc" } }, { sortOrder: "asc" }, { createdAt: "asc" }]
+            orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
           }
         }
       }
@@ -38,7 +39,7 @@ export default async function EditOrderPage({ params }: { params: Promise<{ orde
       restaurant={{ name: order.restaurant.name, slug: order.restaurant.slug, logoUrl: order.restaurant.logoUrl }}
       tableNumber={order.table.tableNumber}
       categories={order.restaurant.categories.map((category) => ({ id: category.id, name: category.name, imageUrl: safeStoredImageUrl(category.imageUrl) }))}
-      items={order.restaurant.menuItems.map((item) => ({
+      items={sortMenuItemsForDisplay(order.restaurant.menuItems).map((item) => ({
         id: item.id,
         name: item.name,
         description: item.description,

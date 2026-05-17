@@ -8,6 +8,18 @@ export function displayPosition(value: FormDataEntryValue | null, fallback: numb
   return Math.min(max, Math.max(1, Math.floor(parsed)));
 }
 
+export function sortMenuItemsForDisplay<T extends { sortOrder: number; createdAt: Date; category: { sortOrder: number; createdAt?: Date } }>(items: T[]) {
+  return [...items].sort((left, right) => {
+    const categoryOrder = left.category.sortOrder - right.category.sortOrder;
+    if (categoryOrder !== 0) return categoryOrder;
+
+    const itemOrder = left.sortOrder - right.sortOrder;
+    if (itemOrder !== 0) return itemOrder;
+
+    return left.createdAt.getTime() - right.createdAt.getTime();
+  });
+}
+
 export async function reorderCategoryPositions(tx: MenuOrderingClient, restaurantId: string, movedCategoryId: string, desiredPosition: number) {
   const categories = await tx.category.findMany({
     where: { restaurantId },

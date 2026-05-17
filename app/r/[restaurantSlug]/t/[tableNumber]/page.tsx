@@ -5,6 +5,7 @@ import { OrderMenu } from "@/components/customer/order-menu";
 import { RecentOrderLink } from "@/components/customer/recent-order-link";
 import { RequestButtons } from "@/components/customer/request-buttons";
 import { safeStoredImageUrl } from "@/lib/menu-images";
+import { sortMenuItemsForDisplay } from "@/lib/menu-ordering";
 
 export const dynamic = "force-dynamic";
 
@@ -27,7 +28,7 @@ export default async function CustomerTablePage({
         menuItems: {
           where: { isActive: true, isAvailable: true },
           include: { category: true },
-          orderBy: [{ category: { sortOrder: "asc" } }, { sortOrder: "asc" }, { createdAt: "asc" }]
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
         }
       }
     });
@@ -59,7 +60,7 @@ export default async function CustomerTablePage({
         }}
         tableNumber={tableNo}
         categories={restaurant.categories.map((category) => ({ id: category.id, name: category.name, imageUrl: safeStoredImageUrl(category.imageUrl) }))}
-        items={restaurant.menuItems.map((item) => ({
+        items={sortMenuItemsForDisplay(restaurant.menuItems).map((item) => ({
           id: item.id,
           name: item.name,
           description: item.description,

@@ -8,7 +8,7 @@ import { MenuImagePicker } from "@/components/ui/menu-image-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import { cleanSubmittedMenuImage, menuImageFor, safeStoredImageUrl } from "@/lib/menu-images";
-import { displayPosition, normalizeMenuItemPositions, reorderMenuItemPositions, swapMenuItemPosition } from "@/lib/menu-ordering";
+import { displayPosition, normalizeMenuItemPositions, reorderMenuItemPositions, sortMenuItemsForDisplay, swapMenuItemPosition } from "@/lib/menu-ordering";
 
 export const dynamic = "force-dynamic";
 
@@ -121,16 +121,17 @@ export default async function MenuItemsPage() {
   const { restaurant } = await getManagerRestaurant();
   const [allCategories, items] = await Promise.all([
     db.category.findMany({ where: { restaurantId: restaurant.id }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }),
-    db.menuItem.findMany({ where: { restaurantId: restaurant.id }, include: { category: true }, orderBy: [{ category: { sortOrder: "asc" } }, { sortOrder: "asc" }, { createdAt: "asc" }] })
+    db.menuItem.findMany({ where: { restaurantId: restaurant.id }, include: { category: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] })
   ]);
+  const sortedItems = sortMenuItemsForDisplay(items);
   const activeCategories = allCategories.filter((category) => category.isActive);
-  const itemCountsByCategory = items.reduce<Record<string, number>>((counts, item) => {
+  const itemCountsByCategory = sortedItems.reduce<Record<string, number>>((counts, item) => {
     counts[item.categoryId] = (counts[item.categoryId] || 0) + 1;
     return counts;
   }, {});
   const itemPositionById: Record<string, number> = {};
   const seenByCategory: Record<string, number> = {};
-  for (const item of items) {
+  for (const item of sortedItems) {
     const position = (seenByCategory[item.categoryId] || 0) + 1;
     seenByCategory[item.categoryId] = position;
     itemPositionById[item.id] = position;
@@ -171,7 +172,7 @@ export default async function MenuItemsPage() {
         </Card>
 
         <div className="grid gap-4">
-          {items.map((item) => (
+          {sortedItems.map((item) => (
             <Card key={item.id} className={!item.isActive ? "opacity-60" : ""}>
               <CardContent className="grid gap-4 p-4 lg:grid-cols-[180px_1fr]">
                 <img src={menuImageFor(item.name, item.category.name, item.imageUrl)} alt={item.name} className="h-40 w-full rounded-md object-cover" />

@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { MenuImagePicker } from "@/components/ui/menu-image-picker";
 import { formatCurrency } from "@/lib/utils";
 import { menuImageFor, safeStoredImageUrl } from "@/lib/menu-images";
+import { sortMenuItemsForDisplay } from "@/lib/menu-ordering";
 
 export const dynamic = "force-dynamic";
 
@@ -19,18 +20,19 @@ export default async function AdminRestaurantMenuItemsPage({ params }: { params:
     where: { id },
     include: {
       categories: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
-      menuItems: { include: { category: true }, orderBy: [{ category: { sortOrder: "asc" } }, { sortOrder: "asc" }, { createdAt: "asc" }] }
+      menuItems: { include: { category: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }
     }
   });
   if (!restaurant) notFound();
+  const sortedMenuItems = sortMenuItemsForDisplay(restaurant.menuItems);
   const activeCategories = restaurant.categories.filter((category) => category.isActive);
-  const itemCountsByCategory = restaurant.menuItems.reduce<Record<string, number>>((counts, item) => {
+  const itemCountsByCategory = sortedMenuItems.reduce<Record<string, number>>((counts, item) => {
     counts[item.categoryId] = (counts[item.categoryId] || 0) + 1;
     return counts;
   }, {});
   const itemPositionById: Record<string, number> = {};
   const seenByCategory: Record<string, number> = {};
-  for (const item of restaurant.menuItems) {
+  for (const item of sortedMenuItems) {
     const position = (seenByCategory[item.categoryId] || 0) + 1;
     seenByCategory[item.categoryId] = position;
     itemPositionById[item.id] = position;
@@ -80,7 +82,7 @@ export default async function AdminRestaurantMenuItemsPage({ params }: { params:
         </Card>
 
         <div className="grid gap-4">
-          {restaurant.menuItems.map((item) => (
+          {sortedMenuItems.map((item) => (
             <Card key={item.id} className={!item.isActive ? "opacity-60" : ""}>
               <CardContent className="grid gap-4 p-4 lg:grid-cols-[180px_1fr]">
                 <img src={menuImageFor(item.name, item.category.name, item.imageUrl)} alt={item.name} className="h-40 w-full rounded-md object-cover" />
@@ -123,7 +125,7 @@ export default async function AdminRestaurantMenuItemsPage({ params }: { params:
               </CardContent>
             </Card>
           ))}
-          {restaurant.menuItems.length === 0 ? <p className="rounded-lg border bg-white p-6 text-center text-muted-foreground">No menu items yet.</p> : null}
+          {sortedMenuItems.length === 0 ? <p className="rounded-lg border bg-white p-6 text-center text-muted-foreground">No menu items yet.</p> : null}
         </div>
       </div>
     </main>
