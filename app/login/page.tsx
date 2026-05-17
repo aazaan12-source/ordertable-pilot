@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { getSession, signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,22 @@ function LoginForm() {
   const [password, setPassword] = useState(defaultPassword);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    getSession().then((session) => {
+      if (cancelled || !session?.user) return;
+      const callbackUrl = search.get("callbackUrl");
+      if (session.user.role === "PLATFORM_ADMIN") {
+        router.replace(callbackUrl?.startsWith("/admin") ? callbackUrl : "/admin");
+      } else {
+        router.replace(callbackUrl || "/dashboard");
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [router, search]);
 
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();

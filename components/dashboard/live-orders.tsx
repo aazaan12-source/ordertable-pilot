@@ -100,9 +100,11 @@ export function LiveOrders({ initialOrders }: { initialOrders: Order[]; restaura
       if (sequence !== refreshRef.current.sequence) return;
       const nextOrders = applyOptimisticStatuses(data.orders);
       const nextPending = nextOrders.filter((order) => order.status === "PENDING");
-      if (nextPending.some((order) => !seenPending.current.has(order.id))) {
+      const freshPending = nextPending.filter((order) => !seenPending.current.has(order.id));
+      if (freshPending.length > 0) {
         setNewPending(true);
         playNotification();
+        speakNewOrder(freshPending.at(-1)?.table.tableNumber);
         nextPending.forEach((order) => seenPending.current.add(order.id));
       }
       setOrders(nextOrders);
@@ -126,9 +128,14 @@ export function LiveOrders({ initialOrders }: { initialOrders: Order[]; restaura
       timer = setTimeout(tick, document.hidden ? 2500 : 700);
     };
     timer = setTimeout(tick, 700);
+    const reconnect = () => void loadOrders();
+    window.addEventListener("online", reconnect);
+    window.addEventListener("ordertable-network-online", reconnect);
     return () => {
       cancelled = true;
       clearTimeout(timer);
+      window.removeEventListener("online", reconnect);
+      window.removeEventListener("ordertable-network-online", reconnect);
     };
   }, []);
 
@@ -310,5 +317,18 @@ function playNotification() {
     oscillator.stop(context.currentTime + 0.16);
   } catch {
     // Browser audio can be blocked until user interaction; visual alert still appears.
+  }
+}
+
+function speakNewOrder(tableNumber?: number) {
+  if (!tableNumber || !("speechSynthesis" in window)) return;
+  try {
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(`New Order from Table no. ${tableNumber}, please proceed it`);
+    utterance.rate = 0.95;
+    utterance.pitch = 1;
+    window.speechSynthesis.speak(utterance);
+  } catch {
+    // Visual and bell alerts still work if browser speech is blocked.
   }
 }

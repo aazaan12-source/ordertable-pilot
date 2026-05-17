@@ -34,7 +34,14 @@ export function ManagerAlerts() {
   useEffect(() => {
     loadRequests();
     const timer = window.setInterval(loadRequests, 1000);
-    return () => window.clearInterval(timer);
+    const reconnect = () => void loadRequests();
+    window.addEventListener("online", reconnect);
+    window.addEventListener("ordertable-network-online", reconnect);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("online", reconnect);
+      window.removeEventListener("ordertable-network-online", reconnect);
+    };
   }, [enabled]);
 
   async function loadRequests() {

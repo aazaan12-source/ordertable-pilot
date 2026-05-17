@@ -5,7 +5,14 @@ import { UserRole } from "@prisma/client";
 import { db } from "@/lib/db";
 
 export const authOptions: NextAuthOptions = {
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    maxAge: 60 * 60 * 24 * 30,
+    updateAge: 60 * 60 * 24
+  },
+  jwt: {
+    maxAge: 60 * 60 * 24 * 30
+  },
   pages: { signIn: "/login" },
   providers: [
     CredentialsProvider({
