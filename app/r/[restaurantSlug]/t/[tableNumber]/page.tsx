@@ -1,3 +1,4 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { RestaurantStatus, TableStatus } from "@prisma/client";
 import { db } from "@/lib/db";
@@ -6,8 +7,41 @@ import { RecentOrderLink } from "@/components/customer/recent-order-link";
 import { RequestButtons } from "@/components/customer/request-buttons";
 import { safeStoredImageUrl } from "@/lib/menu-images";
 import { sortMenuItemsForDisplay } from "@/lib/menu-ordering";
+import { tableQrUrl } from "@/lib/qr";
+import { appBaseUrl } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
+
+export async function generateMetadata({
+  params
+}: {
+  params: Promise<{ restaurantSlug: string; tableNumber: string }>;
+}): Promise<Metadata> {
+  const { restaurantSlug, tableNumber } = await params;
+  const tableNo = Number(tableNumber);
+  if (!Number.isInteger(tableNo) || tableNo < 1) {
+    return { title: "OrderTable" };
+  }
+
+  const restaurant = await db.restaurant.findUnique({
+    where: { slug: restaurantSlug },
+    select: { name: true, branchName: true, city: true }
+  });
+  const title = restaurant ? `${restaurant.name} Table ${tableNo} Order` : `Table ${tableNo} Order`;
+  return {
+    title,
+    description: restaurant
+      ? `Open the menu and place an order for table ${tableNo} at ${restaurant.name}, ${restaurant.branchName}.`
+      : `Open the menu and place an order for table ${tableNo}.`,
+    alternates: {
+      canonical: `${appBaseUrl()}${tableQrUrl(restaurantSlug, tableNo)}`
+    },
+    robots: {
+      index: true,
+      follow: true
+    }
+  };
+}
 
 export default async function CustomerTablePage({
   params
