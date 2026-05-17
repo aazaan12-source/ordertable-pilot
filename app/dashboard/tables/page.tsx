@@ -50,7 +50,7 @@ export default async function TablesPage() {
               </CardHeader>
               <CardContent>
                 <p className="text-sm text-muted-foreground">QR URL</p>
-                <TableQrImage url={qrUrl} />
+                <TableQrImage url={qrUrl} tableNumber={table.tableNumber} restaurantName={restaurant.name} />
                 <p className="mt-3 break-all text-sm font-medium">{qrUrl}</p>
                 {latestOrder ? (
                   <div className="mt-3 space-y-1 text-sm">
