@@ -7,6 +7,7 @@ import { orderSourceLabels } from "@/lib/order-utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/dashboard/status-badge";
+import { DirectPrintButton } from "@/components/dashboard/direct-print-button";
 import { formatCurrency, formatPkDateTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -40,9 +41,9 @@ export default async function DashboardOrderDetailPage({ params }: { params: Pro
         <div className="flex flex-wrap gap-2">
           <Link href="/dashboard/orders"><Button variant="outline">Back to Orders</Button></Link>
           <Link href={`/dashboard/orders/${order.id}/edit`}><Button>Edit Order/Bill</Button></Link>
-          <Link href={`/dashboard/orders/${order.id}/print/kitchen`} target="_blank"><Button variant="outline">Print Kitchen Slip</Button></Link>
-          <Link href={`/dashboard/orders/${order.id}/print/kitchen?addedOnly=1`} target="_blank"><Button variant="outline">Print Added Items</Button></Link>
-          <Link href={`/dashboard/orders/${order.id}/print/bill`} target="_blank"><Button variant="outline">Print Customer Bill</Button></Link>
+          <DirectPrintButton href={`/dashboard/orders/${order.id}/print/kitchen`} label="Print Kitchen Slip" />
+          <DirectPrintButton href={`/dashboard/orders/${order.id}/print/kitchen?addedOnly=1`} label="Print Added Items" />
+          <DirectPrintButton href={`/dashboard/orders/${order.id}/print/bill`} label="Print Customer Bill" type="bill" />
         </div>
       </div>
 

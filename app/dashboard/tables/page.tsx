@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { CopyUrlButton } from "@/components/dashboard/copy-url-button";
 import { TableQrImage } from "@/components/dashboard/table-qr-image";
+import { DirectPrintButton } from "@/components/dashboard/direct-print-button";
 import { Button } from "@/components/ui/button";
 import { formatCurrency } from "@/lib/utils";
 import Link from "next/link";
@@ -61,7 +62,7 @@ export default async function TablesPage() {
                     <div className="flex flex-wrap gap-2 pt-2">
                       <Link href={`/dashboard/orders/${latestOrder.id}`}><Button size="sm" variant="outline">View</Button></Link>
                       <Link href={`/dashboard/orders/${latestOrder.id}/edit`}><Button size="sm" variant="outline">Edit Bill</Button></Link>
-                      <Link href={`/dashboard/orders/${latestOrder.id}/print/bill`} target="_blank"><Button size="sm" variant="outline">Print Bill</Button></Link>
+                      <DirectPrintButton href={`/dashboard/orders/${latestOrder.id}/print/bill`} label="Print Bill" type="bill" size="sm" />
                     </div>
                   </div>
                 ) : (

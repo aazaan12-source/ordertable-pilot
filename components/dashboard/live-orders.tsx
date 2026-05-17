@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BellRing, Edit3, Eye, Printer, Receipt, RefreshCw } from "lucide-react";
+import { BellRing, Edit3, Eye, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/dashboard/status-badge";
+import { DirectPrintButton } from "@/components/dashboard/direct-print-button";
 import { formatCurrency, formatPkTime } from "@/lib/utils";
 
 const statuses = ["PENDING", "ACCEPTED", "PREPARING", "READY", "SERVED", "BILL_REQUESTED", "PAID", "CANCELLED"];
@@ -230,18 +231,8 @@ export function LiveOrders({ initialOrders }: { initialOrders: Order[]; restaura
                       Edit
                     </Button>
                   </Link>
-                  <Link href={`/dashboard/orders/${order.id}/print/kitchen`} target="_blank">
-                    <Button variant="outline">
-                      <Printer className="h-4 w-4" />
-                      Print Kitchen Slip
-                    </Button>
-                  </Link>
-                  <Link href={`/dashboard/orders/${order.id}/print/bill`} target="_blank">
-                    <Button variant="outline">
-                      <Receipt className="h-4 w-4" />
-                      Print Customer Bill
-                    </Button>
-                  </Link>
+                  <DirectPrintButton href={`/dashboard/orders/${order.id}/print/kitchen`} label="Print Kitchen Slip" />
+                  <DirectPrintButton href={`/dashboard/orders/${order.id}/print/bill`} label="Print Customer Bill" type="bill" />
                   {(transitions[order.status] || []).map((action) => (
                     <Button
                       key={action.status}
