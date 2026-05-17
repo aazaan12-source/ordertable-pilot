@@ -28,6 +28,13 @@ export default async function AdminRestaurantMenuItemsPage({ params }: { params:
     counts[item.categoryId] = (counts[item.categoryId] || 0) + 1;
     return counts;
   }, {});
+  const itemPositionById: Record<string, number> = {};
+  const seenByCategory: Record<string, number> = {};
+  for (const item of restaurant.menuItems) {
+    const position = (seenByCategory[item.categoryId] || 0) + 1;
+    seenByCategory[item.categoryId] = position;
+    itemPositionById[item.id] = position;
+  }
   const defaultNewItemPosition = activeCategories[0] ? (itemCountsByCategory[activeCategories[0].id] || 0) + 1 : 1;
 
   return (
@@ -87,7 +94,7 @@ export default async function AdminRestaurantMenuItemsPage({ params }: { params:
                         {restaurant.categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
                       </select>
                       <Input name="price" type="number" defaultValue={item.price.toString()} placeholder="Price" required />
-                      <Input name="sortOrder" type="number" min={1} max={itemCountsByCategory[item.categoryId] || 1} defaultValue={item.sortOrder} placeholder="Position: 1 = top" />
+                      <Input name="sortOrder" type="number" min={1} max={itemCountsByCategory[item.categoryId] || 1} defaultValue={itemPositionById[item.id] || 1} placeholder="Position: 1 = top" />
                     </div>
                     <MenuImagePicker
                       defaultValue={safeStoredImageUrl(item.imageUrl)}

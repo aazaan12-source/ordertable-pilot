@@ -8,7 +8,7 @@ import { MenuImagePicker } from "@/components/ui/menu-image-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import { cleanSubmittedMenuImage, menuImageFor, safeStoredImageUrl } from "@/lib/menu-images";
-import { displayPosition, normalizeMenuItemPositions, reorderMenuItemPositions } from "@/lib/menu-ordering";
+import { displayPosition, normalizeMenuItemPositions, reorderMenuItemPositions, swapMenuItemPosition } from "@/lib/menu-ordering";
 
 export const dynamic = "force-dynamic";
 
@@ -82,8 +82,10 @@ async function updateMenuItem(formData: FormData) {
     });
     if (item.categoryId !== categoryId) {
       await normalizeMenuItemPositions(tx, restaurant.id, item.categoryId);
+      await reorderMenuItemPositions(tx, restaurant.id, categoryId, id, desiredPosition);
+    } else {
+      await swapMenuItemPosition(tx, restaurant.id, categoryId, id, desiredPosition);
     }
-    await reorderMenuItemPositions(tx, restaurant.id, categoryId, id, desiredPosition);
     await tx.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "MENU_ITEM_UPDATED", description: name } });
   });
   await revalidateManagerMenuPages(restaurant.id, restaurant.slug);
@@ -126,6 +128,13 @@ export default async function MenuItemsPage() {
     counts[item.categoryId] = (counts[item.categoryId] || 0) + 1;
     return counts;
   }, {});
+  const itemPositionById: Record<string, number> = {};
+  const seenByCategory: Record<string, number> = {};
+  for (const item of items) {
+    const position = (seenByCategory[item.categoryId] || 0) + 1;
+    seenByCategory[item.categoryId] = position;
+    itemPositionById[item.id] = position;
+  }
   const defaultNewItemPosition = activeCategories[0] ? (itemCountsByCategory[activeCategories[0].id] || 0) + 1 : 1;
   return (
     <main className="p-4 lg:p-6">
@@ -175,7 +184,7 @@ export default async function MenuItemsPage() {
                         {allCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
                       </select>
                       <Input name="price" type="number" defaultValue={item.price.toString()} placeholder="Price" />
-                      <Input name="sortOrder" type="number" min={1} max={itemCountsByCategory[item.categoryId] || 1} defaultValue={item.sortOrder} placeholder="Position: 1 = top" />
+                      <Input name="sortOrder" type="number" min={1} max={itemCountsByCategory[item.categoryId] || 1} defaultValue={itemPositionById[item.id] || 1} placeholder="Position: 1 = top" />
                     </div>
                     <MenuImagePicker
                       defaultValue={safeStoredImageUrl(item.imageUrl)}

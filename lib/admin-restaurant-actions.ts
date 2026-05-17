@@ -9,7 +9,7 @@ import { requirePlatformAdmin } from "@/lib/permissions";
 import { absoluteTableQrUrl } from "@/lib/qr";
 import { imageForSeededItem, sampleCategoryNames, sampleMenuItems } from "@/lib/sample-menu";
 import { categoryImageFor, cleanSubmittedMenuImage } from "@/lib/menu-images";
-import { displayPosition, normalizeCategoryPositions, normalizeMenuItemPositions, reorderCategoryPositions, reorderMenuItemPositions } from "@/lib/menu-ordering";
+import { displayPosition, normalizeCategoryPositions, normalizeMenuItemPositions, reorderCategoryPositions, reorderMenuItemPositions, swapMenuItemPosition } from "@/lib/menu-ordering";
 import { slugifyRestaurant } from "@/lib/admin-restaurant-utils";
 
 function formString(formData: FormData, key: string, fallback = "") {
@@ -610,8 +610,10 @@ export async function updateRestaurantMenuItem(formData: FormData) {
     });
     if (item.categoryId !== categoryId) {
       await normalizeMenuItemPositions(tx, restaurantId, item.categoryId);
+      await reorderMenuItemPositions(tx, restaurantId, categoryId, id, desiredPosition);
+    } else {
+      await swapMenuItemPosition(tx, restaurantId, categoryId, id, desiredPosition);
     }
-    await reorderMenuItemPositions(tx, restaurantId, categoryId, id, desiredPosition);
     await tx.activityLog.create({ data: { userId: admin.id, restaurantId, action: "MENU_ITEM_UPDATED", description: name } });
   });
   await revalidateRestaurantMenuPages(restaurantId, restaurant.slug);

@@ -63,6 +63,32 @@ export async function reorderMenuItemPositions(tx: MenuOrderingClient, restauran
   );
 }
 
+export async function swapMenuItemPosition(tx: MenuOrderingClient, restaurantId: string, categoryId: string, movedItemId: string, desiredPosition: number) {
+  const items = await tx.menuItem.findMany({
+    where: { restaurantId, categoryId },
+    select: { id: true },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
+  });
+  const currentIndex = items.findIndex((item) => item.id === movedItemId);
+  if (currentIndex === -1) {
+    await reorderMenuItemPositions(tx, restaurantId, categoryId, movedItemId, desiredPosition);
+    return;
+  }
+
+  const targetIndex = Math.min(items.length - 1, Math.max(0, desiredPosition - 1));
+  const nextIds = items.map((item) => item.id);
+  [nextIds[currentIndex], nextIds[targetIndex]] = [nextIds[targetIndex], nextIds[currentIndex]];
+
+  await Promise.all(
+    nextIds.map((id, index) =>
+      tx.menuItem.update({
+        where: { id },
+        data: { sortOrder: index + 1 }
+      })
+    )
+  );
+}
+
 export async function normalizeMenuItemPositions(tx: MenuOrderingClient, restaurantId: string, categoryId: string) {
   const items = await tx.menuItem.findMany({
     where: { restaurantId, categoryId },
