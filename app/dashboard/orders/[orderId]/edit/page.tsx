@@ -21,8 +21,8 @@ export default async function DashboardOrderEditPage({ params }: { params: Promi
   if (!order) notFound();
   const categories = await db.category.findMany({
     where: { restaurantId: restaurant.id, isActive: true },
-    include: { menuItems: { where: { isActive: true, isAvailable: true }, orderBy: { sortOrder: "asc" } } },
-    orderBy: { sortOrder: "asc" }
+    include: { menuItems: { where: { isActive: true, isAvailable: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] } },
+    orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
   });
 
   if (order.status === "CANCELLED") {

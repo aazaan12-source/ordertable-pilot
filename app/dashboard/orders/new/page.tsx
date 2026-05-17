@@ -15,8 +15,8 @@ export default async function NewManualOrderPage() {
     db.restaurantTable.findMany({ where: { restaurantId: restaurant.id, status: { not: "INACTIVE" } }, orderBy: { tableNumber: "asc" } }),
     db.category.findMany({
       where: { restaurantId: restaurant.id, isActive: true },
-      include: { menuItems: { where: { isActive: true, isAvailable: true }, orderBy: { sortOrder: "asc" } } },
-      orderBy: { sortOrder: "asc" }
+      include: { menuItems: { where: { isActive: true, isAvailable: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] } },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
     })
   ]);
 

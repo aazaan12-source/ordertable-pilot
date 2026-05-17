@@ -15,7 +15,7 @@ export default async function AdminRestaurantCategoriesPage({ params }: { params
   const { id } = await params;
   const restaurant = await db.restaurant.findUnique({
     where: { id },
-    include: { categories: { include: { _count: { select: { menuItems: true } } }, orderBy: { sortOrder: "asc" } } }
+    include: { categories: { include: { _count: { select: { menuItems: true } } }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] } }
   });
   if (!restaurant) notFound();
 
@@ -33,7 +33,7 @@ export default async function AdminRestaurantCategoriesPage({ params }: { params
               <input type="hidden" name="restaurantId" value={restaurant.id} />
               <Input name="name" placeholder="Example: Burgers" required />
               <MenuImagePicker itemNameField="name" defaultCategoryName="Category" />
-              <Input name="sortOrder" type="number" defaultValue={restaurant.categories.length + 1} />
+              <Input name="sortOrder" type="number" min={1} max={restaurant.categories.length + 1} defaultValue={restaurant.categories.length + 1} placeholder="Display position, e.g. 1" />
               <SubmitButton className="w-full" pendingText="Adding category...">Add Category</SubmitButton>
             </form>
           </CardContent>
@@ -43,14 +43,14 @@ export default async function AdminRestaurantCategoriesPage({ params }: { params
           {restaurant.categories.map((category) => (
             <Card key={category.id} className={!category.isActive ? "opacity-60" : ""}>
               <CardContent className="p-4">
-                <form action={updateRestaurantCategory} className="grid gap-3 md:grid-cols-[1fr_110px_130px_100px]">
+                <form action={updateRestaurantCategory} className="grid gap-3 md:grid-cols-[1fr_150px_130px_100px]">
                   <input type="hidden" name="restaurantId" value={restaurant.id} />
                   <input type="hidden" name="id" value={category.id} />
-                  <Input name="name" defaultValue={category.name} required />
+                  <Input name="name" defaultValue={category.name} placeholder="Category name" required />
                   <div className="md:col-span-4">
                     <MenuImagePicker defaultValue={safeStoredImageUrl(category.imageUrl)} defaultItemName={category.name} defaultCategoryName={category.name} itemNameField="name" />
                   </div>
-                  <Input name="sortOrder" type="number" defaultValue={category.sortOrder} />
+                  <Input name="sortOrder" type="number" min={1} max={restaurant.categories.length} defaultValue={category.sortOrder} placeholder="Position: 1 = first" />
                   <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isActive" defaultChecked={category.isActive} /> Active</label>
                   <SubmitButton pendingText="Saving...">Save</SubmitButton>
                 </form>

@@ -8,6 +8,7 @@ import { MenuImagePicker } from "@/components/ui/menu-image-picker";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import { cleanSubmittedMenuImage, menuImageFor, safeStoredImageUrl } from "@/lib/menu-images";
+import { displayPosition, normalizeMenuItemPositions, reorderMenuItemPositions } from "@/lib/menu-ordering";
 
 export const dynamic = "force-dynamic";
 
@@ -31,20 +32,25 @@ async function createMenuItem(formData: FormData) {
   if (!name || !categoryId) return;
   const category = await db.category.findFirst({ where: { id: categoryId, restaurantId: restaurant.id } });
   if (!category) return;
-  await db.menuItem.create({
-    data: {
-      restaurantId: restaurant.id,
-      categoryId,
-      name,
-      description: String(formData.get("description") || ""),
-      price: Number(formData.get("price") || 0),
-      imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")),
-      isAvailable: formData.get("isAvailable") === "on",
-      isActive: true,
-      sortOrder: Number(formData.get("sortOrder") || 0)
-    }
+  const categoryItemCount = await db.menuItem.count({ where: { restaurantId: restaurant.id, categoryId } });
+  const desiredPosition = displayPosition(formData.get("sortOrder"), categoryItemCount + 1, categoryItemCount + 1);
+  await db.$transaction(async (tx) => {
+    const item = await tx.menuItem.create({
+      data: {
+        restaurantId: restaurant.id,
+        categoryId,
+        name,
+        description: String(formData.get("description") || ""),
+        price: Number(formData.get("price") || 0),
+        imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")),
+        isAvailable: formData.get("isAvailable") === "on",
+        isActive: true,
+        sortOrder: categoryItemCount + 1
+      }
+    });
+    await reorderMenuItemPositions(tx, restaurant.id, categoryId, item.id, desiredPosition);
+    await tx.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "MENU_ITEM_CREATED", description: name } });
   });
-  await db.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "MENU_ITEM_CREATED", description: name } });
   await revalidateManagerMenuPages(restaurant.id, restaurant.slug);
 }
 
@@ -55,21 +61,31 @@ async function updateMenuItem(formData: FormData) {
   const name = String(formData.get("name") || "").trim();
   const categoryId = String(formData.get("categoryId") || "");
   const category = await db.category.findFirst({ where: { id: categoryId, restaurantId: restaurant.id } });
-  if (!name || !category) return;
-  await db.menuItem.updateMany({
-    where: { id, restaurantId: restaurant.id },
-    data: {
-      categoryId,
-      name,
-      description: String(formData.get("description") || ""),
-      price: Number(formData.get("price") || 0),
-      imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")),
-      isActive: formData.get("isActive") === "on",
-      isAvailable: formData.get("isAvailable") === "on",
-      sortOrder: Number(formData.get("sortOrder") || 0)
+  const item = await db.menuItem.findFirst({ where: { id, restaurantId: restaurant.id } });
+  if (!name || !category || !item) return;
+  const categoryItemCount = await db.menuItem.count({ where: { restaurantId: restaurant.id, categoryId } });
+  const maxPosition = categoryItemCount + (item.categoryId === categoryId ? 0 : 1);
+  const positionFallback = item.categoryId === categoryId ? item.sortOrder || categoryItemCount : maxPosition;
+  const desiredPosition = displayPosition(formData.get("sortOrder"), positionFallback, maxPosition);
+  await db.$transaction(async (tx) => {
+    await tx.menuItem.updateMany({
+      where: { id, restaurantId: restaurant.id },
+      data: {
+        categoryId,
+        name,
+        description: String(formData.get("description") || ""),
+        price: Number(formData.get("price") || 0),
+        imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")),
+        isActive: formData.get("isActive") === "on",
+        isAvailable: formData.get("isAvailable") === "on"
+      }
+    });
+    if (item.categoryId !== categoryId) {
+      await normalizeMenuItemPositions(tx, restaurant.id, item.categoryId);
     }
+    await reorderMenuItemPositions(tx, restaurant.id, categoryId, id, desiredPosition);
+    await tx.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "MENU_ITEM_UPDATED", description: name } });
   });
-  await db.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "MENU_ITEM_UPDATED", description: name } });
   await revalidateManagerMenuPages(restaurant.id, restaurant.slug);
 }
 
@@ -81,6 +97,7 @@ async function deleteMenuItem(formData: FormData) {
   if (!item) return;
   await db.$transaction(async (tx) => {
     await tx.menuItem.deleteMany({ where: { id, restaurantId: restaurant.id } });
+    await normalizeMenuItemPositions(tx, restaurant.id, item.categoryId);
     await tx.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "MENU_ITEM_DELETED", description: `${item.name} permanently deleted` } });
   });
   await revalidateManagerMenuPages(restaurant.id, restaurant.slug);
@@ -101,10 +118,15 @@ async function createQuickCategory(formData: FormData) {
 export default async function MenuItemsPage() {
   const { restaurant } = await getManagerRestaurant();
   const [allCategories, items] = await Promise.all([
-    db.category.findMany({ where: { restaurantId: restaurant.id }, orderBy: { sortOrder: "asc" } }),
-    db.menuItem.findMany({ where: { restaurantId: restaurant.id }, include: { category: true }, orderBy: [{ category: { sortOrder: "asc" } }, { sortOrder: "asc" }] })
+    db.category.findMany({ where: { restaurantId: restaurant.id }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }),
+    db.menuItem.findMany({ where: { restaurantId: restaurant.id }, include: { category: true }, orderBy: [{ category: { sortOrder: "asc" } }, { sortOrder: "asc" }, { createdAt: "asc" }] })
   ]);
   const activeCategories = allCategories.filter((category) => category.isActive);
+  const itemCountsByCategory = items.reduce<Record<string, number>>((counts, item) => {
+    counts[item.categoryId] = (counts[item.categoryId] || 0) + 1;
+    return counts;
+  }, {});
+  const defaultNewItemPosition = activeCategories[0] ? (itemCountsByCategory[activeCategories[0].id] || 0) + 1 : 1;
   return (
     <main className="p-4 lg:p-6">
       <h1 className="text-2xl font-bold">Menu Items</h1>
@@ -129,7 +151,7 @@ export default async function MenuItemsPage() {
               </select>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Input name="price" type="number" placeholder="Price" required />
-                <Input name="sortOrder" type="number" placeholder="Sort order" defaultValue={1} />
+                <Input name="sortOrder" type="number" min={1} placeholder="Display position, e.g. 1" defaultValue={defaultNewItemPosition} />
               </div>
               <MenuImagePicker categories={activeCategories.map((category) => ({ id: category.id, name: category.name }))} />
               <Textarea name="description" placeholder="Short customer-friendly description" />
@@ -148,12 +170,12 @@ export default async function MenuItemsPage() {
                   <form action={updateMenuItem} className="space-y-3">
                     <input type="hidden" name="id" value={item.id} />
                     <div className="grid gap-3 md:grid-cols-2">
-                      <Input name="name" defaultValue={item.name} />
+                      <Input name="name" defaultValue={item.name} placeholder="Item name" />
                       <select name="categoryId" className="h-10 rounded-md border bg-white px-3 text-sm" defaultValue={item.categoryId}>
                         {allCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
                       </select>
-                      <Input name="price" type="number" defaultValue={item.price.toString()} />
-                      <Input name="sortOrder" type="number" defaultValue={item.sortOrder} />
+                      <Input name="price" type="number" defaultValue={item.price.toString()} placeholder="Price" />
+                      <Input name="sortOrder" type="number" min={1} max={itemCountsByCategory[item.categoryId] || 1} defaultValue={item.sortOrder} placeholder="Position: 1 = top" />
                     </div>
                     <MenuImagePicker
                       defaultValue={safeStoredImageUrl(item.imageUrl)}
@@ -161,7 +183,7 @@ export default async function MenuItemsPage() {
                       defaultCategoryName={item.category.name}
                       categories={allCategories.map((category) => ({ id: category.id, name: category.name }))}
                     />
-                    <Textarea name="description" defaultValue={item.description} />
+                    <Textarea name="description" defaultValue={item.description} placeholder="Short customer-friendly description" />
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex items-center gap-4 text-sm">
                         <label className="flex items-center gap-2"><input type="checkbox" name="isAvailable" defaultChecked={item.isAvailable} /> Available</label>

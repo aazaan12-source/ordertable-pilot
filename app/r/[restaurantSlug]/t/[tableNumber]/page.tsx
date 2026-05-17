@@ -23,11 +23,11 @@ export default async function CustomerTablePage({
       where: { slug: restaurantSlug },
       include: {
         tables: { where: { tableNumber: tableNo } },
-        categories: { where: { isActive: true }, orderBy: { sortOrder: "asc" } },
+        categories: { where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
         menuItems: {
           where: { isActive: true, isAvailable: true },
           include: { category: true },
-          orderBy: [{ category: { sortOrder: "asc" } }, { sortOrder: "asc" }]
+          orderBy: [{ category: { sortOrder: "asc" } }, { sortOrder: "asc" }, { createdAt: "asc" }]
         }
       }
     });

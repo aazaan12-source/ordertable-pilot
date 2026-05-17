@@ -9,6 +9,7 @@ import { requirePlatformAdmin } from "@/lib/permissions";
 import { absoluteTableQrUrl } from "@/lib/qr";
 import { imageForSeededItem, sampleCategoryNames, sampleMenuItems } from "@/lib/sample-menu";
 import { categoryImageFor, cleanSubmittedMenuImage } from "@/lib/menu-images";
+import { displayPosition, normalizeCategoryPositions, normalizeMenuItemPositions, reorderCategoryPositions, reorderMenuItemPositions } from "@/lib/menu-ordering";
 import { slugifyRestaurant } from "@/lib/admin-restaurant-utils";
 
 function formString(formData: FormData, key: string, fallback = "") {
@@ -498,10 +499,13 @@ export async function createRestaurantCategory(formData: FormData) {
   if (!name) return;
   const restaurant = await restaurantSlugForMenu(restaurantId);
   if (!restaurant) return;
-  const submittedSortOrder = formData.get("sortOrder");
-  const sortOrder = submittedSortOrder ? Number(submittedSortOrder) : (await db.category.count({ where: { restaurantId } })) + 1;
-  await db.category.create({ data: { restaurantId, name, imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")), sortOrder, isActive: true } });
-  await db.activityLog.create({ data: { userId: admin.id, restaurantId, action: "MENU_CATEGORY_CREATED", description: name } });
+  const categoryCount = await db.category.count({ where: { restaurantId } });
+  const desiredPosition = displayPosition(formData.get("sortOrder"), categoryCount + 1, categoryCount + 1);
+  await db.$transaction(async (tx) => {
+    const category = await tx.category.create({ data: { restaurantId, name, imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")), sortOrder: categoryCount + 1, isActive: true } });
+    await reorderCategoryPositions(tx, restaurantId, category.id, desiredPosition);
+    await tx.activityLog.create({ data: { userId: admin.id, restaurantId, action: "MENU_CATEGORY_CREATED", description: name } });
+  });
   await revalidateRestaurantMenuPages(restaurantId, restaurant.slug);
 }
 
@@ -512,11 +516,18 @@ export async function updateRestaurantCategory(formData: FormData) {
   const name = formString(formData, "name");
   const restaurant = await restaurantSlugForMenu(restaurantId);
   if (!restaurant || !name) return;
-  await db.category.updateMany({
-    where: { id, restaurantId },
-    data: { name, imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")), sortOrder: Number(formData.get("sortOrder") || 0), isActive: formData.get("isActive") === "on" }
+  const category = await db.category.findFirst({ where: { id, restaurantId } });
+  if (!category) return;
+  const categoryCount = await db.category.count({ where: { restaurantId } });
+  const desiredPosition = displayPosition(formData.get("sortOrder"), category.sortOrder || categoryCount, categoryCount);
+  await db.$transaction(async (tx) => {
+    await tx.category.updateMany({
+      where: { id, restaurantId },
+      data: { name, imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")), isActive: formData.get("isActive") === "on" }
+    });
+    await reorderCategoryPositions(tx, restaurantId, id, desiredPosition);
+    await tx.activityLog.create({ data: { userId: admin.id, restaurantId, action: "MENU_CATEGORY_UPDATED", description: name } });
   });
-  await db.activityLog.create({ data: { userId: admin.id, restaurantId, action: "MENU_CATEGORY_UPDATED", description: name } });
   await revalidateRestaurantMenuPages(restaurantId, restaurant.slug);
 }
 
@@ -529,6 +540,7 @@ export async function deleteRestaurantCategory(formData: FormData) {
   await db.$transaction(async (tx) => {
     await tx.menuItem.deleteMany({ where: { restaurantId, categoryId: id } });
     await tx.category.deleteMany({ where: { restaurantId, id } });
+    await normalizeCategoryPositions(tx, restaurantId);
     await tx.activityLog.create({ data: { userId: admin.id, restaurantId, action: "MENU_CATEGORY_DELETED", description: `${category.name} deleted with its menu items` } });
   });
   await revalidateRestaurantMenuPages(restaurantId, category.restaurant.slug);
@@ -543,20 +555,25 @@ export async function createRestaurantMenuItem(formData: FormData) {
   const restaurant = await restaurantSlugForMenu(restaurantId);
   const category = await db.category.findFirst({ where: { id: categoryId, restaurantId } });
   if (!restaurant || !category) return;
-  await db.menuItem.create({
-    data: {
-      restaurantId,
-      categoryId,
-      name,
-      description: formString(formData, "description"),
-      price: Number(formData.get("price") || 0),
-      imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")),
-      isActive: formData.get("isActive") !== "false",
-      isAvailable: formData.get("isAvailable") === "on",
-      sortOrder: Number(formData.get("sortOrder") || 0)
-    }
+  const categoryItemCount = await db.menuItem.count({ where: { restaurantId, categoryId } });
+  const desiredPosition = displayPosition(formData.get("sortOrder"), categoryItemCount + 1, categoryItemCount + 1);
+  await db.$transaction(async (tx) => {
+    const item = await tx.menuItem.create({
+      data: {
+        restaurantId,
+        categoryId,
+        name,
+        description: formString(formData, "description"),
+        price: Number(formData.get("price") || 0),
+        imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")),
+        isActive: formData.get("isActive") !== "false",
+        isAvailable: formData.get("isAvailable") === "on",
+        sortOrder: categoryItemCount + 1
+      }
+    });
+    await reorderMenuItemPositions(tx, restaurantId, categoryId, item.id, desiredPosition);
+    await tx.activityLog.create({ data: { userId: admin.id, restaurantId, action: "MENU_ITEM_CREATED", description: name } });
   });
-  await db.activityLog.create({ data: { userId: admin.id, restaurantId, action: "MENU_ITEM_CREATED", description: name } });
   await revalidateRestaurantMenuPages(restaurantId, restaurant.slug);
 }
 
@@ -568,21 +585,31 @@ export async function updateRestaurantMenuItem(formData: FormData) {
   const categoryId = formString(formData, "categoryId");
   const restaurant = await restaurantSlugForMenu(restaurantId);
   const category = await db.category.findFirst({ where: { id: categoryId, restaurantId } });
-  if (!restaurant || !category || !name) return;
-  await db.menuItem.updateMany({
-    where: { id, restaurantId },
-    data: {
-      categoryId,
-      name,
-      description: formString(formData, "description"),
-      price: Number(formData.get("price") || 0),
-      imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")),
-      isActive: formData.get("isActive") === "on",
-      isAvailable: formData.get("isAvailable") === "on",
-      sortOrder: Number(formData.get("sortOrder") || 0)
+  const item = await db.menuItem.findFirst({ where: { id, restaurantId } });
+  if (!restaurant || !category || !item || !name) return;
+  const categoryItemCount = await db.menuItem.count({ where: { restaurantId, categoryId } });
+  const maxPosition = categoryItemCount + (item.categoryId === categoryId ? 0 : 1);
+  const positionFallback = item.categoryId === categoryId ? item.sortOrder || categoryItemCount : maxPosition;
+  const desiredPosition = displayPosition(formData.get("sortOrder"), positionFallback, maxPosition);
+  await db.$transaction(async (tx) => {
+    await tx.menuItem.updateMany({
+      where: { id, restaurantId },
+      data: {
+        categoryId,
+        name,
+        description: formString(formData, "description"),
+        price: Number(formData.get("price") || 0),
+        imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")),
+        isActive: formData.get("isActive") === "on",
+        isAvailable: formData.get("isAvailable") === "on"
+      }
+    });
+    if (item.categoryId !== categoryId) {
+      await normalizeMenuItemPositions(tx, restaurantId, item.categoryId);
     }
+    await reorderMenuItemPositions(tx, restaurantId, categoryId, id, desiredPosition);
+    await tx.activityLog.create({ data: { userId: admin.id, restaurantId, action: "MENU_ITEM_UPDATED", description: name } });
   });
-  await db.activityLog.create({ data: { userId: admin.id, restaurantId, action: "MENU_ITEM_UPDATED", description: name } });
   await revalidateRestaurantMenuPages(restaurantId, restaurant.slug);
 }
 
@@ -592,8 +619,11 @@ export async function deleteRestaurantMenuItem(formData: FormData) {
   const id = formString(formData, "id");
   const item = await db.menuItem.findFirst({ where: { id, restaurantId }, include: { restaurant: { select: { slug: true } } } });
   if (!item) return;
-  await db.menuItem.deleteMany({ where: { id, restaurantId } });
-  await db.activityLog.create({ data: { userId: admin.id, restaurantId, action: "MENU_ITEM_DELETED", description: `${item.name} deleted` } });
+  await db.$transaction(async (tx) => {
+    await tx.menuItem.deleteMany({ where: { id, restaurantId } });
+    await normalizeMenuItemPositions(tx, restaurantId, item.categoryId);
+    await tx.activityLog.create({ data: { userId: admin.id, restaurantId, action: "MENU_ITEM_DELETED", description: `${item.name} deleted` } });
+  });
   await revalidateRestaurantMenuPages(restaurantId, item.restaurant.slug);
 }
 

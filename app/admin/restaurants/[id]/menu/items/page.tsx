@@ -18,12 +18,17 @@ export default async function AdminRestaurantMenuItemsPage({ params }: { params:
   const restaurant = await db.restaurant.findUnique({
     where: { id },
     include: {
-      categories: { orderBy: { sortOrder: "asc" } },
-      menuItems: { include: { category: true }, orderBy: [{ category: { sortOrder: "asc" } }, { sortOrder: "asc" }] }
+      categories: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
+      menuItems: { include: { category: true }, orderBy: [{ category: { sortOrder: "asc" } }, { sortOrder: "asc" }, { createdAt: "asc" }] }
     }
   });
   if (!restaurant) notFound();
   const activeCategories = restaurant.categories.filter((category) => category.isActive);
+  const itemCountsByCategory = restaurant.menuItems.reduce<Record<string, number>>((counts, item) => {
+    counts[item.categoryId] = (counts[item.categoryId] || 0) + 1;
+    return counts;
+  }, {});
+  const defaultNewItemPosition = activeCategories[0] ? (itemCountsByCategory[activeCategories[0].id] || 0) + 1 : 1;
 
   return (
     <main className="mx-auto max-w-7xl p-4 lg:p-6">
@@ -57,7 +62,7 @@ export default async function AdminRestaurantMenuItemsPage({ params }: { params:
               </select>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Input name="price" type="number" min={1} placeholder="Price" required />
-                <Input name="sortOrder" type="number" defaultValue={1} />
+                <Input name="sortOrder" type="number" min={1} placeholder="Display position, e.g. 1" defaultValue={defaultNewItemPosition} />
               </div>
               <MenuImagePicker categories={activeCategories.map((category) => ({ id: category.id, name: category.name }))} />
               <Textarea name="description" placeholder="Short description" />
@@ -77,12 +82,12 @@ export default async function AdminRestaurantMenuItemsPage({ params }: { params:
                     <input type="hidden" name="restaurantId" value={restaurant.id} />
                     <input type="hidden" name="id" value={item.id} />
                     <div className="grid gap-3 md:grid-cols-2">
-                      <Input name="name" defaultValue={item.name} required />
+                      <Input name="name" defaultValue={item.name} placeholder="Item name" required />
                       <select name="categoryId" defaultValue={item.categoryId} className="h-10 rounded-md border bg-white px-3 text-sm">
                         {restaurant.categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
                       </select>
-                      <Input name="price" type="number" defaultValue={item.price.toString()} required />
-                      <Input name="sortOrder" type="number" defaultValue={item.sortOrder} />
+                      <Input name="price" type="number" defaultValue={item.price.toString()} placeholder="Price" required />
+                      <Input name="sortOrder" type="number" min={1} max={itemCountsByCategory[item.categoryId] || 1} defaultValue={item.sortOrder} placeholder="Position: 1 = top" />
                     </div>
                     <MenuImagePicker
                       defaultValue={safeStoredImageUrl(item.imageUrl)}
@@ -90,7 +95,7 @@ export default async function AdminRestaurantMenuItemsPage({ params }: { params:
                       defaultCategoryName={item.category.name}
                       categories={restaurant.categories.map((category) => ({ id: category.id, name: category.name }))}
                     />
-                    <Textarea name="description" defaultValue={item.description} />
+                    <Textarea name="description" defaultValue={item.description} placeholder="Short customer-friendly description" />
                     <div className="flex flex-wrap items-center justify-between gap-3">
                       <div className="flex flex-wrap gap-4 text-sm">
                         <label className="flex items-center gap-2"><input type="checkbox" name="isAvailable" defaultChecked={item.isAvailable} /> Available</label>
