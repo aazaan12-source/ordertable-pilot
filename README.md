@@ -297,7 +297,7 @@ Payment writes `paymentStatus`, `paymentMethod`, `paidAt`, `amountPaid`, and `ba
 
 ### Hide / Show Financials
 
-The manager dashboard sidebar includes `Hide Financials` / `Show Financials`. This stores a local browser preference and masks dashboard/report values as `Rs. *****`. Printed customer bills still show the real bill.
+The manager dashboard overview includes `Hide Financials` / `Show Financials`. This stores a local browser preference and masks the dashboard overview revenue card as `Rs. *****`. Customer bills, order bill summaries, table bill amounts, and reports still show the real amounts.
 
 ### Monthly Financial Statement
 

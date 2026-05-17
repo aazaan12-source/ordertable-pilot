@@ -6,7 +6,6 @@ import { BellRing, Edit3, Eye, Printer, Receipt, RefreshCw } from "lucide-react"
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/dashboard/status-badge";
-import { FinancialAmount } from "@/components/dashboard/financial-amount";
 import { formatCurrency, formatPkTime } from "@/lib/utils";
 
 const statuses = ["PENDING", "ACCEPTED", "PREPARING", "READY", "SERVED", "BILL_REQUESTED", "PAID", "CANCELLED"];
@@ -200,7 +199,7 @@ export function LiveOrders({ initialOrders }: { initialOrders: Order[]; restaura
                     <div key={item.id} className="rounded-md bg-muted p-3">
                       <div className="flex justify-between gap-3 font-medium">
                         <span>{item.quantity} x {item.itemName}</span>
-                        <FinancialAmount value={item.totalPrice} fallback={formatCurrency(item.totalPrice)} />
+                        <span>{formatCurrency(item.totalPrice)}</span>
                       </div>
                       <p className="text-sm text-muted-foreground">{formatCurrency(item.unitPrice)} x {item.quantity}</p>
                       {item.specialInstruction ? <p className="mt-1 text-sm text-muted-foreground">Note: {item.specialInstruction}</p> : null}
@@ -268,7 +267,7 @@ function BillRow({ label, value, strong }: { label: string; value: string; stron
   return (
     <div className={strong ? "flex justify-between gap-3 text-lg font-bold" : "flex justify-between gap-3"}>
       <span>{label}</span>
-      <FinancialAmount value={value} fallback={formatCurrency(value)} />
+      <span>{formatCurrency(value)}</span>
     </div>
   );
 }

@@ -511,9 +511,10 @@ Marking payment:
 3. Click Mark Paid.
 
 Hiding/showing financial records:
-1. Use Hide Financials / Show Financials in dashboard sidebar.
-2. Hidden values display as Rs. *****.
-3. This is only local browser display privacy.
+1. Use Hide Financials / Show Financials on the dashboard overview page.
+2. The dashboard overview revenue card displays as Rs. ***** when hidden.
+3. Customer bills, table bill amounts, order bill summaries, and reports still show real amounts.
+4. This is only local browser display privacy.
 
 Creating monthly financial statement:
 1. Open /dashboard/reports.

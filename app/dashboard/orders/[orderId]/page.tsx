@@ -7,7 +7,6 @@ import { orderSourceLabels } from "@/lib/order-utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/dashboard/status-badge";
-import { FinancialAmount } from "@/components/dashboard/financial-amount";
 import { formatCurrency, formatPkDateTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -63,7 +62,7 @@ export default async function DashboardOrderDetailPage({ params }: { params: Pro
               <div key={item.id} className="rounded-md border p-3">
                 <div className="flex justify-between gap-3 font-semibold">
                   <span>{item.quantity} x {item.itemName}{item.addedAfterInitialOrder ? " (Added later)" : ""}</span>
-                  <FinancialAmount value={item.totalPrice.toString()} fallback={formatCurrency(item.totalPrice.toString())} />
+                  <span>{formatCurrency(item.totalPrice.toString())}</span>
                 </div>
                 <p className="text-sm text-muted-foreground">{formatCurrency(item.unitPrice.toString())} x {item.quantity}</p>
                 {item.specialInstruction ? <p className="mt-1 text-sm text-muted-foreground">Note: {item.specialInstruction}</p> : null}
@@ -126,7 +125,7 @@ function BillLine({ label, value, strong }: { label: string; value: string; stro
   return (
     <div className={strong ? "flex justify-between gap-3 text-base font-bold" : "flex justify-between gap-3"}>
       <span>{label}</span>
-      <FinancialAmount value={value} fallback={formatCurrency(value)} />
+      <span>{formatCurrency(value)}</span>
     </div>
   );
 }

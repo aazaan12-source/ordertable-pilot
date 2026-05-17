@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { ClipboardList, LayoutDashboard, Menu, PlusCircle, QrCode, ReceiptText, Settings, Table2, Bell } from "lucide-react";
-import { FinancialPrivacyToggle } from "@/components/dashboard/financial-privacy-toggle";
 
 const links = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -36,9 +35,6 @@ export function DashboardNav({ restaurantName }: { restaurantName: string }) {
           Logout
         </Link>
       </nav>
-      <div className="px-3 pb-3">
-        <FinancialPrivacyToggle />
-      </div>
     </aside>
   );
 }

@@ -4,6 +4,7 @@ import { getManagerRestaurant } from "@/lib/permissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FinancialAmount } from "@/components/dashboard/financial-amount";
+import { FinancialPrivacyToggle } from "@/components/dashboard/financial-privacy-toggle";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,10 @@ export default async function DashboardHome() {
           <h1 className="text-2xl font-bold">Today at {restaurant.name}</h1>
           <p className="text-sm text-muted-foreground">Quick view for restaurant staff.</p>
         </div>
-        <Link href="/dashboard/orders"><Button>Open Live Orders</Button></Link>
+        <div className="flex flex-wrap gap-2">
+          <FinancialPrivacyToggle />
+          <Link href="/dashboard/orders"><Button>Open Live Orders</Button></Link>
+        </div>
       </div>
       <div className="grid gap-4 md:grid-cols-4">
         <Stat title="Pending orders" value={pending} />

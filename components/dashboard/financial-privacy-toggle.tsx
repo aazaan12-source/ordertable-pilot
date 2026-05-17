@@ -30,7 +30,7 @@ export function FinancialPrivacyToggle() {
   }
   const Icon = hidden ? Eye : EyeOff;
   return (
-    <Button type="button" variant="outline" size="sm" onClick={toggle} className="w-full justify-start">
+    <Button type="button" variant="outline" size="sm" onClick={toggle} className="justify-start">
       <Icon className="h-4 w-4" />
       {hidden ? "Show Financials" : "Hide Financials"}
     </Button>

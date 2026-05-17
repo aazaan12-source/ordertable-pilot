@@ -3,8 +3,7 @@ import { db } from "@/lib/db";
 import { getManagerRestaurant } from "@/lib/permissions";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FinancialAmount } from "@/components/dashboard/financial-amount";
-import { formatPkTime } from "@/lib/utils";
+import { formatCurrency, formatPkTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
@@ -79,17 +78,17 @@ export default async function ReportsPage({
 
       <div className="mt-5 grid gap-4 md:grid-cols-4">
         <Stat title="Orders today" value={ordersToday} />
-        <Stat title="Revenue today" value={<FinancialAmount value={revenueToday._sum.total?.toString() || 0} />} />
-        <Stat title="Average today" value={<FinancialAmount value={revenueToday._avg.total?.toString() || 0} />} />
+        <Stat title="Revenue today" value={formatCurrency(revenueToday._sum.total?.toString() || 0)} />
+        <Stat title="Average today" value={formatCurrency(revenueToday._avg.total?.toString() || 0)} />
         <Stat title="Pending today" value={pending} />
         <Stat title="Paid today" value={paidToday} />
         <Stat title="Cancelled today" value={cancelledToday} />
         <Stat title="Monthly orders" value={monthOrders} />
-        <Stat title="Gross sales" value={<FinancialAmount value={monthRevenue._sum.subtotal?.toString() || 0} />} />
-        <Stat title="Discounts" value={<FinancialAmount value={monthRevenue._sum.discount?.toString() || 0} />} />
-        <Stat title="Service charges" value={<FinancialAmount value={monthRevenue._sum.serviceCharges?.toString() || 0} />} />
-        <Stat title="Tax collected" value={<FinancialAmount value={monthRevenue._sum.tax?.toString() || 0} />} />
-        <Stat title="Net paid sales" value={<FinancialAmount value={monthRevenue._sum.total?.toString() || 0} />} />
+        <Stat title="Gross sales" value={formatCurrency(monthRevenue._sum.subtotal?.toString() || 0)} />
+        <Stat title="Discounts" value={formatCurrency(monthRevenue._sum.discount?.toString() || 0)} />
+        <Stat title="Service charges" value={formatCurrency(monthRevenue._sum.serviceCharges?.toString() || 0)} />
+        <Stat title="Tax collected" value={formatCurrency(monthRevenue._sum.tax?.toString() || 0)} />
+        <Stat title="Net paid sales" value={formatCurrency(monthRevenue._sum.total?.toString() || 0)} />
       </div>
 
       <div className="mt-6 grid gap-5 xl:grid-cols-2">
@@ -99,7 +98,7 @@ export default async function ReportsPage({
             {mostOrdered.map((item) => (
               <div key={item.itemName} className="flex justify-between border-b pb-2 text-sm">
                 <span>{item.itemName}</span>
-                <span>{item._sum.quantity || 0} sold · <FinancialAmount value={item._sum.totalPrice?.toString() || 0} /></span>
+                <span>{item._sum.quantity || 0} sold · {formatCurrency(item._sum.totalPrice?.toString() || 0)}</span>
               </div>
             ))}
           </CardContent>
@@ -113,7 +112,7 @@ export default async function ReportsPage({
                 <span>{order.orderNumber}</span>
                 <span>Table {order.table.tableNumber}</span>
                 <span>{order.source}</span>
-                <span className="text-right">{order.status} · <FinancialAmount value={order.total.toString()} /></span>
+                <span className="text-right">{order.status} · {formatCurrency(order.total.toString())}</span>
               </div>
             ))}
           </CardContent>

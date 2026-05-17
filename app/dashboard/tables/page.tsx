@@ -4,8 +4,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { CopyUrlButton } from "@/components/dashboard/copy-url-button";
 import { TableQrImage } from "@/components/dashboard/table-qr-image";
-import { FinancialAmount } from "@/components/dashboard/financial-amount";
 import { Button } from "@/components/ui/button";
+import { formatCurrency } from "@/lib/utils";
 import Link from "next/link";
 
 export const dynamic = "force-dynamic";
@@ -57,7 +57,7 @@ export default async function TablesPage() {
                     <p>Latest order: <strong>{latestOrder.orderNumber}</strong></p>
                     <p className="text-muted-foreground">Status: {latestOrder.status.replaceAll("_", " ")}</p>
                     <p className="text-muted-foreground">Payment: {latestOrder.paymentStatus}</p>
-                    <p className="font-semibold">Bill: <FinancialAmount value={latestOrder.total.toString()} /></p>
+                    <p className="font-semibold">Bill: {formatCurrency(latestOrder.total.toString())}</p>
                     <div className="flex flex-wrap gap-2 pt-2">
                       <Link href={`/dashboard/orders/${latestOrder.id}`}><Button size="sm" variant="outline">View</Button></Link>
                       <Link href={`/dashboard/orders/${latestOrder.id}/edit`}><Button size="sm" variant="outline">Edit Bill</Button></Link>
