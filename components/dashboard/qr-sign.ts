@@ -47,37 +47,15 @@ export async function createQrSignDataUrl(url: string, tableNumber: number, rest
   const qrImage = await loadImage(qrDataUrl);
   context.drawImage(qrImage, qrX, qrY, qrSize, qrSize);
 
-  drawTableBadge(context, width / 2, qrY + qrSize / 2, tableNumber);
-
   context.fillStyle = "#0f172a";
-  context.font = "900 44px Arial, sans-serif";
-  wrapText(context, scanInstruction, width / 2, 940, 760, 58);
+  context.font = "900 40px Arial, sans-serif";
+  wrapText(context, scanInstruction, width / 2, 1010, 800, 54);
 
   context.fillStyle = "#64748b";
   context.font = "600 24px Arial, sans-serif";
-  context.fillText(url, width / 2, 1130, 760);
+  context.fillText(url, width / 2, 1155, 760);
 
   return canvas.toDataURL("image/png");
-}
-
-function drawTableBadge(context: CanvasRenderingContext2D, centerX: number, centerY: number, tableNumber: number) {
-  const badgeWidth = 220;
-  const badgeHeight = 138;
-  const x = centerX - badgeWidth / 2;
-  const y = centerY - badgeHeight / 2;
-  context.fillStyle = "#ffffff";
-  roundedRect(context, x, y, badgeWidth, badgeHeight, 22);
-  context.fill();
-  context.strokeStyle = "#0f172a";
-  context.lineWidth = 8;
-  context.stroke();
-  context.fillStyle = "#0f172a";
-  context.textAlign = "center";
-  context.textBaseline = "middle";
-  context.font = "900 30px Arial, sans-serif";
-  context.fillText("TABLE", centerX, centerY - 34);
-  context.font = "900 76px Arial, sans-serif";
-  context.fillText(String(tableNumber), centerX, centerY + 28);
 }
 
 function roundedRect(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
