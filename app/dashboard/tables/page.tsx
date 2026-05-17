@@ -14,7 +14,7 @@ export const dynamic = "force-dynamic";
 export default async function TablesPage() {
   const { restaurant } = await getManagerRestaurant();
   const tables = await db.restaurantTable.findMany({
-    where: { restaurantId: restaurant.id },
+    where: { restaurantId: restaurant.id, status: { not: "INACTIVE" } },
     include: {
       orders: {
         orderBy: { createdAt: "desc" },

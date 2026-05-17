@@ -6,7 +6,10 @@ export const dynamic = "force-dynamic";
 
 export default async function QrCodesPage() {
   const { restaurant } = await getManagerRestaurant();
-  const tables = await db.restaurantTable.findMany({ where: { restaurantId: restaurant.id }, orderBy: { tableNumber: "asc" } });
+  const tables = await db.restaurantTable.findMany({
+    where: { restaurantId: restaurant.id, status: { not: "INACTIVE" } },
+    orderBy: { tableNumber: "asc" }
+  });
   const baseUrl = (process.env.APP_URL || process.env.NEXTAUTH_URL || "").replace(/\/$/, "");
   return (
     <main className="p-4 lg:p-6">

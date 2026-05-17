@@ -17,7 +17,9 @@ export default async function AdminTablesPage({ params }: { params: Promise<{ id
     include: { tables: { include: { _count: { select: { orders: true } } }, orderBy: { tableNumber: "asc" } } }
   });
   if (!restaurant) notFound();
-  const activeCount = restaurant.tables.filter((table) => table.status !== "INACTIVE").length;
+  const activeTables = restaurant.tables.filter((table) => table.status !== "INACTIVE");
+  const activeCount = activeTables.length;
+  const archivedCount = restaurant.tables.length - activeCount;
 
   return (
     <main className="mx-auto max-w-7xl p-4 lg:p-6">
@@ -29,7 +31,7 @@ export default async function AdminTablesPage({ params }: { params: Promise<{ id
       <Card className="mb-5">
         <CardHeader>
           <CardTitle>Bulk table count</CardTitle>
-          <p className="text-sm text-muted-foreground">Increasing table count creates missing tables. Reducing table count deactivates extra tables and keeps past order history.</p>
+          <p className="text-sm text-muted-foreground">Increasing table count creates missing tables. Reducing table count deletes unused extra QR records and archives only tables that already have history.</p>
         </CardHeader>
         <CardContent>
           <form action={updateRestaurantTableCount} className="grid gap-3 md:grid-cols-[180px_180px_auto]">
@@ -39,14 +41,15 @@ export default async function AdminTablesPage({ params }: { params: Promise<{ id
             <Button>Update Table Count</Button>
           </form>
           <p className="mt-3 rounded-md border border-orange-300 bg-orange-50 p-3 text-sm text-orange-950">
-            Reducing table count will deactivate extra tables but will not delete past order history.
+            Reducing table count removes extra QR codes from the restaurant dashboard. Past order history is still protected.
+            {archivedCount > 0 ? ` ${archivedCount} old table record${archivedCount === 1 ? " is" : "s are"} archived for history and hidden from QR lists.` : ""}
           </p>
         </CardContent>
       </Card>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {restaurant.tables.map((table) => (
-          <Card key={table.id} className={table.status === "INACTIVE" ? "opacity-60" : ""}>
+        {activeTables.map((table) => (
+          <Card key={table.id}>
             <CardHeader>
               <div className="flex items-center justify-between gap-3">
                 <CardTitle>Table {table.tableNumber}</CardTitle>

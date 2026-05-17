@@ -75,7 +75,11 @@ export async function syncRestaurantTables({
   startAt?: number;
   userId?: string;
 }) {
-  const currentTables = await db.restaurantTable.findMany({ where: { restaurantId }, orderBy: { tableNumber: "asc" } });
+  const currentTables = await db.restaurantTable.findMany({
+    where: { restaurantId },
+    include: { _count: { select: { orders: true, requests: true } } },
+    orderBy: { tableNumber: "asc" }
+  });
   const desiredNumbers = new Set(Array.from({ length: targetCount }, (_, index) => startAt + index));
 
   await db.$transaction(async (tx) => {
@@ -95,10 +99,14 @@ export async function syncRestaurantTables({
 
     for (const table of currentTables) {
       if (!desiredNumbers.has(table.tableNumber)) {
-        await tx.restaurantTable.update({
-          where: { id: table.id },
-          data: { status: TableStatus.INACTIVE, qrUrl: absoluteTableQrUrl(slug, table.tableNumber) }
-        });
+        if (table._count.orders === 0 && table._count.requests === 0) {
+          await tx.restaurantTable.delete({ where: { id: table.id } });
+        } else {
+          await tx.restaurantTable.update({
+            where: { id: table.id },
+            data: { status: TableStatus.INACTIVE, qrUrl: absoluteTableQrUrl(slug, table.tableNumber) }
+          });
+        }
       }
     }
 
@@ -107,7 +115,7 @@ export async function syncRestaurantTables({
         userId,
         restaurantId,
         action: "TABLES_UPDATED",
-        description: `Synced active table range to ${startAt}-${startAt + targetCount - 1}. Extra tables were deactivated, not deleted.`
+        description: `Synced active table range to ${startAt}-${startAt + targetCount - 1}. Extra unused table QR records were deleted; tables with order history were archived.`
       }
     });
   });
@@ -267,6 +275,16 @@ export async function updateRestaurantDetails(formData: FormData) {
     );
   }
 
+  if (formData.has("tableCount")) {
+    await syncRestaurantTables({
+      restaurantId: id,
+      slug: updated.slug,
+      targetCount: positiveInt(formData.get("tableCount"), Math.max(1, current.tables.filter((table) => table.status !== TableStatus.INACTIVE).length || current.tables.length || 1)),
+      startAt: positiveInt(formData.get("startingTableNumber"), 1),
+      userId: admin.id
+    });
+  }
+
   if (menuSetup === "empty") {
     await db.$transaction([
       db.menuItem.deleteMany({ where: { restaurantId: id } }),
@@ -288,6 +306,10 @@ export async function updateRestaurantDetails(formData: FormData) {
   await db.activityLog.create({ data: { userId: admin.id, restaurantId: id, action: "RESTAURANT_UPDATED", description: `${updated.name} updated` } });
   revalidatePath(`/admin/restaurants/${id}`);
   revalidatePath(`/admin/restaurants/${id}/edit`);
+  revalidatePath(`/admin/restaurants/${id}/tables`);
+  revalidatePath(`/admin/restaurants/${id}/qr-codes`);
+  revalidatePath("/dashboard/tables");
+  revalidatePath("/dashboard/qr-codes");
   redirect(`/admin/restaurants/${id}/edit?saved=1`);
 }
 
@@ -363,8 +385,11 @@ export async function updateRestaurantTableCount(formData: FormData) {
   const restaurant = await db.restaurant.findUnique({ where: { id: restaurantId } });
   if (!restaurant) return;
   await syncRestaurantTables({ restaurantId, slug: restaurant.slug, targetCount, startAt, userId: admin.id });
+  revalidatePath(`/admin/restaurants/${restaurantId}`);
   revalidatePath(`/admin/restaurants/${restaurantId}/tables`);
   revalidatePath(`/admin/restaurants/${restaurantId}/qr-codes`);
+  revalidatePath("/dashboard/tables");
+  revalidatePath("/dashboard/qr-codes");
 }
 
 export async function updateSingleTable(formData: FormData) {

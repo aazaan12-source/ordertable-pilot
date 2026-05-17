@@ -22,8 +22,14 @@ export default async function AdminRestaurantEditPage({
   await requirePlatformAdmin();
   const { id } = await params;
   const { saved } = await searchParams;
-  const restaurant = await db.restaurant.findUnique({ where: { id } });
+  const restaurant = await db.restaurant.findUnique({
+    where: { id },
+    include: { tables: { orderBy: { tableNumber: "asc" } } }
+  });
   if (!restaurant) notFound();
+  const activeTables = restaurant.tables.filter((table) => table.status !== "INACTIVE");
+  const defaultTableCount = activeTables.length || restaurant.tables.length || 1;
+  const defaultStartingTableNumber = activeTables[0]?.tableNumber || restaurant.tables[0]?.tableNumber || 1;
 
   return (
     <main className="mx-auto max-w-4xl p-4 lg:p-6">
@@ -65,6 +71,16 @@ export default async function AdminRestaurantEditPage({
             <Input name="taxPercent" type="number" defaultValue={restaurant.taxPercent.toString()} />
             <Input name="customerCancelWindowMinutes" type="number" defaultValue={restaurant.customerCancelWindowMinutes} />
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="orderingEnabled" defaultChecked={restaurant.orderingEnabled} /> Ordering enabled</label>
+            <div className="rounded-md border bg-white p-3 md:col-span-2">
+              <p className="mb-2 text-sm font-bold">Tables and QR Codes</p>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Increasing creates only the missing table QR codes. Reducing removes unused extra QR records; tables with old order history are archived and hidden from QR lists.
+              </p>
+              <div className="grid gap-3 sm:grid-cols-2">
+                <Input name="tableCount" type="number" min={1} max={500} defaultValue={defaultTableCount} placeholder="Number of active tables" />
+                <Input name="startingTableNumber" type="number" min={1} defaultValue={defaultStartingTableNumber} placeholder="Starting table number" />
+              </div>
+            </div>
             <div className="rounded-md border bg-white p-3 md:col-span-2">
               <p className="mb-2 text-sm font-bold">Menu Setup</p>
               <div className="grid gap-2 sm:grid-cols-3">
