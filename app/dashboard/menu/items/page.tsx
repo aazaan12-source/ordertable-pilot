@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getManagerRestaurant } from "@/lib/permissions";
 import { ConfirmSubmitButton, SubmitButton } from "@/components/ui/confirm-submit-button";
@@ -67,27 +68,32 @@ async function updateMenuItem(formData: FormData) {
   const maxPosition = categoryItemCount + (item.categoryId === categoryId ? 0 : 1);
   const positionFallback = item.categoryId === categoryId ? item.sortOrder || categoryItemCount : maxPosition;
   const desiredPosition = displayPosition(formData.get("sortOrder"), positionFallback, maxPosition);
-  await db.$transaction(async (tx) => {
-    await tx.menuItem.updateMany({
-      where: { id, restaurantId: restaurant.id },
-      data: {
-        categoryId,
-        name,
-        description: String(formData.get("description") || ""),
-        price: Number(formData.get("price") || 0),
-        imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")),
-        isActive: formData.get("isActive") === "on",
-        isAvailable: formData.get("isAvailable") === "on"
+  try {
+    await db.$transaction(async (tx) => {
+      await tx.menuItem.updateMany({
+        where: { id, restaurantId: restaurant.id },
+        data: {
+          categoryId,
+          name,
+          description: String(formData.get("description") || ""),
+          price: Number(formData.get("price") || 0),
+          imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")),
+          isActive: formData.get("isActive") === "on",
+          isAvailable: formData.get("isAvailable") === "on"
+        }
+      });
+      if (item.categoryId !== categoryId) {
+        await normalizeMenuItemPositions(tx, restaurant.id, item.categoryId);
+        await reorderMenuItemPositions(tx, restaurant.id, categoryId, id, desiredPosition);
+      } else {
+        await swapMenuItemPosition(tx, restaurant.id, categoryId, id, desiredPosition);
       }
+      await tx.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "MENU_ITEM_UPDATED", description: name } });
     });
-    if (item.categoryId !== categoryId) {
-      await normalizeMenuItemPositions(tx, restaurant.id, item.categoryId);
-      await reorderMenuItemPositions(tx, restaurant.id, categoryId, id, desiredPosition);
-    } else {
-      await swapMenuItemPosition(tx, restaurant.id, categoryId, id, desiredPosition);
-    }
-    await tx.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "MENU_ITEM_UPDATED", description: name } });
-  });
+  } catch (error) {
+    console.error("[dashboard updateMenuItem] failed", { error, restaurantId: restaurant.id, itemId: id, desiredPosition });
+    redirect("/dashboard/menu/items?error=menu-item-update-failed");
+  }
   await revalidateManagerMenuPages(restaurant.id, restaurant.slug);
 }
 

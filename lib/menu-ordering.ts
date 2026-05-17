@@ -29,14 +29,12 @@ export async function reorderCategoryPositions(tx: MenuOrderingClient, restauran
   const nextIds = categories.filter((category) => category.id !== movedCategoryId).map((category) => category.id);
   nextIds.splice(Math.min(nextIds.length, Math.max(0, desiredPosition - 1)), 0, movedCategoryId);
 
-  await Promise.all(
-    nextIds.map((id, index) =>
-      tx.category.update({
-        where: { id },
-        data: { sortOrder: index + 1 }
-      })
-    )
-  );
+  for (const [index, id] of nextIds.entries()) {
+    await tx.category.update({
+      where: { id },
+      data: { sortOrder: index + 1 }
+    });
+  }
 }
 
 export async function normalizeCategoryPositions(tx: MenuOrderingClient, restaurantId: string) {
@@ -46,14 +44,12 @@ export async function normalizeCategoryPositions(tx: MenuOrderingClient, restaur
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
   });
 
-  await Promise.all(
-    categories.map((category, index) =>
-      tx.category.update({
-        where: { id: category.id },
-        data: { sortOrder: index + 1 }
-      })
-    )
-  );
+  for (const [index, category] of categories.entries()) {
+    await tx.category.update({
+      where: { id: category.id },
+      data: { sortOrder: index + 1 }
+    });
+  }
 }
 
 export async function reorderMenuItemPositions(tx: MenuOrderingClient, restaurantId: string, categoryId: string, movedItemId: string, desiredPosition: number) {
@@ -65,14 +61,12 @@ export async function reorderMenuItemPositions(tx: MenuOrderingClient, restauran
   const nextIds = items.filter((item) => item.id !== movedItemId).map((item) => item.id);
   nextIds.splice(Math.min(nextIds.length, Math.max(0, desiredPosition - 1)), 0, movedItemId);
 
-  await Promise.all(
-    nextIds.map((id, index) =>
-      tx.menuItem.update({
-        where: { id },
-        data: { sortOrder: index + 1 }
-      })
-    )
-  );
+  for (const [index, id] of nextIds.entries()) {
+    await tx.menuItem.update({
+      where: { id },
+      data: { sortOrder: index + 1 }
+    });
+  }
 }
 
 export async function swapMenuItemPosition(tx: MenuOrderingClient, restaurantId: string, categoryId: string, movedItemId: string, desiredPosition: number) {
@@ -91,14 +85,12 @@ export async function swapMenuItemPosition(tx: MenuOrderingClient, restaurantId:
   const nextIds = items.map((item) => item.id);
   [nextIds[currentIndex], nextIds[targetIndex]] = [nextIds[targetIndex], nextIds[currentIndex]];
 
-  await Promise.all(
-    nextIds.map((id, index) =>
-      tx.menuItem.update({
-        where: { id },
-        data: { sortOrder: index + 1 }
-      })
-    )
-  );
+  for (const [index, id] of nextIds.entries()) {
+    await tx.menuItem.update({
+      where: { id },
+      data: { sortOrder: index + 1 }
+    });
+  }
 }
 
 export async function normalizeMenuItemPositions(tx: MenuOrderingClient, restaurantId: string, categoryId: string) {
@@ -108,12 +100,10 @@ export async function normalizeMenuItemPositions(tx: MenuOrderingClient, restaur
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
   });
 
-  await Promise.all(
-    items.map((item, index) =>
-      tx.menuItem.update({
-        where: { id: item.id },
-        data: { sortOrder: index + 1 }
-      })
-    )
-  );
+  for (const [index, item] of items.entries()) {
+    await tx.menuItem.update({
+      where: { id: item.id },
+      data: { sortOrder: index + 1 }
+    });
+  }
 }

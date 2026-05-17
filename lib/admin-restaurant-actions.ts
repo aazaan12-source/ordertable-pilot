@@ -595,27 +595,32 @@ export async function updateRestaurantMenuItem(formData: FormData) {
   const maxPosition = categoryItemCount + (item.categoryId === categoryId ? 0 : 1);
   const positionFallback = item.categoryId === categoryId ? item.sortOrder || categoryItemCount : maxPosition;
   const desiredPosition = displayPosition(formData.get("sortOrder"), positionFallback, maxPosition);
-  await db.$transaction(async (tx) => {
-    await tx.menuItem.updateMany({
-      where: { id, restaurantId },
-      data: {
-        categoryId,
-        name,
-        description: formString(formData, "description"),
-        price: Number(formData.get("price") || 0),
-        imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")),
-        isActive: formData.get("isActive") === "on",
-        isAvailable: formData.get("isAvailable") === "on"
+  try {
+    await db.$transaction(async (tx) => {
+      await tx.menuItem.updateMany({
+        where: { id, restaurantId },
+        data: {
+          categoryId,
+          name,
+          description: formString(formData, "description"),
+          price: Number(formData.get("price") || 0),
+          imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")),
+          isActive: formData.get("isActive") === "on",
+          isAvailable: formData.get("isAvailable") === "on"
+        }
+      });
+      if (item.categoryId !== categoryId) {
+        await normalizeMenuItemPositions(tx, restaurantId, item.categoryId);
+        await reorderMenuItemPositions(tx, restaurantId, categoryId, id, desiredPosition);
+      } else {
+        await swapMenuItemPosition(tx, restaurantId, categoryId, id, desiredPosition);
       }
+      await tx.activityLog.create({ data: { userId: admin.id, restaurantId, action: "MENU_ITEM_UPDATED", description: name } });
     });
-    if (item.categoryId !== categoryId) {
-      await normalizeMenuItemPositions(tx, restaurantId, item.categoryId);
-      await reorderMenuItemPositions(tx, restaurantId, categoryId, id, desiredPosition);
-    } else {
-      await swapMenuItemPosition(tx, restaurantId, categoryId, id, desiredPosition);
-    }
-    await tx.activityLog.create({ data: { userId: admin.id, restaurantId, action: "MENU_ITEM_UPDATED", description: name } });
-  });
+  } catch (error) {
+    console.error("[updateRestaurantMenuItem] failed", { error, restaurantId, itemId: id, desiredPosition });
+    redirect(`/admin/restaurants/${restaurantId}/menu/items?error=menu-item-update-failed`);
+  }
   await revalidateRestaurantMenuPages(restaurantId, restaurant.slug);
 }
 
