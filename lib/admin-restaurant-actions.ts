@@ -21,6 +21,30 @@ function positiveInt(value: FormDataEntryValue | null, fallback: number, max = 5
   return Math.min(max, Math.max(1, Math.floor(parsed)));
 }
 
+function tableRangeFromForm(formData: FormData) {
+  const startAt = positiveInt(formData.get("firstTableNumber") ?? formData.get("startingTableNumber"), 1, 500);
+  const submittedLastTableNumber = formData.get("lastTableNumber");
+
+  if (submittedLastTableNumber !== null) {
+    const endAt = positiveInt(submittedLastTableNumber, startAt, 500);
+    return {
+      startAt,
+      endAt,
+      targetCount: Math.max(1, endAt - startAt + 1),
+      isValid: endAt >= startAt
+    };
+  }
+
+  const submittedCount = positiveInt(formData.get("tableCount"), 1, 500);
+  const endAt = Math.min(500, startAt + submittedCount - 1);
+  return {
+    startAt,
+    endAt,
+    targetCount: Math.max(1, endAt - startAt + 1),
+    isValid: true
+  };
+}
+
 function redirectNewRestaurantError(error: string): never {
   redirect(`/admin/restaurants/new?error=${encodeURIComponent(error)}`);
 }
@@ -96,7 +120,7 @@ export async function syncRestaurantTables({
 }) {
   const currentTables = await db.restaurantTable.findMany({
     where: { restaurantId },
-    include: { _count: { select: { orders: true, requests: true } } },
+    include: { _count: { select: { orders: true, requests: true, feedback: true } } },
     orderBy: { tableNumber: "asc" }
   });
   const desiredNumbers = new Set(Array.from({ length: targetCount }, (_, index) => startAt + index));
@@ -118,8 +142,15 @@ export async function syncRestaurantTables({
 
     for (const table of currentTables) {
       if (!desiredNumbers.has(table.tableNumber)) {
-        if (table._count.orders === 0 && table._count.requests === 0) {
-          await tx.restaurantTable.delete({ where: { id: table.id } });
+        if (table._count.orders === 0 && table._count.requests === 0 && table._count.feedback === 0) {
+          await tx.restaurantTable.deleteMany({
+            where: {
+              id: table.id,
+              orders: { none: {} },
+              requests: { none: {} },
+              feedback: { none: {} }
+            }
+          });
         } else {
           await tx.restaurantTable.update({
             where: { id: table.id },
@@ -295,11 +326,12 @@ export async function updateRestaurantDetails(formData: FormData) {
   }
 
   if (formData.has("tableCount")) {
+    const tableRange = tableRangeFromForm(formData);
     await syncRestaurantTables({
       restaurantId: id,
       slug: updated.slug,
-      targetCount: positiveInt(formData.get("tableCount"), Math.max(1, current.tables.filter((table) => table.status !== TableStatus.INACTIVE).length || current.tables.length || 1)),
-      startAt: positiveInt(formData.get("startingTableNumber"), 1),
+      targetCount: tableRange.targetCount || Math.max(1, current.tables.filter((table) => table.status !== TableStatus.INACTIVE).length || current.tables.length || 1),
+      startAt: tableRange.startAt,
       userId: admin.id
     });
   }
@@ -391,14 +423,14 @@ export async function toggleOrdering(formData: FormData) {
 export async function updateRestaurantTableCount(formData: FormData) {
   const admin = await requirePlatformAdmin();
   const restaurantId = formString(formData, "restaurantId");
-  const targetCount = positiveInt(formData.get("tableCount"), 1);
-  const startAt = positiveInt(formData.get("startingTableNumber"), 1);
+  const { startAt, endAt, targetCount, isValid } = tableRangeFromForm(formData);
+  if (!isValid) redirect(`/admin/restaurants/${restaurantId}/tables?error=invalid-range`);
   const restaurant = await db.restaurant.findUnique({ where: { id: restaurantId } });
   if (!restaurant) return;
   try {
     await syncRestaurantTables({ restaurantId, slug: restaurant.slug, targetCount, startAt, userId: admin.id });
   } catch (error) {
-    console.error("[updateRestaurantTableCount] failed", { error, restaurantId, targetCount, startAt });
+    console.error("[updateRestaurantTableCount] failed", { error, restaurantId, targetCount, startAt, endAt });
     redirect(`/admin/restaurants/${restaurantId}/tables?error=table-sync-failed`);
   }
   revalidatePath(`/admin/restaurants/${restaurantId}`);

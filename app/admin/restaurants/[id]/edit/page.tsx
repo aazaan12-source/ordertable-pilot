@@ -47,13 +47,13 @@ export default async function AdminRestaurantEditPage({
         <CardContent>
           <form action={updateRestaurantDetails} className="grid gap-3 md:grid-cols-2">
             <input type="hidden" name="id" value={restaurant.id} />
-            <Input name="name" defaultValue={restaurant.name} required />
-            <Input name="slug" defaultValue={restaurant.slug} required />
-            <Input name="branchName" defaultValue={restaurant.branchName} required />
-            <Input name="city" defaultValue={restaurant.city} required />
-            <Input name="phone" defaultValue={restaurant.phone} />
+            <Input name="name" defaultValue={restaurant.name} placeholder="Restaurant name" required />
+            <Input name="slug" defaultValue={restaurant.slug} placeholder="URL slug, e.g. savour-blue-area" required />
+            <Input name="branchName" defaultValue={restaurant.branchName} placeholder="Branch name" required />
+            <Input name="city" defaultValue={restaurant.city} placeholder="City" required />
+            <Input name="phone" defaultValue={restaurant.phone} placeholder="Restaurant phone number" />
             <Input name="logoUrl" defaultValue={restaurant.logoUrl || ""} placeholder="Logo URL" />
-            <Input className="md:col-span-2" name="address" defaultValue={restaurant.address} />
+            <Input className="md:col-span-2" name="address" defaultValue={restaurant.address} placeholder="Full restaurant address" />
             <select name="status" defaultValue={restaurant.status} className="h-10 rounded-md border bg-white px-3 text-sm">
               <option value="ACTIVE">Active</option>
               <option value="INACTIVE">Inactive</option>
@@ -65,11 +65,11 @@ export default async function AdminRestaurantEditPage({
               <option value="PRO">Pro</option>
               <option value="EXPIRED">Expired</option>
             </select>
-            <Input name="pilotStartDate" type="date" defaultValue={dateValue(restaurant.pilotStartDate)} />
-            <Input name="pilotEndDate" type="date" defaultValue={dateValue(restaurant.pilotEndDate)} />
-            <Input name="serviceChargePercent" type="number" defaultValue={restaurant.serviceChargePercent.toString()} />
-            <Input name="taxPercent" type="number" defaultValue={restaurant.taxPercent.toString()} />
-            <Input name="customerCancelWindowMinutes" type="number" defaultValue={restaurant.customerCancelWindowMinutes} />
+            <Input name="pilotStartDate" type="date" defaultValue={dateValue(restaurant.pilotStartDate)} placeholder="Pilot start date" />
+            <Input name="pilotEndDate" type="date" defaultValue={dateValue(restaurant.pilotEndDate)} placeholder="Pilot end date" />
+            <Input name="serviceChargePercent" type="number" defaultValue={restaurant.serviceChargePercent.toString()} placeholder="Service charge percent" />
+            <Input name="taxPercent" type="number" defaultValue={restaurant.taxPercent.toString()} placeholder="Tax percent" />
+            <Input name="customerCancelWindowMinutes" type="number" defaultValue={restaurant.customerCancelWindowMinutes} placeholder="Customer cancel window in minutes" />
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="orderingEnabled" defaultChecked={restaurant.orderingEnabled} /> Ordering enabled</label>
             <div className="rounded-md border bg-white p-3 md:col-span-2">
               <p className="mb-2 text-sm font-bold">Tables and QR Codes</p>
