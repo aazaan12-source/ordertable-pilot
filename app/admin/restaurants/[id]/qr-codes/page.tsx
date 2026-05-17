@@ -32,13 +32,12 @@ export default async function AdminQrCodesPage({ params }: { params: Promise<{ i
         </div>
       </div>
       <p className="mb-4 rounded-md border bg-white p-3 text-sm text-muted-foreground print:hidden">
-        Each QR code text should be printed with “Scan to Order”, restaurant name, and table number. Use PNG download for individual cards or browser print for the full grid.
+        Each QR sign includes a centered table number, scan instruction text, and a larger QR area. Use PNG download for individual table signs or browser print for the full grid.
       </p>
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 print:grid-cols-2">
         {restaurant.tables.map((table) => (
           <div key={table.id} className="break-inside-avoid">
-            <p className="mb-2 text-center text-sm font-bold">Scan to Order · {restaurant.name} · Table {table.tableNumber}</p>
-            <QrCard tableNumber={table.tableNumber} url={table.qrUrl} baseUrl={baseUrl} />
+            <QrCard tableNumber={table.tableNumber} url={table.qrUrl} baseUrl={baseUrl} restaurantName={restaurant.name} />
           </div>
         ))}
       </div>
