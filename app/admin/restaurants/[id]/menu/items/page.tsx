@@ -39,16 +39,15 @@ export default async function AdminRestaurantMenuItemsPage({ params }: { params:
             <p className="text-sm text-muted-foreground">Add real food photo URLs from restaurant images, Cloudinary, or a public image host.</p>
           </CardHeader>
           <CardContent>
-            {activeCategories.length === 0 ? (
-              <form action={createRestaurantCategory} className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
-                <input type="hidden" name="restaurantId" value={restaurant.id} />
-                <p className="mb-2 text-sm font-semibold text-amber-950">Create a category first</p>
-                <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                  <Input name="name" placeholder="Example: Chicken Pulao" required />
-                  <SubmitButton pendingText="Creating...">Create Category</SubmitButton>
-                </div>
-              </form>
-            ) : null}
+            <form action={createRestaurantCategory} className="mb-4 rounded-md border border-blue-200 bg-blue-50 p-3">
+              <input type="hidden" name="restaurantId" value={restaurant.id} />
+              <input type="hidden" name="sortOrder" value={restaurant.categories.length + 1} />
+              <p className="mb-2 text-sm font-semibold text-blue-950">{activeCategories.length === 0 ? "Create a category first" : "Add a new category"}</p>
+              <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                <Input name="name" placeholder="Example: Chicken Pulao" required />
+                <SubmitButton pendingText="Creating...">Create Category</SubmitButton>
+              </div>
+            </form>
             <form action={createRestaurantMenuItem} className="space-y-3">
               <input type="hidden" name="restaurantId" value={restaurant.id} />
               <Input name="name" placeholder="Item name" required />

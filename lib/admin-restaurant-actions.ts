@@ -418,7 +418,9 @@ export async function createRestaurantCategory(formData: FormData) {
   if (!name) return;
   const restaurant = await db.restaurant.findUnique({ where: { id: restaurantId }, select: { slug: true } });
   if (!restaurant) return;
-  await db.category.create({ data: { restaurantId, name, imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")), sortOrder: Number(formData.get("sortOrder") || 0), isActive: true } });
+  const submittedSortOrder = formData.get("sortOrder");
+  const sortOrder = submittedSortOrder ? Number(submittedSortOrder) : (await db.category.count({ where: { restaurantId } })) + 1;
+  await db.category.create({ data: { restaurantId, name, imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")), sortOrder, isActive: true } });
   await db.activityLog.create({ data: { userId: admin.id, restaurantId, action: "MENU_CATEGORY_CREATED", description: name } });
   revalidatePath(`/admin/restaurants/${restaurantId}/menu/categories`);
   revalidatePath(`/admin/restaurants/${restaurantId}/menu/items`);

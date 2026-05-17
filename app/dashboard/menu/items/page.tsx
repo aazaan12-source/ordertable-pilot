@@ -106,15 +106,13 @@ export default async function MenuItemsPage() {
         <Card>
           <CardHeader><CardTitle>Add Menu Item</CardTitle></CardHeader>
           <CardContent>
-            {activeCategories.length === 0 ? (
-              <form action={createQuickCategory} className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
-                <p className="mb-2 text-sm font-semibold text-amber-950">Create a category first</p>
-                <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
-                  <Input name="quickCategoryName" placeholder="Example: Chicken Pulao" required />
-                  <SubmitButton pendingText="Creating...">Create Category</SubmitButton>
-                </div>
-              </form>
-            ) : null}
+            <form action={createQuickCategory} className="mb-4 rounded-md border border-blue-200 bg-blue-50 p-3">
+              <p className="mb-2 text-sm font-semibold text-blue-950">{activeCategories.length === 0 ? "Create a category first" : "Add a new category"}</p>
+              <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                <Input name="quickCategoryName" placeholder="Example: Chicken Pulao" required />
+                <SubmitButton pendingText="Creating...">Create Category</SubmitButton>
+              </div>
+            </form>
             <form action={createMenuItem} className="space-y-3">
               <Input name="name" placeholder="Item name" required />
               <select name="categoryId" className="h-10 w-full rounded-md border bg-white px-3 text-sm" required disabled={activeCategories.length === 0}>

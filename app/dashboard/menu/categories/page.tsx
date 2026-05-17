@@ -13,7 +13,8 @@ async function createCategory(formData: FormData) {
   "use server";
   const { user, restaurant } = await getManagerRestaurant();
   const name = String(formData.get("name") || "").trim();
-  const sortOrder = Number(formData.get("sortOrder") || 0);
+  const submittedSortOrder = formData.get("sortOrder");
+  const sortOrder = submittedSortOrder ? Number(submittedSortOrder) : (await db.category.count({ where: { restaurantId: restaurant.id } })) + 1;
   const imageUrl = cleanSubmittedMenuImage(formData.get("imageUrl"));
   if (!name) return;
   await db.category.create({ data: { restaurantId: restaurant.id, name, imageUrl, sortOrder } });
