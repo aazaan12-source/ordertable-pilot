@@ -83,14 +83,10 @@ export default async function AdminRestaurantEditPage({
             </div>
             <div className="rounded-md border bg-white p-3 md:col-span-2">
               <p className="mb-2 text-sm font-bold">Menu Setup</p>
-              <div className="grid gap-2 sm:grid-cols-3">
+              <div className="grid gap-2 sm:grid-cols-2">
                 <label className="rounded-md border p-3 text-sm">
                   <input type="radio" name="menuSetup" value="keep" defaultChecked /> Keep current menu
-                  <span className="mt-1 block text-xs text-muted-foreground">No menu changes.</span>
-                </label>
-                <label className="rounded-md border p-3 text-sm">
-                  <input type="radio" name="menuSetup" value="empty" /> No menu / clear menu
-                  <span className="mt-1 block text-xs text-muted-foreground">Deletes categories and menu items.</span>
+                  <span className="mt-1 block text-xs text-muted-foreground">Restaurant settings will not clear categories or menu items.</span>
                 </label>
                 <label className="rounded-md border p-3 text-sm">
                   <input type="radio" name="menuSetup" value="sample" /> Add sample menu

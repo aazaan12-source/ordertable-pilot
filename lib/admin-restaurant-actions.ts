@@ -285,14 +285,6 @@ export async function updateRestaurantDetails(formData: FormData) {
     });
   }
 
-  if (menuSetup === "empty") {
-    await db.$transaction([
-      db.menuItem.deleteMany({ where: { restaurantId: id } }),
-      db.category.deleteMany({ where: { restaurantId: id } }),
-      db.activityLog.create({ data: { userId: admin.id, restaurantId: id, action: "MENU_CLEARED", description: `${updated.name} menu cleared from restaurant edit` } })
-    ]);
-  }
-
   if (menuSetup === "sample") {
     const categoryCount = await db.category.count({ where: { restaurantId: id } });
     if (categoryCount === 0) {
@@ -424,9 +416,13 @@ export async function createRestaurantCategory(formData: FormData) {
   const restaurantId = formString(formData, "restaurantId");
   const name = formString(formData, "name");
   if (!name) return;
+  const restaurant = await db.restaurant.findUnique({ where: { id: restaurantId }, select: { slug: true } });
+  if (!restaurant) return;
   await db.category.create({ data: { restaurantId, name, imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")), sortOrder: Number(formData.get("sortOrder") || 0), isActive: true } });
   await db.activityLog.create({ data: { userId: admin.id, restaurantId, action: "MENU_CATEGORY_CREATED", description: name } });
   revalidatePath(`/admin/restaurants/${restaurantId}/menu/categories`);
+  revalidatePath(`/admin/restaurants/${restaurantId}/menu/items`);
+  revalidatePath(`/r/${restaurant.slug}/t/1`);
 }
 
 export async function updateRestaurantCategory(formData: FormData) {
@@ -434,19 +430,23 @@ export async function updateRestaurantCategory(formData: FormData) {
   const restaurantId = formString(formData, "restaurantId");
   const id = formString(formData, "id");
   const name = formString(formData, "name");
+  const restaurant = await db.restaurant.findUnique({ where: { id: restaurantId }, select: { slug: true } });
+  if (!restaurant || !name) return;
   await db.category.updateMany({
     where: { id, restaurantId },
     data: { name, imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")), sortOrder: Number(formData.get("sortOrder") || 0), isActive: formData.get("isActive") === "on" }
   });
   await db.activityLog.create({ data: { userId: admin.id, restaurantId, action: "MENU_CATEGORY_UPDATED", description: name } });
   revalidatePath(`/admin/restaurants/${restaurantId}/menu/categories`);
+  revalidatePath(`/admin/restaurants/${restaurantId}/menu/items`);
+  revalidatePath(`/r/${restaurant.slug}/t/1`);
 }
 
 export async function deleteRestaurantCategory(formData: FormData) {
   const admin = await requirePlatformAdmin();
   const restaurantId = formString(formData, "restaurantId");
   const id = formString(formData, "id");
-  const category = await db.category.findFirst({ where: { id, restaurantId } });
+  const category = await db.category.findFirst({ where: { id, restaurantId }, include: { restaurant: { select: { slug: true } } } });
   if (!category) return;
   await db.$transaction(async (tx) => {
     await tx.menuItem.deleteMany({ where: { restaurantId, categoryId: id } });
@@ -455,6 +455,7 @@ export async function deleteRestaurantCategory(formData: FormData) {
   });
   revalidatePath(`/admin/restaurants/${restaurantId}/menu/categories`);
   revalidatePath(`/admin/restaurants/${restaurantId}/menu/items`);
+  revalidatePath(`/r/${category.restaurant.slug}/t/1`);
 }
 
 export async function createRestaurantMenuItem(formData: FormData) {
@@ -463,6 +464,9 @@ export async function createRestaurantMenuItem(formData: FormData) {
   const name = formString(formData, "name");
   const categoryId = formString(formData, "categoryId");
   if (!name || !categoryId) return;
+  const restaurant = await db.restaurant.findUnique({ where: { id: restaurantId }, select: { slug: true } });
+  const category = await db.category.findFirst({ where: { id: categoryId, restaurantId } });
+  if (!restaurant || !category) return;
   await db.menuItem.create({
     data: {
       restaurantId,
@@ -478,6 +482,7 @@ export async function createRestaurantMenuItem(formData: FormData) {
   });
   await db.activityLog.create({ data: { userId: admin.id, restaurantId, action: "MENU_ITEM_CREATED", description: name } });
   revalidatePath(`/admin/restaurants/${restaurantId}/menu/items`);
+  revalidatePath(`/r/${restaurant.slug}/t/1`);
 }
 
 export async function updateRestaurantMenuItem(formData: FormData) {
@@ -485,10 +490,14 @@ export async function updateRestaurantMenuItem(formData: FormData) {
   const restaurantId = formString(formData, "restaurantId");
   const id = formString(formData, "id");
   const name = formString(formData, "name");
+  const categoryId = formString(formData, "categoryId");
+  const restaurant = await db.restaurant.findUnique({ where: { id: restaurantId }, select: { slug: true } });
+  const category = await db.category.findFirst({ where: { id: categoryId, restaurantId } });
+  if (!restaurant || !category || !name) return;
   await db.menuItem.updateMany({
     where: { id, restaurantId },
     data: {
-      categoryId: formString(formData, "categoryId"),
+      categoryId,
       name,
       description: formString(formData, "description"),
       price: Number(formData.get("price") || 0),
@@ -500,17 +509,19 @@ export async function updateRestaurantMenuItem(formData: FormData) {
   });
   await db.activityLog.create({ data: { userId: admin.id, restaurantId, action: "MENU_ITEM_UPDATED", description: name } });
   revalidatePath(`/admin/restaurants/${restaurantId}/menu/items`);
+  revalidatePath(`/r/${restaurant.slug}/t/1`);
 }
 
 export async function deleteRestaurantMenuItem(formData: FormData) {
   const admin = await requirePlatformAdmin();
   const restaurantId = formString(formData, "restaurantId");
   const id = formString(formData, "id");
-  const item = await db.menuItem.findFirst({ where: { id, restaurantId } });
+  const item = await db.menuItem.findFirst({ where: { id, restaurantId }, include: { restaurant: { select: { slug: true } } } });
   if (!item) return;
   await db.menuItem.deleteMany({ where: { id, restaurantId } });
   await db.activityLog.create({ data: { userId: admin.id, restaurantId, action: "MENU_ITEM_DELETED", description: `${item.name} deleted` } });
   revalidatePath(`/admin/restaurants/${restaurantId}/menu/items`);
+  revalidatePath(`/r/${item.restaurant.slug}/t/1`);
 }
 
 export async function createOrUpdateRestaurantManager(formData: FormData) {

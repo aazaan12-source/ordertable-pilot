@@ -19,6 +19,8 @@ async function createCategory(formData: FormData) {
   await db.category.create({ data: { restaurantId: restaurant.id, name, imageUrl, sortOrder } });
   await db.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "CATEGORY_CREATED", description: name } });
   revalidatePath("/dashboard/menu/categories");
+  revalidatePath("/dashboard/menu/items");
+  revalidatePath(`/r/${restaurant.slug}/t/1`);
 }
 
 async function updateCategory(formData: FormData) {
@@ -32,6 +34,8 @@ async function updateCategory(formData: FormData) {
   await db.category.updateMany({ where: { id, restaurantId: restaurant.id }, data: { name, imageUrl, sortOrder, isActive } });
   await db.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "CATEGORY_UPDATED", description: name } });
   revalidatePath("/dashboard/menu/categories");
+  revalidatePath("/dashboard/menu/items");
+  revalidatePath(`/r/${restaurant.slug}/t/1`);
 }
 
 async function deleteCategory(formData: FormData) {
@@ -47,6 +51,7 @@ async function deleteCategory(formData: FormData) {
   });
   revalidatePath("/dashboard/menu/categories");
   revalidatePath("/dashboard/menu/items");
+  revalidatePath(`/r/${restaurant.slug}/t/1`);
 }
 
 export default async function CategoriesPage() {

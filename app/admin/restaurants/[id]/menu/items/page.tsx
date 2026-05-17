@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/permissions";
-import { createRestaurantMenuItem, deleteRestaurantMenuItem, updateRestaurantMenuItem } from "@/lib/admin-restaurant-actions";
+import { createRestaurantCategory, createRestaurantMenuItem, deleteRestaurantMenuItem, updateRestaurantMenuItem } from "@/lib/admin-restaurant-actions";
 import { ConfirmSubmitButton, SubmitButton } from "@/components/ui/confirm-submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -39,10 +39,20 @@ export default async function AdminRestaurantMenuItemsPage({ params }: { params:
             <p className="text-sm text-muted-foreground">Add real food photo URLs from restaurant images, Cloudinary, or a public image host.</p>
           </CardHeader>
           <CardContent>
+            {activeCategories.length === 0 ? (
+              <form action={createRestaurantCategory} className="mb-4 rounded-md border border-amber-200 bg-amber-50 p-3">
+                <input type="hidden" name="restaurantId" value={restaurant.id} />
+                <p className="mb-2 text-sm font-semibold text-amber-950">Create a category first</p>
+                <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                  <Input name="name" placeholder="Example: Chicken Pulao" required />
+                  <SubmitButton pendingText="Creating...">Create Category</SubmitButton>
+                </div>
+              </form>
+            ) : null}
             <form action={createRestaurantMenuItem} className="space-y-3">
               <input type="hidden" name="restaurantId" value={restaurant.id} />
               <Input name="name" placeholder="Item name" required />
-              <select name="categoryId" className="h-10 w-full rounded-md border bg-white px-3 text-sm" required>
+              <select name="categoryId" className="h-10 w-full rounded-md border bg-white px-3 text-sm" required disabled={activeCategories.length === 0}>
                 {activeCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
               </select>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -52,7 +62,7 @@ export default async function AdminRestaurantMenuItemsPage({ params }: { params:
               <MenuImagePicker categories={activeCategories.map((category) => ({ id: category.id, name: category.name }))} />
               <Textarea name="description" placeholder="Short description" />
               <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isAvailable" defaultChecked /> Available now</label>
-              <SubmitButton className="w-full" pendingText="Adding item...">Add Item</SubmitButton>
+              <SubmitButton className="w-full" pendingText="Adding item..." disabled={activeCategories.length === 0}>Add Item</SubmitButton>
             </form>
           </CardContent>
         </Card>
