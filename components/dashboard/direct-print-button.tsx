@@ -18,18 +18,39 @@ export function DirectPrintButton({
   className?: string;
 }) {
   const [printSrc, setPrintSrc] = useState("");
+  const [printing, setPrinting] = useState(false);
   const Icon = type === "bill" ? Receipt : Printer;
 
-  function startPrint() {
+  async function startPrint() {
+    if (printing) return;
+    setPrinting(true);
     const separator = href.includes("?") ? "&" : "?";
-    setPrintSrc(`${href}${separator}directPrint=${Date.now()}`);
+    const cacheBustedHref = `${href}${separator}directPrint=${Date.now()}`;
+    try {
+      const agentHref = `${href}${separator}agentPrint=1&directPrint=${Date.now()}`;
+      const absoluteUrl = new URL(agentHref, window.location.origin).toString();
+      const page = await fetch(agentHref, { credentials: "include", cache: "no-store" });
+      if (!page.ok) throw new Error("print page unavailable");
+      const html = await page.text();
+      const agent = await fetch("http://127.0.0.1:17777/print-html", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ html, sourceUrl: absoluteUrl, title: label })
+      });
+      if (!agent.ok) throw new Error("local print agent unavailable");
+      await logPrint(href, type);
+    } catch {
+      setPrintSrc(cacheBustedHref);
+    } finally {
+      window.setTimeout(() => setPrinting(false), 1200);
+    }
   }
 
   return (
     <>
-      <Button type="button" variant="outline" size={size} className={className} onClick={startPrint}>
+      <Button type="button" variant="outline" size={size} className={className} onClick={startPrint} disabled={printing}>
         <Icon className="h-4 w-4" />
-        {label}
+        {printing ? "Printing..." : label}
       </Button>
       {printSrc ? (
         <iframe
@@ -42,4 +63,15 @@ export function DirectPrintButton({
       ) : null}
     </>
   );
+}
+
+async function logPrint(href: string, type: "kitchen" | "bill") {
+  const match = href.match(/\/dashboard\/orders\/([^/]+)\/print\//);
+  const orderId = match?.[1];
+  if (!orderId) return;
+  await fetch(`/api/dashboard/orders/${orderId}/print`, {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ type: type === "bill" ? "BILL" : "KITCHEN" })
+  }).catch(() => undefined);
 }

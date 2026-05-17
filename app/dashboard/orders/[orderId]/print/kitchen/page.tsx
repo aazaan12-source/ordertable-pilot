@@ -13,11 +13,11 @@ export default async function KitchenSlipPage({
   searchParams
 }: {
   params: Promise<{ orderId: string }>;
-  searchParams: Promise<{ addedOnly?: string }>;
+  searchParams: Promise<{ addedOnly?: string; agentPrint?: string }>;
 }) {
   const { restaurant } = await getManagerRestaurant();
   const { orderId } = await params;
-  const { addedOnly } = await searchParams;
+  const { addedOnly, agentPrint } = await searchParams;
   const order = await db.order.findFirst({
     where: { id: orderId, restaurantId: restaurant.id },
     include: { table: true, restaurant: true, items: true }
@@ -28,7 +28,7 @@ export default async function KitchenSlipPage({
 
   return (
     <main className="print-page mx-auto max-w-[80mm] bg-white p-4 text-black">
-      <AutoPrint orderId={order.id} type="KITCHEN" />
+      <AutoPrint orderId={order.id} type="KITCHEN" logPrint={agentPrint !== "1"} autoPrint={agentPrint !== "1"} />
       <PrintControls />
       <section className="receipt">
         <h1 className="text-center text-base font-black uppercase">{order.restaurant.name}</h1>

@@ -2,19 +2,32 @@
 
 import { useEffect } from "react";
 
-export function AutoPrint({ orderId, type }: { orderId: string; type: "KITCHEN" | "BILL" }) {
+export function AutoPrint({
+  orderId,
+  type,
+  logPrint = true,
+  autoPrint = true
+}: {
+  orderId: string;
+  type: "KITCHEN" | "BILL";
+  logPrint?: boolean;
+  autoPrint?: boolean;
+}) {
   useEffect(() => {
-    fetch(`/api/dashboard/orders/${orderId}/print`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ type })
-    }).catch(() => undefined);
+    if (logPrint) {
+      fetch(`/api/dashboard/orders/${orderId}/print`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type })
+      }).catch(() => undefined);
+    }
 
+    if (!autoPrint) return undefined;
     const timer = window.setTimeout(() => {
       window.print();
     }, 500);
     return () => window.clearTimeout(timer);
-  }, [orderId, type]);
+  }, [autoPrint, logPrint, orderId, type]);
 
   return null;
 }

@@ -299,6 +299,16 @@ Payment writes `paymentStatus`, `paymentMethod`, `paidAt`, `amountPaid`, and `ba
 
 The manager dashboard overview includes `Hide Financials` / `Show Financials`. This stores a local browser preference and masks the dashboard overview revenue card as `Rs. *****`. Customer bills, order bill summaries, table bill amounts, and reports still show the real amounts.
 
+### Silent Thermal Printing
+
+Browser security does not allow a hosted website to print silently to a local thermal printer by itself. For one-click printing, run the local print agent on the restaurant billing PC:
+
+```bash
+npm run print-agent
+```
+
+Set the thermal printer as the Windows default printer. Dashboard print buttons first send the slip to `http://127.0.0.1:17777` for kiosk printing through Chrome/Edge. If the local agent is not running, the app falls back to the normal browser print flow.
+
 ### Monthly Financial Statement
 
 Reports page:

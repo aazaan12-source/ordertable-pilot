@@ -8,9 +8,16 @@ import { orderSourceLabels } from "@/lib/order-utils";
 
 export const dynamic = "force-dynamic";
 
-export default async function CustomerBillPage({ params }: { params: Promise<{ orderId: string }> }) {
+export default async function CustomerBillPage({
+  params,
+  searchParams
+}: {
+  params: Promise<{ orderId: string }>;
+  searchParams: Promise<{ agentPrint?: string }>;
+}) {
   const { restaurant } = await getManagerRestaurant();
   const { orderId } = await params;
+  const { agentPrint } = await searchParams;
   const order = await db.order.findFirst({
     where: { id: orderId, restaurantId: restaurant.id },
     include: { table: true, restaurant: true, items: true }
@@ -19,7 +26,7 @@ export default async function CustomerBillPage({ params }: { params: Promise<{ o
 
   return (
     <main className="print-page mx-auto max-w-[80mm] bg-white p-4 text-black">
-      <AutoPrint orderId={order.id} type="BILL" />
+      <AutoPrint orderId={order.id} type="BILL" logPrint={agentPrint !== "1"} autoPrint={agentPrint !== "1"} />
       <PrintControls />
       <section className="receipt">
         <h1 className="text-center text-base font-black uppercase">{order.restaurant.name}</h1>

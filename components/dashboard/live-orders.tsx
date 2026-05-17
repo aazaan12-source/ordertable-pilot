@@ -62,14 +62,35 @@ export function LiveOrders({ initialOrders }: { initialOrders: Order[]; restaura
   const [updating, setUpdating] = useState("");
   const seenPending = useRef(new Set(initialOrders.filter((order) => order.status === "PENDING").map((order) => order.id)));
   const ordersRef = useRef(initialOrders);
-  const refreshRef = useRef({ inFlight: false, sequence: 0 });
+  const optimisticStatusRef = useRef(new Map<string, string>());
+  const refreshRef = useRef({ inFlight: false, sequence: 0, queued: false });
 
   useEffect(() => {
     ordersRef.current = orders;
   }, [orders]);
 
+  function applyOptimisticStatuses(nextOrders: Order[]) {
+    return nextOrders.map((order) => {
+      const optimisticStatus = optimisticStatusRef.current.get(order.id);
+      if (!optimisticStatus) return order;
+      if (order.status === optimisticStatus) {
+        optimisticStatusRef.current.delete(order.id);
+        return order;
+      }
+      return {
+        ...order,
+        status: optimisticStatus,
+        paymentStatus: optimisticStatus === "PAID" ? "PAID" : order.paymentStatus,
+        paymentMethod: optimisticStatus === "PAID" ? order.paymentMethod || "CASH" : order.paymentMethod
+      };
+    });
+  }
+
   async function loadOrders() {
-    if (refreshRef.current.inFlight) return;
+    if (refreshRef.current.inFlight) {
+      refreshRef.current.queued = true;
+      return;
+    }
     refreshRef.current.inFlight = true;
     const sequence = ++refreshRef.current.sequence;
     try {
@@ -77,7 +98,7 @@ export function LiveOrders({ initialOrders }: { initialOrders: Order[]; restaura
       if (!response.ok) throw new Error("orders failed");
       const data = await response.json();
       if (sequence !== refreshRef.current.sequence) return;
-      const nextOrders: Order[] = data.orders;
+      const nextOrders = applyOptimisticStatuses(data.orders);
       const nextPending = nextOrders.filter((order) => order.status === "PENDING");
       if (nextPending.some((order) => !seenPending.current.has(order.id))) {
         setNewPending(true);
@@ -89,7 +110,10 @@ export function LiveOrders({ initialOrders }: { initialOrders: Order[]; restaura
     } catch {
       setWarning("Connection issue. Retrying...");
     } finally {
+      const queued = refreshRef.current.queued;
+      refreshRef.current.queued = false;
       refreshRef.current.inFlight = false;
+      if (queued) void loadOrders();
     }
   }
 
@@ -110,6 +134,7 @@ export function LiveOrders({ initialOrders }: { initialOrders: Order[]; restaura
 
   async function updateStatus(orderId: string, status: string) {
     setUpdating(`${orderId}:${status}`);
+    optimisticStatusRef.current.set(orderId, status);
     const previousOrders = ordersRef.current;
     const paymentMethod = status === "PAID" ? "CASH" : undefined;
     setOrders((current) =>
@@ -133,12 +158,14 @@ export function LiveOrders({ initialOrders }: { initialOrders: Order[]; restaura
       });
       if (!response.ok) {
         const payload = await response.json().catch(() => ({}));
+        optimisticStatusRef.current.delete(orderId);
         setOrders(previousOrders);
         setWarning(payload.error || "Could not update order. Retrying...");
         return;
       }
       void loadOrders();
     } catch {
+      optimisticStatusRef.current.delete(orderId);
       setOrders(previousOrders);
       setWarning("Connection issue. Action was not saved. Retrying...");
     } finally {
