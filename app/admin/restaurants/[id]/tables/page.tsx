@@ -36,7 +36,7 @@ export default async function AdminTablesPage({
   if (!restaurant) notFound();
   const activeTables = restaurant.tables.filter((table) => table.status !== "INACTIVE");
   const activeCount = activeTables.length;
-  const archivedCount = restaurant.tables.length - activeCount;
+  const hiddenCount = restaurant.tables.length - activeCount;
   const firstActiveTableNumber = activeTables[0]?.tableNumber || 1;
   const lastActiveTableNumber = activeTables[activeTables.length - 1]?.tableNumber || activeCount || 20;
   const defaultFirstTableNumber = 1;
@@ -101,8 +101,8 @@ export default async function AdminTablesPage({
             Current active QR range: Table {firstActiveTableNumber} to Table {lastActiveTableNumber} ({activeCount} QR code{activeCount === 1 ? "" : "s"}).
           </p>
           <p className="mt-3 rounded-md border border-orange-300 bg-orange-50 p-3 text-sm text-orange-950">
-            Reducing the last table number removes extra QR codes from the restaurant dashboard. Past order history is still protected.
-            {archivedCount > 0 ? ` ${archivedCount} old table record${archivedCount === 1 ? " is" : "s are"} archived for history and hidden from QR lists.` : ""}
+            Reducing the last table number removes unused extra QR codes from the restaurant dashboard. Tables still linked to old orders are hidden from active QR lists so existing bills and reports do not break.
+            {hiddenCount > 0 ? ` ${hiddenCount} old table record${hiddenCount === 1 ? " is" : "s are"} currently hidden from QR lists.` : ""}
           </p>
         </CardContent>
       </Card>

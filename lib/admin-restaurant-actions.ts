@@ -119,56 +119,60 @@ export async function syncRestaurantTables({
   startAt?: number;
   userId?: string;
 }) {
-  const currentTables = await db.restaurantTable.findMany({
-    where: { restaurantId },
+  const desiredNumbers = Array.from({ length: targetCount }, (_, index) => startAt + index);
+  const desiredNumberSet = new Set(desiredNumbers);
+
+  for (const tableNumber of desiredNumbers) {
+    const existing = await db.restaurantTable.findUnique({
+      where: { restaurantId_tableNumber: { restaurantId, tableNumber } },
+      select: { id: true, status: true }
+    });
+
+    if (existing) {
+      await db.restaurantTable.update({
+        where: { id: existing.id },
+        data: { qrUrl: absoluteTableQrUrl(slug, tableNumber), status: existing.status === TableStatus.INACTIVE ? TableStatus.EMPTY : existing.status }
+      });
+    } else {
+      await db.restaurantTable.create({
+        data: { restaurantId, tableNumber, qrUrl: absoluteTableQrUrl(slug, tableNumber), status: TableStatus.EMPTY }
+      });
+    }
+  }
+
+  const extraTables = await db.restaurantTable.findMany({
+    where: { restaurantId, tableNumber: { notIn: desiredNumbers } },
     include: { _count: { select: { orders: true, requests: true, feedback: true } } },
     orderBy: { tableNumber: "asc" }
   });
-  const desiredNumbers = new Set(Array.from({ length: targetCount }, (_, index) => startAt + index));
 
-  await db.$transaction(async (tx) => {
-    for (const tableNumber of desiredNumbers) {
-      const existing = currentTables.find((table) => table.tableNumber === tableNumber);
-      if (existing) {
-        await tx.restaurantTable.update({
-          where: { id: existing.id },
-          data: { qrUrl: absoluteTableQrUrl(slug, tableNumber), status: existing.status === TableStatus.INACTIVE ? TableStatus.EMPTY : existing.status }
-        });
-      } else {
-        await tx.restaurantTable.create({
-          data: { restaurantId, tableNumber, qrUrl: absoluteTableQrUrl(slug, tableNumber), status: TableStatus.EMPTY }
-        });
-      }
-    }
-
-    for (const table of currentTables) {
-      if (!desiredNumbers.has(table.tableNumber)) {
-        if (table._count.orders === 0 && table._count.requests === 0 && table._count.feedback === 0) {
-          await tx.restaurantTable.deleteMany({
-            where: {
-              id: table.id,
-              orders: { none: {} },
-              requests: { none: {} },
-              feedback: { none: {} }
-            }
-          });
-        } else {
-          await tx.restaurantTable.update({
+  for (const table of extraTables) {
+    if (!desiredNumberSet.has(table.tableNumber)) {
+      const hasHistory = table._count.orders > 0 || table._count.requests > 0 || table._count.feedback > 0;
+      if (!hasHistory) {
+        await db.restaurantTable.delete({ where: { id: table.id } }).catch(async (error) => {
+          console.error("[syncRestaurantTables] unused table delete failed; hiding table instead", { error, restaurantId, tableId: table.id, tableNumber: table.tableNumber });
+          await db.restaurantTable.update({
             where: { id: table.id },
             data: { status: TableStatus.INACTIVE, qrUrl: absoluteTableQrUrl(slug, table.tableNumber) }
           });
-        }
+        });
+      } else {
+        await db.restaurantTable.update({
+          where: { id: table.id },
+          data: { status: TableStatus.INACTIVE, qrUrl: absoluteTableQrUrl(slug, table.tableNumber) }
+        });
       }
     }
+  }
 
-    await tx.activityLog.create({
-      data: {
-        userId,
-        restaurantId,
-        action: "TABLES_UPDATED",
-        description: `Synced active table range to ${startAt}-${startAt + targetCount - 1}. Extra unused table QR records were deleted; tables with order history were archived.`
-      }
-    });
+  await db.activityLog.create({
+    data: {
+      userId,
+      restaurantId,
+      action: "TABLES_UPDATED",
+      description: `Synced active table QR range to ${startAt}-${startAt + targetCount - 1}. Extra unused QR records were deleted; history-linked records were hidden from active QR lists.`
+    }
   });
 }
 
@@ -326,7 +330,7 @@ export async function updateRestaurantDetails(formData: FormData) {
     );
   }
 
-  if (formData.has("tableCount")) {
+  if (formData.has("tableCount") || formData.has("firstTableNumber") || formData.has("lastTableNumber")) {
     const tableRange = tableRangeFromForm(formData);
     await syncRestaurantTables({
       restaurantId: id,

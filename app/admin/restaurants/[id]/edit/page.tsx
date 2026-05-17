@@ -29,7 +29,8 @@ export default async function AdminRestaurantEditPage({
   if (!restaurant) notFound();
   const activeTables = restaurant.tables.filter((table) => table.status !== "INACTIVE");
   const defaultTableCount = activeTables.length || restaurant.tables.length || 1;
-  const defaultStartingTableNumber = activeTables[0]?.tableNumber || restaurant.tables[0]?.tableNumber || 1;
+  const defaultFirstTableNumber = 1;
+  const defaultLastTableNumber = Math.max(activeTables[activeTables.length - 1]?.tableNumber || defaultTableCount, defaultFirstTableNumber);
 
   return (
     <main className="mx-auto max-w-4xl p-4 lg:p-6">
@@ -74,11 +75,11 @@ export default async function AdminRestaurantEditPage({
             <div className="rounded-md border bg-white p-3 md:col-span-2">
               <p className="mb-2 text-sm font-bold">Tables and QR Codes</p>
               <p className="mb-3 text-xs text-muted-foreground">
-                Increasing creates only the missing table QR codes. Reducing removes unused extra QR records; tables with old order history are archived and hidden from QR lists.
+                Set the first and last table number. Increasing creates missing QR codes. Reducing removes unused extra QR records; tables linked to old orders are hidden from active QR lists.
               </p>
               <div className="grid gap-3 sm:grid-cols-2">
-                <Input name="tableCount" type="number" min={1} max={500} defaultValue={defaultTableCount} placeholder="Number of active tables" />
-                <Input name="startingTableNumber" type="number" min={1} defaultValue={defaultStartingTableNumber} placeholder="Starting table number" />
+                <Input name="firstTableNumber" type="number" min={1} max={500} defaultValue={defaultFirstTableNumber} placeholder="First table number, usually 1" />
+                <Input name="lastTableNumber" type="number" min={1} max={500} defaultValue={defaultLastTableNumber} placeholder="Last table number, e.g. 20" />
               </div>
             </div>
             <div className="rounded-md border bg-white p-3 md:col-span-2">
