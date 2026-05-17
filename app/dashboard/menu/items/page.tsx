@@ -11,6 +11,18 @@ import { cleanSubmittedMenuImage, menuImageFor, safeStoredImageUrl } from "@/lib
 
 export const dynamic = "force-dynamic";
 
+async function revalidateManagerMenuPages(restaurantId: string, slug: string) {
+  revalidatePath("/dashboard/menu/categories");
+  revalidatePath("/dashboard/menu/items");
+  const tables = await db.restaurantTable.findMany({
+    where: { restaurantId, status: { not: "INACTIVE" } },
+    select: { tableNumber: true }
+  });
+  for (const table of tables) {
+    revalidatePath(`/r/${slug}/t/${table.tableNumber}`);
+  }
+}
+
 async function createMenuItem(formData: FormData) {
   "use server";
   const { user, restaurant } = await getManagerRestaurant();
@@ -33,8 +45,7 @@ async function createMenuItem(formData: FormData) {
     }
   });
   await db.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "MENU_ITEM_CREATED", description: name } });
-  revalidatePath("/dashboard/menu/items");
-  revalidatePath(`/r/${restaurant.slug}/t/1`);
+  await revalidateManagerMenuPages(restaurant.id, restaurant.slug);
 }
 
 async function updateMenuItem(formData: FormData) {
@@ -59,8 +70,7 @@ async function updateMenuItem(formData: FormData) {
     }
   });
   await db.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "MENU_ITEM_UPDATED", description: name } });
-  revalidatePath("/dashboard/menu/items");
-  revalidatePath(`/r/${restaurant.slug}/t/1`);
+  await revalidateManagerMenuPages(restaurant.id, restaurant.slug);
 }
 
 async function deleteMenuItem(formData: FormData) {
@@ -73,21 +83,19 @@ async function deleteMenuItem(formData: FormData) {
     await tx.menuItem.deleteMany({ where: { id, restaurantId: restaurant.id } });
     await tx.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "MENU_ITEM_DELETED", description: `${item.name} permanently deleted` } });
   });
-  revalidatePath("/dashboard/menu/items");
-  revalidatePath(`/r/${restaurant.slug}/t/1`);
+  await revalidateManagerMenuPages(restaurant.id, restaurant.slug);
 }
 
 async function createQuickCategory(formData: FormData) {
   "use server";
   const { user, restaurant } = await getManagerRestaurant();
   const name = String(formData.get("quickCategoryName") || "").trim();
+  const imageUrl = cleanSubmittedMenuImage(formData.get("imageUrl"));
   if (!name) return;
   const categoryCount = await db.category.count({ where: { restaurantId: restaurant.id } });
-  await db.category.create({ data: { restaurantId: restaurant.id, name, sortOrder: categoryCount + 1, isActive: true } });
+  await db.category.create({ data: { restaurantId: restaurant.id, name, imageUrl, sortOrder: categoryCount + 1, isActive: true } });
   await db.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "CATEGORY_CREATED", description: name } });
-  revalidatePath("/dashboard/menu/categories");
-  revalidatePath("/dashboard/menu/items");
-  revalidatePath(`/r/${restaurant.slug}/t/1`);
+  await revalidateManagerMenuPages(restaurant.id, restaurant.slug);
 }
 
 export default async function MenuItemsPage() {
@@ -108,8 +116,9 @@ export default async function MenuItemsPage() {
           <CardContent>
             <form action={createQuickCategory} className="mb-4 rounded-md border border-blue-200 bg-blue-50 p-3">
               <p className="mb-2 text-sm font-semibold text-blue-950">{activeCategories.length === 0 ? "Create a category first" : "Add a new category"}</p>
-              <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+              <div className="grid gap-2">
                 <Input name="quickCategoryName" placeholder="Example: Chicken Pulao" required />
+                <MenuImagePicker itemNameField="quickCategoryName" defaultCategoryName="Category" />
                 <SubmitButton pendingText="Creating...">Create Category</SubmitButton>
               </div>
             </form>

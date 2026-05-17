@@ -9,6 +9,16 @@ import { cleanSubmittedMenuImage, safeStoredImageUrl } from "@/lib/menu-images";
 
 export const dynamic = "force-dynamic";
 
+async function revalidateCustomerMenuPages(restaurantId: string, slug: string) {
+  const tables = await db.restaurantTable.findMany({
+    where: { restaurantId, status: { not: "INACTIVE" } },
+    select: { tableNumber: true }
+  });
+  for (const table of tables) {
+    revalidatePath(`/r/${slug}/t/${table.tableNumber}`);
+  }
+}
+
 async function createCategory(formData: FormData) {
   "use server";
   const { user, restaurant } = await getManagerRestaurant();
@@ -22,6 +32,7 @@ async function createCategory(formData: FormData) {
   revalidatePath("/dashboard/menu/categories");
   revalidatePath("/dashboard/menu/items");
   revalidatePath(`/r/${restaurant.slug}/t/1`);
+  await revalidateCustomerMenuPages(restaurant.id, restaurant.slug);
 }
 
 async function updateCategory(formData: FormData) {
@@ -37,6 +48,7 @@ async function updateCategory(formData: FormData) {
   revalidatePath("/dashboard/menu/categories");
   revalidatePath("/dashboard/menu/items");
   revalidatePath(`/r/${restaurant.slug}/t/1`);
+  await revalidateCustomerMenuPages(restaurant.id, restaurant.slug);
 }
 
 async function deleteCategory(formData: FormData) {
@@ -53,6 +65,7 @@ async function deleteCategory(formData: FormData) {
   revalidatePath("/dashboard/menu/categories");
   revalidatePath("/dashboard/menu/items");
   revalidatePath(`/r/${restaurant.slug}/t/1`);
+  await revalidateCustomerMenuPages(restaurant.id, restaurant.slug);
 }
 
 export default async function CategoriesPage() {

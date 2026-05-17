@@ -43,8 +43,9 @@ export default async function AdminRestaurantMenuItemsPage({ params }: { params:
               <input type="hidden" name="restaurantId" value={restaurant.id} />
               <input type="hidden" name="sortOrder" value={restaurant.categories.length + 1} />
               <p className="mb-2 text-sm font-semibold text-blue-950">{activeCategories.length === 0 ? "Create a category first" : "Add a new category"}</p>
-              <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+              <div className="grid gap-2">
                 <Input name="name" placeholder="Example: Chicken Pulao" required />
+                <MenuImagePicker itemNameField="name" defaultCategoryName="Category" />
                 <SubmitButton pendingText="Creating...">Create Category</SubmitButton>
               </div>
             </form>
