@@ -1,11 +1,12 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/permissions";
-import { createRestaurantCategory, deleteRestaurantCategory, updateRestaurantCategory } from "@/lib/admin-restaurant-actions";
+import { createRestaurantCategory, deleteRestaurantCategory, reorderRestaurantCategories, updateRestaurantCategory } from "@/lib/admin-restaurant-actions";
 import { ConfirmSubmitButton, SubmitButton } from "@/components/ui/confirm-submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { MenuImagePicker } from "@/components/ui/menu-image-picker";
+import { ReorderBox } from "@/components/ui/reorder-box";
 import { safeStoredImageUrl } from "@/lib/menu-images";
 
 export const dynamic = "force-dynamic";
@@ -33,24 +34,35 @@ export default async function AdminRestaurantCategoriesPage({ params }: { params
               <input type="hidden" name="restaurantId" value={restaurant.id} />
               <Input name="name" placeholder="Example: Burgers" required />
               <MenuImagePicker itemNameField="name" defaultCategoryName="Category" />
-              <Input name="sortOrder" type="number" min={1} max={restaurant.categories.length + 1} defaultValue={restaurant.categories.length + 1} placeholder="Display position, e.g. 1" />
               <SubmitButton className="w-full" pendingText="Adding category...">Add Category</SubmitButton>
             </form>
           </CardContent>
         </Card>
 
         <div className="grid gap-3">
+          <Card>
+            <CardHeader>
+              <CardTitle>Arrange Category Order</CardTitle>
+              <p className="text-sm text-muted-foreground">Select a category name, move it up or down, then save. This is the order customers see.</p>
+            </CardHeader>
+            <CardContent>
+              <form action={reorderRestaurantCategories} className="space-y-3">
+                <input type="hidden" name="restaurantId" value={restaurant.id} />
+                <ReorderBox items={restaurant.categories.map((category) => ({ id: category.id, label: category.name, detail: `${category._count.menuItems} items` }))} emptyText="No categories to arrange yet." />
+                <SubmitButton pendingText="Saving order...">Save Category Order</SubmitButton>
+              </form>
+            </CardContent>
+          </Card>
           {restaurant.categories.map((category) => (
             <Card key={category.id} className={!category.isActive ? "opacity-60" : ""}>
               <CardContent className="p-4">
-                <form action={updateRestaurantCategory} className="grid gap-3 md:grid-cols-[1fr_150px_130px_100px]">
+                <form action={updateRestaurantCategory} className="grid gap-3 md:grid-cols-[1fr_130px_100px]">
                   <input type="hidden" name="restaurantId" value={restaurant.id} />
                   <input type="hidden" name="id" value={category.id} />
                   <Input name="name" defaultValue={category.name} placeholder="Category name" required />
-                  <div className="md:col-span-4">
+                  <div className="md:col-span-3">
                     <MenuImagePicker defaultValue={safeStoredImageUrl(category.imageUrl)} defaultItemName={category.name} defaultCategoryName={category.name} itemNameField="name" />
                   </div>
-                  <Input name="sortOrder" type="number" min={1} max={restaurant.categories.length} defaultValue={category.sortOrder} placeholder="Position: 1 = first" />
                   <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isActive" defaultChecked={category.isActive} /> Active</label>
                   <SubmitButton pendingText="Saving...">Save</SubmitButton>
                 </form>

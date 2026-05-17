@@ -1,15 +1,15 @@
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { getManagerRestaurant } from "@/lib/permissions";
 import { ConfirmSubmitButton, SubmitButton } from "@/components/ui/confirm-submit-button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MenuImagePicker } from "@/components/ui/menu-image-picker";
+import { ReorderBox } from "@/components/ui/reorder-box";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import { cleanSubmittedMenuImage, menuImageFor, safeStoredImageUrl } from "@/lib/menu-images";
-import { displayPosition, normalizeMenuItemPositions, reorderMenuItemPositions, sortMenuItemsForDisplay, swapMenuItemPosition } from "@/lib/menu-ordering";
+import { applyMenuItemOrder, normalizeMenuItemPositions, orderedIdsFromForm, sortMenuItemsForDisplay } from "@/lib/menu-ordering";
 
 export const dynamic = "force-dynamic";
 
@@ -34,9 +34,8 @@ async function createMenuItem(formData: FormData) {
   const category = await db.category.findFirst({ where: { id: categoryId, restaurantId: restaurant.id } });
   if (!category) return;
   const categoryItemCount = await db.menuItem.count({ where: { restaurantId: restaurant.id, categoryId } });
-  const desiredPosition = displayPosition(formData.get("sortOrder"), categoryItemCount + 1, categoryItemCount + 1);
   await db.$transaction(async (tx) => {
-    const item = await tx.menuItem.create({
+    await tx.menuItem.create({
       data: {
         restaurantId: restaurant.id,
         categoryId,
@@ -49,7 +48,6 @@ async function createMenuItem(formData: FormData) {
         sortOrder: categoryItemCount + 1
       }
     });
-    await reorderMenuItemPositions(tx, restaurant.id, categoryId, item.id, desiredPosition);
     await tx.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "MENU_ITEM_CREATED", description: name } });
   });
   await revalidateManagerMenuPages(restaurant.id, restaurant.slug);
@@ -65,35 +63,23 @@ async function updateMenuItem(formData: FormData) {
   const item = await db.menuItem.findFirst({ where: { id, restaurantId: restaurant.id } });
   if (!name || !category || !item) return;
   const categoryItemCount = await db.menuItem.count({ where: { restaurantId: restaurant.id, categoryId } });
-  const maxPosition = categoryItemCount + (item.categoryId === categoryId ? 0 : 1);
-  const positionFallback = item.categoryId === categoryId ? item.sortOrder || categoryItemCount : maxPosition;
-  const desiredPosition = displayPosition(formData.get("sortOrder"), positionFallback, maxPosition);
-  try {
-    await db.$transaction(async (tx) => {
-      await tx.menuItem.updateMany({
-        where: { id, restaurantId: restaurant.id },
-        data: {
-          categoryId,
-          name,
-          description: String(formData.get("description") || ""),
-          price: Number(formData.get("price") || 0),
-          imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")),
-          isActive: formData.get("isActive") === "on",
-          isAvailable: formData.get("isAvailable") === "on"
-        }
-      });
-      if (item.categoryId !== categoryId) {
-        await normalizeMenuItemPositions(tx, restaurant.id, item.categoryId);
-        await reorderMenuItemPositions(tx, restaurant.id, categoryId, id, desiredPosition);
-      } else {
-        await swapMenuItemPosition(tx, restaurant.id, categoryId, id, desiredPosition);
+  await db.$transaction(async (tx) => {
+    await tx.menuItem.updateMany({
+      where: { id, restaurantId: restaurant.id },
+      data: {
+        categoryId,
+        name,
+        description: String(formData.get("description") || ""),
+        price: Number(formData.get("price") || 0),
+        imageUrl: cleanSubmittedMenuImage(formData.get("imageUrl")),
+        isActive: formData.get("isActive") === "on",
+        isAvailable: formData.get("isAvailable") === "on",
+        sortOrder: item.categoryId === categoryId ? item.sortOrder : categoryItemCount + 1
       }
-      await tx.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "MENU_ITEM_UPDATED", description: name } });
     });
-  } catch (error) {
-    console.error("[dashboard updateMenuItem] failed", { error, restaurantId: restaurant.id, itemId: id, desiredPosition });
-    redirect("/dashboard/menu/items?error=menu-item-update-failed");
-  }
+    if (item.categoryId !== categoryId) await normalizeMenuItemPositions(tx, restaurant.id, item.categoryId);
+    await tx.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "MENU_ITEM_UPDATED", description: name } });
+  });
   await revalidateManagerMenuPages(restaurant.id, restaurant.slug);
 }
 
@@ -107,6 +93,19 @@ async function deleteMenuItem(formData: FormData) {
     await tx.menuItem.deleteMany({ where: { id, restaurantId: restaurant.id } });
     await normalizeMenuItemPositions(tx, restaurant.id, item.categoryId);
     await tx.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "MENU_ITEM_DELETED", description: `${item.name} permanently deleted` } });
+  });
+  await revalidateManagerMenuPages(restaurant.id, restaurant.slug);
+}
+
+async function reorderMenuItems(formData: FormData) {
+  "use server";
+  const { user, restaurant } = await getManagerRestaurant();
+  const categoryId = String(formData.get("categoryId") || "");
+  const category = await db.category.findFirst({ where: { id: categoryId, restaurantId: restaurant.id } });
+  if (!category) return;
+  await db.$transaction(async (tx) => {
+    await applyMenuItemOrder(tx, restaurant.id, categoryId, orderedIdsFromForm(formData));
+    await tx.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "MENU_ITEM_ORDER_UPDATED", description: `${category.name} item display order updated` } });
   });
   await revalidateManagerMenuPages(restaurant.id, restaurant.slug);
 }
@@ -131,18 +130,10 @@ export default async function MenuItemsPage() {
   ]);
   const sortedItems = sortMenuItemsForDisplay(items);
   const activeCategories = allCategories.filter((category) => category.isActive);
-  const itemCountsByCategory = sortedItems.reduce<Record<string, number>>((counts, item) => {
-    counts[item.categoryId] = (counts[item.categoryId] || 0) + 1;
-    return counts;
-  }, {});
-  const itemPositionById: Record<string, number> = {};
-  const seenByCategory: Record<string, number> = {};
-  for (const item of sortedItems) {
-    const position = (seenByCategory[item.categoryId] || 0) + 1;
-    seenByCategory[item.categoryId] = position;
-    itemPositionById[item.id] = position;
-  }
-  const defaultNewItemPosition = activeCategories[0] ? (itemCountsByCategory[activeCategories[0].id] || 0) + 1 : 1;
+  const itemsByCategory = activeCategories.map((category) => ({
+    category,
+    items: sortedItems.filter((item) => item.categoryId === category.id)
+  }));
   return (
     <main className="p-4 lg:p-6">
       <h1 className="text-2xl font-bold">Menu Items</h1>
@@ -167,7 +158,6 @@ export default async function MenuItemsPage() {
               </select>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Input name="price" type="number" placeholder="Price" required />
-                <Input name="sortOrder" type="number" min={1} placeholder="Display position, e.g. 1" defaultValue={defaultNewItemPosition} />
               </div>
               <MenuImagePicker categories={activeCategories.map((category) => ({ id: category.id, name: category.name }))} />
               <Textarea name="description" placeholder="Short customer-friendly description" />
@@ -178,6 +168,21 @@ export default async function MenuItemsPage() {
         </Card>
 
         <div className="grid gap-4">
+          {itemsByCategory.map(({ category, items: categoryItems }) => (
+            <Card key={category.id}>
+              <CardHeader>
+                <CardTitle>Arrange {category.name}</CardTitle>
+                <p className="text-sm text-muted-foreground">Select an item name, move it up or down, then save. This controls customer display order.</p>
+              </CardHeader>
+              <CardContent>
+                <form action={reorderMenuItems} className="space-y-3">
+                  <input type="hidden" name="categoryId" value={category.id} />
+                  <ReorderBox items={categoryItems.map((item) => ({ id: item.id, label: item.name, detail: formatCurrency(item.price.toString()) }))} emptyText="No menu items in this category yet." />
+                  <SubmitButton pendingText="Saving order...">Save Item Order</SubmitButton>
+                </form>
+              </CardContent>
+            </Card>
+          ))}
           {sortedItems.map((item) => (
             <Card key={item.id} className={!item.isActive ? "opacity-60" : ""}>
               <CardContent className="grid gap-4 p-4 lg:grid-cols-[180px_1fr]">
@@ -191,7 +196,6 @@ export default async function MenuItemsPage() {
                         {allCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
                       </select>
                       <Input name="price" type="number" defaultValue={item.price.toString()} placeholder="Price" />
-                      <Input name="sortOrder" type="number" min={1} max={itemCountsByCategory[item.categoryId] || 1} defaultValue={itemPositionById[item.id] || 1} placeholder="Position: 1 = top" />
                     </div>
                     <MenuImagePicker
                       defaultValue={safeStoredImageUrl(item.imageUrl)}

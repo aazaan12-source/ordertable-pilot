@@ -1,12 +1,13 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/permissions";
-import { createRestaurantCategory, createRestaurantMenuItem, deleteRestaurantMenuItem, updateRestaurantMenuItem } from "@/lib/admin-restaurant-actions";
+import { createRestaurantCategory, createRestaurantMenuItem, deleteRestaurantMenuItem, reorderRestaurantMenuItems, updateRestaurantMenuItem } from "@/lib/admin-restaurant-actions";
 import { ConfirmSubmitButton, SubmitButton } from "@/components/ui/confirm-submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MenuImagePicker } from "@/components/ui/menu-image-picker";
+import { ReorderBox } from "@/components/ui/reorder-box";
 import { formatCurrency } from "@/lib/utils";
 import { menuImageFor, safeStoredImageUrl } from "@/lib/menu-images";
 import { sortMenuItemsForDisplay } from "@/lib/menu-ordering";
@@ -26,18 +27,10 @@ export default async function AdminRestaurantMenuItemsPage({ params }: { params:
   if (!restaurant) notFound();
   const sortedMenuItems = sortMenuItemsForDisplay(restaurant.menuItems);
   const activeCategories = restaurant.categories.filter((category) => category.isActive);
-  const itemCountsByCategory = sortedMenuItems.reduce<Record<string, number>>((counts, item) => {
-    counts[item.categoryId] = (counts[item.categoryId] || 0) + 1;
-    return counts;
-  }, {});
-  const itemPositionById: Record<string, number> = {};
-  const seenByCategory: Record<string, number> = {};
-  for (const item of sortedMenuItems) {
-    const position = (seenByCategory[item.categoryId] || 0) + 1;
-    seenByCategory[item.categoryId] = position;
-    itemPositionById[item.id] = position;
-  }
-  const defaultNewItemPosition = activeCategories[0] ? (itemCountsByCategory[activeCategories[0].id] || 0) + 1 : 1;
+  const itemsByCategory = activeCategories.map((category) => ({
+    category,
+    items: sortedMenuItems.filter((item) => item.categoryId === category.id)
+  }));
 
   return (
     <main className="mx-auto max-w-7xl p-4 lg:p-6">
@@ -55,7 +48,6 @@ export default async function AdminRestaurantMenuItemsPage({ params }: { params:
           <CardContent>
             <form action={createRestaurantCategory} className="mb-4 rounded-md border border-blue-200 bg-blue-50 p-3">
               <input type="hidden" name="restaurantId" value={restaurant.id} />
-              <input type="hidden" name="sortOrder" value={restaurant.categories.length + 1} />
               <p className="mb-2 text-sm font-semibold text-blue-950">{activeCategories.length === 0 ? "Create a category first" : "Add a new category"}</p>
               <div className="grid gap-2">
                 <Input name="name" placeholder="Example: Chicken Pulao" required />
@@ -71,7 +63,6 @@ export default async function AdminRestaurantMenuItemsPage({ params }: { params:
               </select>
               <div className="grid gap-3 sm:grid-cols-2">
                 <Input name="price" type="number" min={1} placeholder="Price" required />
-                <Input name="sortOrder" type="number" min={1} placeholder="Display position, e.g. 1" defaultValue={defaultNewItemPosition} />
               </div>
               <MenuImagePicker categories={activeCategories.map((category) => ({ id: category.id, name: category.name }))} />
               <Textarea name="description" placeholder="Short description" />
@@ -82,6 +73,22 @@ export default async function AdminRestaurantMenuItemsPage({ params }: { params:
         </Card>
 
         <div className="grid gap-4">
+          {itemsByCategory.map(({ category, items: categoryItems }) => (
+            <Card key={category.id}>
+              <CardHeader>
+                <CardTitle>Arrange {category.name}</CardTitle>
+                <p className="text-sm text-muted-foreground">Select an item name, move it up or down, then save. This controls customer display order.</p>
+              </CardHeader>
+              <CardContent>
+                <form action={reorderRestaurantMenuItems} className="space-y-3">
+                  <input type="hidden" name="restaurantId" value={restaurant.id} />
+                  <input type="hidden" name="categoryId" value={category.id} />
+                  <ReorderBox items={categoryItems.map((item) => ({ id: item.id, label: item.name, detail: formatCurrency(item.price.toString()) }))} emptyText="No menu items in this category yet." />
+                  <SubmitButton pendingText="Saving order...">Save Item Order</SubmitButton>
+                </form>
+              </CardContent>
+            </Card>
+          ))}
           {sortedMenuItems.map((item) => (
             <Card key={item.id} className={!item.isActive ? "opacity-60" : ""}>
               <CardContent className="grid gap-4 p-4 lg:grid-cols-[180px_1fr]">
@@ -96,7 +103,6 @@ export default async function AdminRestaurantMenuItemsPage({ params }: { params:
                         {restaurant.categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
                       </select>
                       <Input name="price" type="number" defaultValue={item.price.toString()} placeholder="Price" required />
-                      <Input name="sortOrder" type="number" min={1} max={itemCountsByCategory[item.categoryId] || 1} defaultValue={itemPositionById[item.id] || 1} placeholder="Position: 1 = top" />
                     </div>
                     <MenuImagePicker
                       defaultValue={safeStoredImageUrl(item.imageUrl)}

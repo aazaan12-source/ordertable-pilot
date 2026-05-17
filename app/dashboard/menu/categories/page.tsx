@@ -4,9 +4,10 @@ import { getManagerRestaurant } from "@/lib/permissions";
 import { ConfirmSubmitButton, SubmitButton } from "@/components/ui/confirm-submit-button";
 import { Input } from "@/components/ui/input";
 import { MenuImagePicker } from "@/components/ui/menu-image-picker";
+import { ReorderBox } from "@/components/ui/reorder-box";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cleanSubmittedMenuImage, safeStoredImageUrl } from "@/lib/menu-images";
-import { displayPosition, normalizeCategoryPositions, reorderCategoryPositions } from "@/lib/menu-ordering";
+import { applyCategoryOrder, normalizeCategoryPositions, orderedIdsFromForm } from "@/lib/menu-ordering";
 
 export const dynamic = "force-dynamic";
 
@@ -27,10 +28,8 @@ async function createCategory(formData: FormData) {
   const imageUrl = cleanSubmittedMenuImage(formData.get("imageUrl"));
   if (!name) return;
   const categoryCount = await db.category.count({ where: { restaurantId: restaurant.id } });
-  const desiredPosition = displayPosition(formData.get("sortOrder"), categoryCount + 1, categoryCount + 1);
   await db.$transaction(async (tx) => {
-    const category = await tx.category.create({ data: { restaurantId: restaurant.id, name, imageUrl, sortOrder: categoryCount + 1 } });
-    await reorderCategoryPositions(tx, restaurant.id, category.id, desiredPosition);
+    await tx.category.create({ data: { restaurantId: restaurant.id, name, imageUrl, sortOrder: categoryCount + 1 } });
     await tx.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "CATEGORY_CREATED", description: name } });
   });
   revalidatePath("/dashboard/menu/categories");
@@ -48,16 +47,26 @@ async function updateCategory(formData: FormData) {
   const isActive = formData.get("isActive") === "on";
   const category = await db.category.findFirst({ where: { id, restaurantId: restaurant.id } });
   if (!category || !name) return;
-  const categoryCount = await db.category.count({ where: { restaurantId: restaurant.id } });
-  const desiredPosition = displayPosition(formData.get("sortOrder"), category.sortOrder || categoryCount, categoryCount);
   await db.$transaction(async (tx) => {
     await tx.category.updateMany({ where: { id, restaurantId: restaurant.id }, data: { name, imageUrl, isActive } });
-    await reorderCategoryPositions(tx, restaurant.id, id, desiredPosition);
     await tx.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "CATEGORY_UPDATED", description: name } });
   });
   revalidatePath("/dashboard/menu/categories");
   revalidatePath("/dashboard/menu/items");
   revalidatePath(`/r/${restaurant.slug}/t/1`);
+  await revalidateCustomerMenuPages(restaurant.id, restaurant.slug);
+}
+
+async function reorderCategories(formData: FormData) {
+  "use server";
+  const { user, restaurant } = await getManagerRestaurant();
+  const orderedIds = orderedIdsFromForm(formData);
+  await db.$transaction(async (tx) => {
+    await applyCategoryOrder(tx, restaurant.id, orderedIds);
+    await tx.activityLog.create({ data: { restaurantId: restaurant.id, userId: user.id, action: "CATEGORY_ORDER_UPDATED", description: "Menu category display order updated" } });
+  });
+  revalidatePath("/dashboard/menu/categories");
+  revalidatePath("/dashboard/menu/items");
   await revalidateCustomerMenuPages(restaurant.id, restaurant.slug);
 }
 
@@ -98,23 +107,33 @@ export default async function CategoriesPage() {
             <form action={createCategory} className="space-y-3">
               <Input name="name" placeholder="Example: Burgers" required />
               <MenuImagePicker itemNameField="name" defaultCategoryName="Category" />
-              <Input name="sortOrder" type="number" min={1} max={categories.length + 1} placeholder="Display position, e.g. 1" defaultValue={categories.length + 1} />
               <SubmitButton className="w-full" pendingText="Adding category...">Add Category</SubmitButton>
             </form>
           </CardContent>
         </Card>
 
         <div className="grid gap-3">
+          <Card>
+            <CardHeader>
+              <CardTitle>Arrange Category Order</CardTitle>
+              <p className="text-sm text-muted-foreground">Select a category name, move it up or down, then save. This is the order customers see.</p>
+            </CardHeader>
+            <CardContent>
+              <form action={reorderCategories} className="space-y-3">
+                <ReorderBox items={categories.map((category) => ({ id: category.id, label: category.name, detail: `${category._count.menuItems} items` }))} emptyText="No categories to arrange yet." />
+                <SubmitButton pendingText="Saving order...">Save Category Order</SubmitButton>
+              </form>
+            </CardContent>
+          </Card>
           {categories.map((category) => (
             <Card key={category.id} className={!category.isActive ? "opacity-60" : ""}>
               <CardContent className="p-4">
-                <form action={updateCategory} className="grid gap-3 md:grid-cols-[1fr_150px_120px_100px]">
+                <form action={updateCategory} className="grid gap-3 md:grid-cols-[1fr_120px_100px]">
                   <input type="hidden" name="id" value={category.id} />
                   <Input name="name" defaultValue={category.name} placeholder="Category name" />
-                  <div className="md:col-span-4">
+                  <div className="md:col-span-3">
                     <MenuImagePicker defaultValue={safeStoredImageUrl(category.imageUrl)} defaultItemName={category.name} defaultCategoryName={category.name} itemNameField="name" />
                   </div>
-                  <Input name="sortOrder" type="number" min={1} max={categories.length} defaultValue={category.sortOrder} placeholder="Position: 1 = first" />
                   <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isActive" defaultChecked={category.isActive} /> Active</label>
                   <SubmitButton pendingText="Saving...">Save</SubmitButton>
                 </form>
