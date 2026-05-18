@@ -54,9 +54,9 @@ type Order = {
   }[];
 };
 
-export function LiveOrders({ initialOrders }: { initialOrders: Order[]; restaurantName: string }) {
+export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Order[]; restaurantName: string; initialStatus?: string }) {
   const [orders, setOrders] = useState(initialOrders);
-  const [active, setActive] = useState("PENDING");
+  const [active, setActive] = useState(statuses.includes(initialStatus || "") ? initialStatus! : "PENDING");
   const [newPending, setNewPending] = useState(false);
   const [warning, setWarning] = useState("");
   const [updating, setUpdating] = useState("");
@@ -199,7 +199,7 @@ export function LiveOrders({ initialOrders }: { initialOrders: Order[]; restaura
         </button>
       ) : null}
 
-      <div className="flex items-center justify-between gap-3">
+      <div id="live-order-tabs" className="scroll-mt-4 flex items-center justify-between gap-3">
         <div className="flex gap-2 overflow-x-auto pb-2">
           {statuses.map((status) => (
             <Button key={status} variant={active === status ? "default" : "outline"} onClick={() => setActive(status)} className="shrink-0">
@@ -274,7 +274,7 @@ export function LiveOrders({ initialOrders }: { initialOrders: Order[]; restaura
                       disabled={updating === `${order.id}:${action.status}`}
                       onClick={() => updateStatus(order.id, action.status)}
                     >
-                      {action.label}
+                      {updating === `${order.id}:${action.status}` ? "Updating..." : action.label}
                     </Button>
                   ))}
                 </div>

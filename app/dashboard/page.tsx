@@ -32,7 +32,9 @@ export default async function DashboardHome() {
         </div>
       </div>
       <div className="grid gap-4 md:grid-cols-4">
-        <Stat title="Pending orders" value={pending} />
+        <Link href="/dashboard/orders?status=PENDING#live-orders" className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Stat title="Pending orders" value={pending} actionText="Open pending live orders" interactive />
+        </Link>
         <Stat title="Paid orders" value={paid} />
         <Stat title="Revenue today" value={<FinancialAmount value={revenue._sum.total?.toString() || 0} />} />
         <Stat title="Open requests" value={waiterRequests} />
@@ -41,11 +43,14 @@ export default async function DashboardHome() {
   );
 }
 
-function Stat({ title, value }: { title: string; value: React.ReactNode }) {
+function Stat({ title, value, actionText, interactive = false }: { title: string; value: React.ReactNode; actionText?: string; interactive?: boolean }) {
   return (
-    <Card>
+    <Card className={interactive ? "transition hover:border-primary hover:shadow-sm active:translate-y-px" : ""}>
       <CardHeader><CardTitle className="text-sm text-muted-foreground">{title}</CardTitle></CardHeader>
-      <CardContent><p className="text-3xl font-bold">{value}</p></CardContent>
+      <CardContent>
+        <p className="text-3xl font-bold">{value}</p>
+        {actionText ? <p className="mt-2 text-xs font-semibold text-primary">{actionText}</p> : null}
+      </CardContent>
     </Card>
   );
 }
