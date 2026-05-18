@@ -5,7 +5,7 @@ import { ConfirmSubmitButton, SubmitButton } from "@/components/ui/confirm-submi
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MenuImagePicker } from "@/components/ui/menu-image-picker";
-import { ReorderBox } from "@/components/ui/reorder-box";
+import { SortableGroupedReorderPanel } from "@/components/ui/sortable-reorder-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 import { cleanSubmittedMenuImage, menuImageFor, safeStoredImageUrl } from "@/lib/menu-images";
@@ -168,23 +168,31 @@ export default async function MenuItemsPage() {
         </Card>
 
         <div className="grid gap-4">
-          {itemsByCategory.map(({ category, items: categoryItems }) => (
-            <Card key={category.id}>
-              <CardHeader>
-                <CardTitle>Arrange {category.name}</CardTitle>
-                <p className="text-sm text-muted-foreground">Select an item name, move it up or down, then save. This controls customer display order.</p>
-              </CardHeader>
-              <CardContent>
-                <form action={reorderMenuItems} className="space-y-3">
-                  <input type="hidden" name="categoryId" value={category.id} />
-                  <ReorderBox items={categoryItems.map((item) => ({ id: item.id, label: item.name, detail: formatCurrency(item.price.toString()) }))} emptyText="No menu items in this category yet." />
-                  <SubmitButton pendingText="Saving order...">Save Item Order</SubmitButton>
-                </form>
-              </CardContent>
-            </Card>
-          ))}
+          <Card>
+            <CardHeader>
+              <CardTitle>Arrange Menu Items</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <SortableGroupedReorderPanel
+                groups={itemsByCategory.map(({ category, items: categoryItems }) => ({
+                  id: category.id,
+                  label: category.name,
+                  items: categoryItems.map((item) => ({
+                    id: item.id,
+                    title: item.name,
+                    subtitle: `${category.name} - ${formatCurrency(item.price.toString())}`,
+                    imageUrl: menuImageFor(item.name, category.name, item.imageUrl),
+                    badges: [item.isAvailable ? "Available" : "Unavailable", item.isActive ? "Active" : "Inactive"],
+                    actions: [{ label: "Edit, status, delete", href: `#item-${item.id}` }],
+                    muted: !item.isActive || !item.isAvailable
+                  }))
+                }))}
+                action={reorderMenuItems}
+              />
+            </CardContent>
+          </Card>
           {sortedItems.map((item) => (
-            <Card key={item.id} className={!item.isActive ? "opacity-60" : ""}>
+            <Card id={`item-${item.id}`} key={item.id} className={!item.isActive ? "opacity-60" : ""}>
               <CardContent className="grid gap-4 p-4 lg:grid-cols-[180px_1fr]">
                 <img src={menuImageFor(item.name, item.category.name, item.imageUrl)} alt={item.name} className="h-40 w-full rounded-md object-cover" />
                 <div>

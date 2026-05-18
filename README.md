@@ -196,6 +196,43 @@ Super admin menu pages:
 
 All categories and menu items are scoped to the selected restaurant. The page header shows which restaurant and branch are being managed to prevent accidental edits to the wrong tenant.
 
+### Menu Sorting
+
+Category and menu item display order is controlled by drag-and-drop reorder mode.
+
+Manager dashboard:
+
+```txt
+/dashboard/menu/categories
+/dashboard/menu/items
+```
+
+Super admin:
+
+```txt
+/admin/restaurants/{restaurantId}/menu/categories
+/admin/restaurants/{restaurantId}/menu/items
+```
+
+How to reorder categories:
+
+1. Open the category page.
+2. Click `Reorder`.
+3. Drag categories by the grip handle.
+4. Click `Save Order`.
+5. Click `Cancel` to leave reorder mode without saving.
+
+How to reorder menu items:
+
+1. Open the menu item page.
+2. In `Arrange Menu Items`, select a category.
+3. Click `Reorder`.
+4. Drag items by the grip handle.
+5. Click `Save Order`.
+6. Click `Cancel` to restore the previous order without saving.
+
+Menu item sorting is category-aware. Reordering changes only the selected category's items, so items from different categories are not mixed accidentally. The customer QR menu reads categories by `sortOrder ASC` and items within each category by `sortOrder ASC`, with creation time as the fallback order.
+
 ### Manager Login
 
 Open `/admin/restaurants/{restaurantId}/manager` to create, edit, activate/deactivate, or reset the restaurant manager login. Manager users are scoped by `restaurantId` and only see their own dashboard.

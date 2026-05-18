@@ -516,6 +516,20 @@ Hiding/showing financial records:
 3. Customer bills, table bill amounts, order bill summaries, and reports still show real amounts.
 4. This is only local browser display privacy.
 
+Menu Sorting Guide:
+1. Login as manager or super admin.
+2. Go to menu categories to reorder categories.
+3. Click Reorder.
+4. Drag categories using the grip handle.
+5. Click Save Order.
+6. Click Cancel if you want to leave reorder mode without saving.
+7. Go to menu items.
+8. Select a category in Arrange Menu Items.
+9. Click Reorder.
+10. Drag menu items using the grip handle.
+11. Click Save Order.
+12. Customer QR menu will show categories and menu items in the saved order.
+
 Creating monthly financial statement:
 1. Open /dashboard/reports.
 2. Select month and filters.

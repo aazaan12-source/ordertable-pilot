@@ -28,6 +28,8 @@ export async function applyCategoryOrder(tx: MenuOrderingClient, restaurantId: s
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
   });
   const validIds = new Set(categories.map((category) => category.id));
+  const invalidId = orderedIds.find((id) => !validIds.has(id));
+  if (invalidId) throw new Error("Invalid category order payload");
   const nextIds = [...orderedIds.filter((id) => validIds.has(id)), ...categories.map((category) => category.id).filter((id) => !orderedIds.includes(id))];
 
   for (const [index, id] of nextIds.entries()) {
@@ -42,6 +44,8 @@ export async function applyMenuItemOrder(tx: MenuOrderingClient, restaurantId: s
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
   });
   const validIds = new Set(items.map((item) => item.id));
+  const invalidId = orderedIds.find((id) => !validIds.has(id));
+  if (invalidId) throw new Error("Invalid menu item order payload");
   const nextIds = [...orderedIds.filter((id) => validIds.has(id)), ...items.map((item) => item.id).filter((id) => !orderedIds.includes(id))];
 
   for (const [index, id] of nextIds.entries()) {

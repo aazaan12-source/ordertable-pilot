@@ -4,7 +4,7 @@ import { getManagerRestaurant } from "@/lib/permissions";
 import { ConfirmSubmitButton, SubmitButton } from "@/components/ui/confirm-submit-button";
 import { Input } from "@/components/ui/input";
 import { MenuImagePicker } from "@/components/ui/menu-image-picker";
-import { ReorderBox } from "@/components/ui/reorder-box";
+import { SortableReorderPanel } from "@/components/ui/sortable-reorder-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cleanSubmittedMenuImage, safeStoredImageUrl } from "@/lib/menu-images";
 import { applyCategoryOrder, normalizeCategoryPositions, orderedIdsFromForm } from "@/lib/menu-ordering";
@@ -116,17 +116,28 @@ export default async function CategoriesPage() {
           <Card>
             <CardHeader>
               <CardTitle>Arrange Category Order</CardTitle>
-              <p className="text-sm text-muted-foreground">Select a category name, move it up or down, then save. This is the order customers see.</p>
+              <p className="text-sm text-muted-foreground">Click Reorder, drag categories by the handle, then save. This is the order customers see.</p>
             </CardHeader>
             <CardContent>
-              <form action={reorderCategories} className="space-y-3">
-                <ReorderBox items={categories.map((category) => ({ id: category.id, label: category.name, detail: `${category._count.menuItems} items` }))} emptyText="No categories to arrange yet." />
-                <SubmitButton pendingText="Saving order...">Save Category Order</SubmitButton>
-              </form>
+              <SortableReorderPanel
+                items={categories.map((category) => ({
+                  id: category.id,
+                  title: category.name,
+                  subtitle: `${category._count.menuItems} menu item${category._count.menuItems === 1 ? "" : "s"}`,
+                  badges: [category.isActive ? "Active" : "Inactive"],
+                  actions: [{ label: "Edit, status, delete", href: `#category-${category.id}` }],
+                  muted: !category.isActive
+                }))}
+                action={reorderCategories}
+                reorderLabel="Reorder Categories"
+                reorderButtonLabel="Reorder Categories"
+                saveLabel="Save Category Order"
+                emptyText="No categories to arrange yet."
+              />
             </CardContent>
           </Card>
           {categories.map((category) => (
-            <Card key={category.id} className={!category.isActive ? "opacity-60" : ""}>
+            <Card id={`category-${category.id}`} key={category.id} className={!category.isActive ? "opacity-60" : ""}>
               <CardContent className="p-4">
                 <form action={updateCategory} className="grid gap-3 md:grid-cols-[1fr_120px_100px]">
                   <input type="hidden" name="id" value={category.id} />

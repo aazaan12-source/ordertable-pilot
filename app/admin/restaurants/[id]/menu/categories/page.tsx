@@ -6,7 +6,7 @@ import { ConfirmSubmitButton, SubmitButton } from "@/components/ui/confirm-submi
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { MenuImagePicker } from "@/components/ui/menu-image-picker";
-import { ReorderBox } from "@/components/ui/reorder-box";
+import { SortableReorderPanel } from "@/components/ui/sortable-reorder-panel";
 import { safeStoredImageUrl } from "@/lib/menu-images";
 
 export const dynamic = "force-dynamic";
@@ -43,18 +43,29 @@ export default async function AdminRestaurantCategoriesPage({ params }: { params
           <Card>
             <CardHeader>
               <CardTitle>Arrange Category Order</CardTitle>
-              <p className="text-sm text-muted-foreground">Select a category name, move it up or down, then save. This is the order customers see.</p>
+              <p className="text-sm text-muted-foreground">Click Reorder, drag categories by the handle, then save. This is the order customers see.</p>
             </CardHeader>
             <CardContent>
-              <form action={reorderRestaurantCategories} className="space-y-3">
-                <input type="hidden" name="restaurantId" value={restaurant.id} />
-                <ReorderBox items={restaurant.categories.map((category) => ({ id: category.id, label: category.name, detail: `${category._count.menuItems} items` }))} emptyText="No categories to arrange yet." />
-                <SubmitButton pendingText="Saving order...">Save Category Order</SubmitButton>
-              </form>
+              <SortableReorderPanel
+                items={restaurant.categories.map((category) => ({
+                  id: category.id,
+                  title: category.name,
+                  subtitle: `${category._count.menuItems} menu item${category._count.menuItems === 1 ? "" : "s"}`,
+                  badges: [category.isActive ? "Active" : "Inactive"],
+                  actions: [{ label: "Edit, status, delete", href: `#category-${category.id}` }],
+                  muted: !category.isActive
+                }))}
+                action={reorderRestaurantCategories}
+                hiddenFields={{ restaurantId: restaurant.id }}
+                reorderLabel="Reorder Categories"
+                reorderButtonLabel="Reorder Categories"
+                saveLabel="Save Category Order"
+                emptyText="No categories to arrange yet."
+              />
             </CardContent>
           </Card>
           {restaurant.categories.map((category) => (
-            <Card key={category.id} className={!category.isActive ? "opacity-60" : ""}>
+            <Card id={`category-${category.id}`} key={category.id} className={!category.isActive ? "opacity-60" : ""}>
               <CardContent className="p-4">
                 <form action={updateRestaurantCategory} className="grid gap-3 md:grid-cols-[1fr_130px_100px]">
                   <input type="hidden" name="restaurantId" value={restaurant.id} />
