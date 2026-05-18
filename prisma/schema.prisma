@@ -141,6 +141,7 @@ model Restaurant {
   feedback             Feedback[]
   subscriptions        Subscription[]
   billingInvoices      BillingInvoice[]
+  billingPaymentAccounts BillingPaymentAccount[]
   activityLogs         ActivityLog[]
 }
 
@@ -289,6 +290,8 @@ model BillingInvoice {
   id            String        @id @default(cuid())
   restaurantId  String
   restaurant    Restaurant    @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  paymentAccountId String?
+  paymentAccount BillingPaymentAccount? @relation(fields: [paymentAccountId], references: [id])
   billingMonth  String
   planName      String
   amount        Decimal       @db.Decimal(10, 2)
@@ -296,12 +299,38 @@ model BillingInvoice {
   dueDate       DateTime?
   paidAt        DateTime?
   paymentReference String?
+  paymentClaimedAt DateTime?
+  paymentClaimMethod String?
+  paymentClaimReference String?
+  paymentClaimNote String?
+  paymentConfirmedAt DateTime?
+  paymentConfirmedById String?
   notes         String?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
   @@index([restaurantId, billingMonth])
   @@index([status, dueDate])
+  @@index([paymentClaimedAt])
+}
+
+model BillingPaymentAccount {
+  id            String      @id @default(cuid())
+  restaurantId  String?
+  restaurant    Restaurant? @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  label         String
+  method        String
+  accountTitle  String
+  accountNumber String
+  bankName      String?
+  instructions  String?
+  isActive      Boolean     @default(true)
+  sortOrder     Int         @default(0)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  invoices      BillingInvoice[]
+
+  @@index([restaurantId, isActive])
 }
 
 model PlatformLead {

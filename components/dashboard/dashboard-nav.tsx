@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ClipboardList, LayoutDashboard, Menu, PlusCircle, QrCode, ReceiptText, Settings, Table2, Bell } from "lucide-react";
+import { ClipboardList, CreditCard, LayoutDashboard, Menu, PlusCircle, QrCode, ReceiptText, Settings, Table2, Bell } from "lucide-react";
 
 const links = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
@@ -11,6 +11,7 @@ const links = [
   { href: "/dashboard/qr-codes", label: "QR Codes", icon: QrCode },
   { href: "/dashboard/waiter-requests", label: "Requests", icon: Bell },
   { href: "/dashboard/reports", label: "Reports", icon: ReceiptText },
+  { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
   { href: "/dashboard/settings", label: "Settings", icon: Settings }
 ];
 
