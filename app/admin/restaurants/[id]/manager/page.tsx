@@ -2,10 +2,11 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/permissions";
 import { createOrUpdateRestaurantManager } from "@/lib/admin-restaurant-actions";
-import { Button } from "@/components/ui/button";
+import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
+import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { formatPkDateTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -22,9 +23,10 @@ export default async function AdminRestaurantManagerPage({ params }: { params: P
 
   return (
     <main className="mx-auto max-w-4xl p-4 lg:p-6">
+      <AdminBreadcrumbs items={[{ label: "Restaurants", href: "/admin/restaurants" }, { label: restaurant.name, href: `/admin/restaurants/${restaurant.id}` }, { label: "Manager Login" }]} />
       <div className="mb-5">
         <h1 className="text-2xl font-bold">Manager Login</h1>
-        <p className="text-sm text-muted-foreground">Managing login for: <strong>{restaurant.name} - {restaurant.branchName}</strong></p>
+        <p className="text-sm text-muted-foreground">Create, update, activate, or reset the restaurant manager login for <strong>{restaurant.name} - {restaurant.branchName}</strong>.</p>
       </div>
 
       <Card>
@@ -44,7 +46,15 @@ export default async function AdminRestaurantManagerPage({ params }: { params: P
             <div className="text-sm text-muted-foreground">
               Last login: <strong>{manager?.lastLoginAt ? formatPkDateTime(manager.lastLoginAt) : "Not recorded yet"}</strong>
             </div>
-            <Button className="md:col-span-2">{manager ? "Save Manager" : "Create Manager"}</Button>
+            <ConfirmSubmitButton
+              className="md:col-span-2"
+              size="md"
+              variant="default"
+              message={manager ? "Save manager login changes? If you entered a new temporary password, the manager password will be reset." : "Create this restaurant manager login?"}
+              pendingText="Saving manager..."
+            >
+              {manager ? "Save Manager" : "Create Manager"}
+            </ConfirmSubmitButton>
           </form>
         </CardContent>
       </Card>

@@ -90,6 +90,7 @@ async function createSampleMenu(tx: MenuWriter, restaurantId: string) {
 async function revalidateRestaurantMenuPages(restaurantId: string, slug: string) {
   revalidatePath(`/admin/restaurants/${restaurantId}/menu/categories`);
   revalidatePath(`/admin/restaurants/${restaurantId}/menu/items`);
+  revalidatePath(`/admin/restaurants/${restaurantId}/menu`);
   revalidatePath("/dashboard/menu/categories");
   revalidatePath("/dashboard/menu/items");
 
@@ -356,6 +357,7 @@ export async function updateRestaurantDetails(formData: FormData) {
   revalidatePath(`/admin/restaurants/${id}/edit`);
   revalidatePath(`/admin/restaurants/${id}/tables`);
   revalidatePath(`/admin/restaurants/${id}/qr-codes`);
+  revalidatePath(`/admin/restaurants/${id}/tables-qr`);
   revalidatePath("/dashboard/tables");
   revalidatePath("/dashboard/qr-codes");
   redirect(`/admin/restaurants/${id}/edit?saved=1`);
@@ -429,21 +431,22 @@ export async function updateRestaurantTableCount(formData: FormData) {
   const admin = await requirePlatformAdmin();
   const restaurantId = formString(formData, "restaurantId");
   const { startAt, endAt, targetCount, isValid } = tableRangeFromForm(formData);
-  if (!isValid) redirect(`/admin/restaurants/${restaurantId}/tables?error=invalid-range`);
+  if (!isValid) redirect(`/admin/restaurants/${restaurantId}/tables-qr?error=invalid-range`);
   const restaurant = await db.restaurant.findUnique({ where: { id: restaurantId } });
   if (!restaurant) return;
   try {
     await syncRestaurantTables({ restaurantId, slug: restaurant.slug, targetCount, startAt, userId: admin.id });
   } catch (error) {
     console.error("[updateRestaurantTableCount] failed", { error, restaurantId, targetCount, startAt, endAt });
-    redirect(`/admin/restaurants/${restaurantId}/tables?error=table-sync-failed`);
+    redirect(`/admin/restaurants/${restaurantId}/tables-qr?error=table-sync-failed`);
   }
   revalidatePath(`/admin/restaurants/${restaurantId}`);
   revalidatePath(`/admin/restaurants/${restaurantId}/tables`);
   revalidatePath(`/admin/restaurants/${restaurantId}/qr-codes`);
+  revalidatePath(`/admin/restaurants/${restaurantId}/tables-qr`);
   revalidatePath("/dashboard/tables");
   revalidatePath("/dashboard/qr-codes");
-  redirect(`/admin/restaurants/${restaurantId}/tables?saved=table-count`);
+  redirect(`/admin/restaurants/${restaurantId}/tables-qr?saved=table-count`);
 }
 
 export async function updateSingleTable(formData: FormData) {
@@ -455,12 +458,12 @@ export async function updateSingleTable(formData: FormData) {
   const restaurant = await db.restaurant.findUnique({ where: { id: restaurantId } });
   if (!restaurant) return;
   const table = await db.restaurantTable.findFirst({ where: { id: tableId, restaurantId } });
-  if (!table) redirect(`/admin/restaurants/${restaurantId}/tables?error=table-not-found`);
+  if (!table) redirect(`/admin/restaurants/${restaurantId}/tables-qr?error=table-not-found`);
   const duplicate = await db.restaurantTable.findFirst({
     where: { restaurantId, tableNumber, id: { not: tableId } },
     select: { id: true }
   });
-  if (duplicate) redirect(`/admin/restaurants/${restaurantId}/tables?error=duplicate-table&tableNumber=${tableNumber}`);
+  if (duplicate) redirect(`/admin/restaurants/${restaurantId}/tables-qr?error=duplicate-table&tableNumber=${tableNumber}`);
 
   try {
     await db.$transaction([
@@ -470,16 +473,17 @@ export async function updateSingleTable(formData: FormData) {
   } catch (error) {
     console.error("[updateSingleTable] failed", { error, restaurantId, tableId, tableNumber, status });
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-      redirect(`/admin/restaurants/${restaurantId}/tables?error=duplicate-table&tableNumber=${tableNumber}`);
+      redirect(`/admin/restaurants/${restaurantId}/tables-qr?error=duplicate-table&tableNumber=${tableNumber}`);
     }
-    redirect(`/admin/restaurants/${restaurantId}/tables?error=table-update-failed`);
+    redirect(`/admin/restaurants/${restaurantId}/tables-qr?error=table-update-failed`);
   }
   revalidatePath(`/admin/restaurants/${restaurantId}`);
   revalidatePath(`/admin/restaurants/${restaurantId}/tables`);
   revalidatePath(`/admin/restaurants/${restaurantId}/qr-codes`);
+  revalidatePath(`/admin/restaurants/${restaurantId}/tables-qr`);
   revalidatePath("/dashboard/tables");
   revalidatePath("/dashboard/qr-codes");
-  redirect(`/admin/restaurants/${restaurantId}/tables?saved=table`);
+  redirect(`/admin/restaurants/${restaurantId}/tables-qr?saved=table`);
 }
 
 export async function regenerateRestaurantQRCodes(formData: FormData) {
@@ -494,6 +498,7 @@ export async function regenerateRestaurantQRCodes(formData: FormData) {
     await tx.activityLog.create({ data: { userId: admin.id, restaurantId, action: "QR_CODES_GENERATED", description: "QR URLs regenerated for all tables" } });
   });
   revalidatePath(`/admin/restaurants/${restaurantId}/qr-codes`);
+  revalidatePath(`/admin/restaurants/${restaurantId}/tables-qr`);
 }
 
 export async function createRestaurantCategory(formData: FormData) {
@@ -619,7 +624,7 @@ export async function updateRestaurantMenuItem(formData: FormData) {
     });
   } catch (error) {
     console.error("[updateRestaurantMenuItem] failed", { error, restaurantId, itemId: id });
-    redirect(`/admin/restaurants/${restaurantId}/menu/items?error=menu-item-update-failed`);
+    redirect(`/admin/restaurants/${restaurantId}/menu?error=menu-item-update-failed#items`);
   }
   await revalidateRestaurantMenuPages(restaurantId, restaurant.slug);
 }

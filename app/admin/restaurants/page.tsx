@@ -2,12 +2,14 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/permissions";
 import { deleteRestaurantCompletely, toggleOrdering, toggleRestaurantStatus } from "@/lib/admin-restaurant-actions";
+import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
 import { formatPkDateTime } from "@/lib/utils";
+import { MoreVertical } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -45,12 +47,13 @@ export default async function RestaurantsPage({
 
   return (
     <main className="mx-auto max-w-7xl p-3 sm:p-4 lg:p-6">
+      <AdminBreadcrumbs items={[{ label: "Restaurants" }]} />
       <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-xl font-bold sm:text-2xl">Restaurants</h1>
-          <p className="text-sm text-muted-foreground">Add and manage many restaurant accounts, tables, QR codes, menus, managers, and billing status.</p>
+          <p className="text-sm text-muted-foreground">Manage all restaurants connected to OrderTable. Open a restaurant first, then manage its profile, tables, QR codes, menu, login, orders, and reports.</p>
         </div>
-        <Link href="/admin/restaurants/new"><Button className="w-full sm:w-auto">Add New Restaurant</Button></Link>
+        <Link href="/admin/restaurants/new"><Button className="w-full sm:w-auto">Add Restaurant</Button></Link>
       </div>
 
       <Card className="mb-5">
@@ -100,10 +103,10 @@ export default async function RestaurantsPage({
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <Link href={`/admin/restaurants/${restaurant.id}`} className="break-words text-base font-bold hover:underline">{restaurant.name}</Link>
-                    <p className="mt-1 text-xs text-muted-foreground">{restaurant.branchName} · {restaurant.city}</p>
-                    <p className="text-xs text-muted-foreground">{restaurant.phone}</p>
+                    <p className="mt-1 text-xs text-muted-foreground">{restaurant.branchName} - {restaurant.city}</p>
+                    <p className="text-xs text-muted-foreground">Created {formatPkDateTime(restaurant.createdAt)}</p>
                   </div>
-                  <Badge className={restaurant.status === "ACTIVE" ? "shrink-0 bg-green-100 text-green-800" : "shrink-0 bg-slate-100 text-slate-700"}>{restaurant.status}</Badge>
+                  <RestaurantActions restaurant={restaurant} />
                 </div>
                 <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
                   <p className="rounded-md bg-muted p-2"><strong>{activeTables}/{restaurant.tables.length}</strong><br /><span className="text-xs text-muted-foreground">Tables</span></p>
@@ -111,46 +114,12 @@ export default async function RestaurantsPage({
                 </div>
                 <p className="mt-3 break-all text-xs text-muted-foreground">Manager: {manager?.email || "Missing"}</p>
                 <div className="mt-3 flex flex-wrap gap-2">
+                  <Badge className={restaurant.status === "ACTIVE" ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-700"}>{restaurant.status}</Badge>
                   <Badge className={restaurant.orderingEnabled ? "bg-blue-100 text-blue-800" : "bg-orange-100 text-orange-800"}>{restaurant.orderingEnabled ? "Ordering On" : "Ordering Off"}</Badge>
                   <Badge className="bg-muted text-foreground">{restaurant.subscriptionStatus}</Badge>
                 </div>
-                <div className="mt-4 grid grid-cols-2 gap-2">
-                  <Link href={`/admin/restaurants/${restaurant.id}`}><Button className="w-full" size="sm" variant="outline">View</Button></Link>
-                  <Link href={`/admin/restaurants/${restaurant.id}/edit`}><Button className="w-full" size="sm" variant="outline">Edit</Button></Link>
-                  <Link href={`/admin/restaurants/${restaurant.id}/tables`}><Button className="w-full" size="sm" variant="outline">Tables</Button></Link>
-                  <Link href={`/admin/restaurants/${restaurant.id}/qr-codes`}><Button className="w-full" size="sm" variant="outline">QR Codes</Button></Link>
-                  <Link href={`/admin/restaurants/${restaurant.id}/menu/items`}><Button className="w-full" size="sm" variant="outline">Menu</Button></Link>
-                  <Link href={`/admin/restaurants/${restaurant.id}/manager`}><Button className="w-full" size="sm" variant="outline">Manager</Button></Link>
-                </div>
-                <div className="mt-3 grid grid-cols-2 gap-2">
-                  <form action={toggleRestaurantStatus}>
-                    <input type="hidden" name="id" value={restaurant.id} />
-                    <input type="hidden" name="status" value={restaurant.status === "ACTIVE" ? "INACTIVE" : "ACTIVE"} />
-                    <Button className="w-full" size="sm" variant={restaurant.status === "ACTIVE" ? "destructive" : "secondary"}>{restaurant.status === "ACTIVE" ? "Deactivate" : "Activate"}</Button>
-                  </form>
-                  <form action={toggleOrdering}>
-                    <input type="hidden" name="id" value={restaurant.id} />
-                    <input type="hidden" name="orderingEnabled" value={String(!restaurant.orderingEnabled)} />
-                    <Button className="w-full" size="sm" variant="outline">{restaurant.orderingEnabled ? "Disable Ordering" : "Enable Ordering"}</Button>
-                  </form>
-                  {restaurant.status === "INACTIVE" ? (
-                    <form action={deleteRestaurantCompletely}>
-                      <input type="hidden" name="restaurantId" value={restaurant.id} />
-                      <input type="hidden" name="confirmation" value={restaurant.slug} />
-                      <ConfirmSubmitButton
-                        className="w-full"
-                        size="sm"
-                        message={`Permanent delete warning:\n\nThis will delete ${restaurant.name} completely, including manager logins, tables, QR codes, menu, orders, bills, reports, waiter requests, feedback, and restaurant records.\n\nThis cannot be undone.`}
-                        pendingText="Deleting..."
-                      >
-                        Delete
-                      </ConfirmSubmitButton>
-                    </form>
-                  ) : (
-                    <p className="col-span-2 rounded-md border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
-                      Delete locked. Deactivate first.
-                    </p>
-                  )}
+                <div className="mt-4">
+                  <Link href={`/admin/restaurants/${restaurant.id}`}><Button className="w-full">Manage</Button></Link>
                 </div>
               </CardContent>
             </Card>
@@ -159,12 +128,11 @@ export default async function RestaurantsPage({
       </div>
 
       <div className="hidden overflow-hidden rounded-lg border bg-white lg:block">
-        <div className="grid grid-cols-[1.5fr_1fr_0.6fr_0.8fr_1fr_1fr_1.3fr] gap-3 border-b bg-muted px-4 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">
+        <div className="grid grid-cols-[1.45fr_1fr_0.75fr_1.1fr_0.85fr_0.9fr] gap-3 border-b bg-muted px-4 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">
           <span>Restaurant</span>
-          <span>Location</span>
+          <span>Branch / City</span>
           <span>Tables</span>
-          <span>Menu</span>
-          <span>Manager</span>
+          <span>Manager Email</span>
           <span>Status</span>
           <span>Actions</span>
         </div>
@@ -172,63 +140,94 @@ export default async function RestaurantsPage({
           const activeTables = restaurant.tables.filter((table) => table.status !== "INACTIVE").length;
           const manager = restaurant.users[0];
           return (
-            <div key={restaurant.id} className="grid grid-cols-[1.5fr_1fr_0.6fr_0.8fr_1fr_1fr_1.3fr] gap-3 border-b px-4 py-4 text-sm last:border-b-0">
-              <div>
+            <div key={restaurant.id} className="grid grid-cols-[1.45fr_1fr_0.75fr_1.1fr_0.85fr_0.9fr] items-center gap-3 border-b px-4 py-4 text-sm last:border-b-0">
+              <div className="min-w-0">
                 <Link href={`/admin/restaurants/${restaurant.id}`} className="font-bold hover:underline">{restaurant.name}</Link>
-                <p className="text-xs text-muted-foreground">{restaurant.branchName} · created {formatPkDateTime(restaurant.createdAt)}</p>
+                <p className="text-xs text-muted-foreground">Created {formatPkDateTime(restaurant.createdAt)}</p>
               </div>
               <div>
-                <p>{restaurant.city}</p>
-                <p className="text-xs text-muted-foreground">{restaurant.phone}</p>
+                <p>{restaurant.branchName}</p>
+                <p className="text-xs text-muted-foreground">{restaurant.city}</p>
               </div>
               <p>{activeTables}/{restaurant.tables.length}</p>
-              <p>{restaurant.menuItems.length} items</p>
               <p className="break-all text-xs">{manager?.email || "Missing"}</p>
-              <div className="space-y-1">
+              <div className="flex flex-wrap gap-1">
                 <Badge className={restaurant.status === "ACTIVE" ? "bg-green-100 text-green-800" : "bg-slate-100 text-slate-700"}>{restaurant.status}</Badge>
                 <Badge className={restaurant.orderingEnabled ? "bg-blue-100 text-blue-800" : "bg-orange-100 text-orange-800"}>{restaurant.orderingEnabled ? "Ordering On" : "Ordering Off"}</Badge>
                 <Badge className="bg-muted text-foreground">{restaurant.subscriptionStatus}</Badge>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <Link href={`/admin/restaurants/${restaurant.id}`}><Button size="sm" variant="outline">View</Button></Link>
-                <Link href={`/admin/restaurants/${restaurant.id}/edit`}><Button size="sm" variant="outline">Edit</Button></Link>
-                <Link href={`/admin/restaurants/${restaurant.id}/tables`}><Button size="sm" variant="outline">Tables</Button></Link>
-                <Link href={`/admin/restaurants/${restaurant.id}/qr-codes`}><Button size="sm" variant="outline">QR</Button></Link>
-                <Link href={`/admin/restaurants/${restaurant.id}/menu/items`}><Button size="sm" variant="outline">Menu</Button></Link>
-                <Link href={`/admin/restaurants/${restaurant.id}/manager`}><Button size="sm" variant="outline">Manager</Button></Link>
-                <Link href={`/admin/restaurants/${restaurant.id}/orders`}><Button size="sm" variant="outline">Orders</Button></Link>
-                <Link href={`/admin/restaurants/${restaurant.id}/reports`}><Button size="sm" variant="outline">Reports</Button></Link>
-                <form action={toggleRestaurantStatus}>
-                  <input type="hidden" name="id" value={restaurant.id} />
-                  <input type="hidden" name="status" value={restaurant.status === "ACTIVE" ? "INACTIVE" : "ACTIVE"} />
-                  <Button size="sm" variant={restaurant.status === "ACTIVE" ? "destructive" : "secondary"}>{restaurant.status === "ACTIVE" ? "Deactivate" : "Activate"}</Button>
-                </form>
-                <form action={toggleOrdering}>
-                  <input type="hidden" name="id" value={restaurant.id} />
-                  <input type="hidden" name="orderingEnabled" value={String(!restaurant.orderingEnabled)} />
-                  <Button size="sm" variant="outline">{restaurant.orderingEnabled ? "Disable Ordering" : "Enable Ordering"}</Button>
-                </form>
-                {restaurant.status === "INACTIVE" ? (
-                  <form action={deleteRestaurantCompletely}>
-                    <input type="hidden" name="restaurantId" value={restaurant.id} />
-                    <input type="hidden" name="confirmation" value={restaurant.slug} />
-                    <ConfirmSubmitButton
-                      size="sm"
-                      message={`Permanent delete warning:\n\nThis will delete ${restaurant.name} completely, including manager logins, tables, QR codes, menu, orders, bills, reports, waiter requests, feedback, and restaurant records.\n\nThis cannot be undone.`}
-                      pendingText="Deleting..."
-                    >
-                      Delete
-                    </ConfirmSubmitButton>
-                  </form>
-                ) : (
-                  <span className="rounded-md border border-amber-200 bg-amber-50 px-2 py-2 text-xs text-amber-800">Delete locked: deactivate first</span>
-                )}
+              <div className="flex items-center gap-2">
+                <Link href={`/admin/restaurants/${restaurant.id}`}><Button size="sm">Manage</Button></Link>
+                <RestaurantActions restaurant={restaurant} />
               </div>
             </div>
           );
         })}
       </div>
-      {restaurants.length === 0 ? <p className="mt-5 rounded-lg border bg-white p-6 text-center text-muted-foreground">No restaurants match this filter.</p> : null}
+      {restaurants.length === 0 ? (
+        <div className="mt-5 rounded-lg border bg-white p-8 text-center">
+          <p className="font-semibold">No restaurants added yet.</p>
+          <p className="mt-1 text-sm text-muted-foreground">Create the first restaurant account to start generating tables, QR codes, menus, and manager login.</p>
+          <Link href="/admin/restaurants/new" className="mt-4 inline-block"><Button>Add First Restaurant</Button></Link>
+        </div>
+      ) : null}
     </main>
+  );
+}
+
+function RestaurantActions({ restaurant }: { restaurant: any }) {
+  return (
+    <details className="relative">
+      <summary className="flex h-9 w-9 list-none items-center justify-center rounded-md border bg-white text-muted-foreground hover:bg-muted [&::-webkit-details-marker]:hidden" aria-label={`Actions for ${restaurant.name}`}>
+        <MoreVertical className="h-4 w-4" />
+      </summary>
+      <div className="absolute right-0 top-10 z-20 w-56 rounded-md border bg-white p-2 text-sm shadow-lg">
+        <Link href={`/admin/restaurants/${restaurant.id}/edit`} className="block rounded px-3 py-2 hover:bg-muted">Edit Profile</Link>
+        <Link href={`/admin/restaurants/${restaurant.id}/orders`} className="block rounded px-3 py-2 hover:bg-muted">View Orders</Link>
+        <Link href={`/admin/restaurants/${restaurant.id}/reports`} className="block rounded px-3 py-2 hover:bg-muted">View Reports</Link>
+        <div className="my-1 border-t" />
+        <form action={toggleOrdering}>
+          <input type="hidden" name="id" value={restaurant.id} />
+          <input type="hidden" name="orderingEnabled" value={String(!restaurant.orderingEnabled)} />
+          <ConfirmSubmitButton
+            className="w-full justify-start"
+            size="sm"
+            variant="ghost"
+            message={restaurant.orderingEnabled ? `Disable online ordering for ${restaurant.name}? Customers will not be able to place QR orders until it is enabled again.` : `Enable online ordering for ${restaurant.name}?`}
+            pendingText="Saving..."
+          >
+            {restaurant.orderingEnabled ? "Disable Ordering" : "Enable Ordering"}
+          </ConfirmSubmitButton>
+        </form>
+        <form action={toggleRestaurantStatus}>
+          <input type="hidden" name="id" value={restaurant.id} />
+          <input type="hidden" name="status" value={restaurant.status === "ACTIVE" ? "INACTIVE" : "ACTIVE"} />
+          <ConfirmSubmitButton
+            className="w-full justify-start"
+            size="sm"
+            variant={restaurant.status === "ACTIVE" ? "ghost" : "ghost"}
+            message={restaurant.status === "ACTIVE" ? `Deactivate ${restaurant.name}? Existing records remain saved, but the restaurant will be marked inactive.` : `Activate ${restaurant.name}?`}
+            pendingText="Saving..."
+          >
+            {restaurant.status === "ACTIVE" ? "Deactivate" : "Activate"}
+          </ConfirmSubmitButton>
+        </form>
+        {restaurant.status === "INACTIVE" ? (
+          <form action={deleteRestaurantCompletely} className="mt-1">
+            <input type="hidden" name="restaurantId" value={restaurant.id} />
+            <input type="hidden" name="confirmation" value={restaurant.slug} />
+            <ConfirmSubmitButton
+              className="w-full justify-start text-red-700 hover:bg-red-50"
+              size="sm"
+              variant="ghost"
+              message={`Permanent delete warning:\n\nThis will delete ${restaurant.name} completely, including manager logins, tables, QR codes, menu, orders, bills, reports, waiter requests, feedback, and restaurant records.\n\nThis cannot be undone.`}
+              pendingText="Deleting..."
+            >
+              Delete Permanently
+            </ConfirmSubmitButton>
+          </form>
+        ) : null}
+      </div>
+    </details>
   );
 }

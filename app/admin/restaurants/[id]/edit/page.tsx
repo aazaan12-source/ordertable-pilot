@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/permissions";
 import { updateRestaurantDetails } from "@/lib/admin-restaurant-actions";
+import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/ui/confirm-submit-button";
@@ -22,21 +23,15 @@ export default async function AdminRestaurantEditPage({
   await requirePlatformAdmin();
   const { id } = await params;
   const { saved } = await searchParams;
-  const restaurant = await db.restaurant.findUnique({
-    where: { id },
-    include: { tables: { orderBy: { tableNumber: "asc" } } }
-  });
+  const restaurant = await db.restaurant.findUnique({ where: { id } });
   if (!restaurant) notFound();
-  const activeTables = restaurant.tables.filter((table) => table.status !== "INACTIVE");
-  const defaultTableCount = activeTables.length || restaurant.tables.length || 1;
-  const defaultFirstTableNumber = 1;
-  const defaultLastTableNumber = Math.max(activeTables[activeTables.length - 1]?.tableNumber || defaultTableCount, defaultFirstTableNumber);
 
   return (
     <main className="mx-auto max-w-4xl p-4 lg:p-6">
+      <AdminBreadcrumbs items={[{ label: "Restaurants", href: "/admin/restaurants" }, { label: restaurant.name, href: `/admin/restaurants/${restaurant.id}` }, { label: "Restaurant Profile" }]} />
       <div className="mb-5">
-        <h1 className="text-2xl font-bold">Edit Restaurant</h1>
-        <p className="text-sm text-muted-foreground">Changing the slug can affect existing printed QR codes. QR records will be regenerated to the latest slug.</p>
+        <h1 className="text-2xl font-bold">Restaurant Profile</h1>
+        <p className="text-sm text-muted-foreground">Edit name, location, phone, status, ordering settings, and billing configuration. Changing the slug can affect existing printed QR codes.</p>
       </div>
       {saved ? (
         <div className="mb-4 rounded-md border border-green-200 bg-green-50 p-3 text-sm font-medium text-green-800">
@@ -72,31 +67,8 @@ export default async function AdminRestaurantEditPage({
             <Input name="taxPercent" type="number" defaultValue={restaurant.taxPercent.toString()} placeholder="Tax percent" />
             <Input name="customerCancelWindowMinutes" type="number" defaultValue={restaurant.customerCancelWindowMinutes} placeholder="Customer cancel window in minutes" />
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="orderingEnabled" defaultChecked={restaurant.orderingEnabled} /> Ordering enabled</label>
-            <div className="rounded-md border bg-white p-3 md:col-span-2">
-              <p className="mb-2 text-sm font-bold">Tables and QR Codes</p>
-              <p className="mb-3 text-xs text-muted-foreground">
-                Set the first and last table number. Increasing creates missing QR codes. Reducing removes unused extra QR records; tables linked to old orders are hidden from active QR lists.
-              </p>
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Input name="firstTableNumber" type="number" min={1} max={500} defaultValue={defaultFirstTableNumber} placeholder="First table number, usually 1" />
-                <Input name="lastTableNumber" type="number" min={1} max={500} defaultValue={defaultLastTableNumber} placeholder="Last table number, e.g. 20" />
-              </div>
-            </div>
-            <div className="rounded-md border bg-white p-3 md:col-span-2">
-              <p className="mb-2 text-sm font-bold">Menu Setup</p>
-              <div className="grid gap-2 sm:grid-cols-2">
-                <label className="rounded-md border p-3 text-sm">
-                  <input type="radio" name="menuSetup" value="keep" defaultChecked /> Keep current menu
-                  <span className="mt-1 block text-xs text-muted-foreground">Restaurant settings will not clear categories or menu items.</span>
-                </label>
-                <label className="rounded-md border p-3 text-sm">
-                  <input type="radio" name="menuSetup" value="sample" /> Add sample menu
-                  <span className="mt-1 block text-xs text-muted-foreground">Adds sample menu only if menu is empty.</span>
-                </label>
-              </div>
-            </div>
             <div className="rounded-md border border-orange-300 bg-orange-50 p-3 text-sm text-orange-950 md:col-span-2">
-              Warning: confirm before changing slug on restaurants with already printed QR codes.
+              Warning: confirm before changing slug on restaurants with already printed QR codes. Manage table QR counts from the Tables & QR Codes page and menu setup from Menu Management.
             </div>
             <SubmitButton className="md:col-span-2" pendingText="Saving restaurant...">Save Changes</SubmitButton>
           </form>

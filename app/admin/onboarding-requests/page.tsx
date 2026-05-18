@@ -3,6 +3,7 @@ import { LeadStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/permissions";
 import { updateOnboardingLeadStatus } from "@/lib/admin-restaurant-actions";
+import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -36,9 +37,13 @@ export default async function AdminOnboardingRequestsPage({
 
   return (
     <main className="mx-auto max-w-6xl p-4 lg:p-6">
-      <div className="mb-5">
+      <AdminBreadcrumbs items={[{ label: "Onboarding Requests" }]} />
+      <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div>
         <h1 className="text-2xl font-bold">Onboarding Requests</h1>
         <p className="text-sm text-muted-foreground">Restaurant owners submit these from the public website. Convert approved requests into active restaurant accounts.</p>
+        </div>
+        <Link href="/admin/restaurants/new"><Button>Add Restaurant</Button></Link>
       </div>
 
       <Card className="mb-5">
@@ -88,7 +93,10 @@ export default async function AdminOnboardingRequestsPage({
                   ) : null}
                 </div>
               ) : (
-                <div className="mt-4 flex flex-wrap gap-2">
+                <div className="mt-4 flex flex-wrap items-center gap-2">
+                  <Link href={`/admin/restaurants/new?lead=${lead.id}`}>
+                    <Button>Convert to Restaurant</Button>
+                  </Link>
                   <form action={updateOnboardingLeadStatus} className="flex gap-2">
                     <input type="hidden" name="id" value={lead.id} />
                     <select name="status" defaultValue={lead.status} className="h-10 rounded-md border bg-white px-3 text-sm">
@@ -98,9 +106,6 @@ export default async function AdminOnboardingRequestsPage({
                     </select>
                     <Button variant="outline">Update</Button>
                   </form>
-                  <Link href={`/admin/restaurants/new?lead=${lead.id}`}>
-                    <Button>Convert to Restaurant</Button>
-                  </Link>
                 </div>
               )}
             </CardContent>
@@ -108,7 +113,7 @@ export default async function AdminOnboardingRequestsPage({
           );
         })}
       </div>
-      {leads.length === 0 ? <p className="rounded-lg border bg-white p-6 text-center text-muted-foreground">No onboarding requests found.</p> : null}
+      {leads.length === 0 ? <p className="rounded-lg border bg-white p-6 text-center text-muted-foreground">No onboarding requests yet.</p> : null}
     </main>
   );
 }

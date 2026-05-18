@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/permissions";
+import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/dashboard/status-badge";
 import { formatCurrency, formatPkTime } from "@/lib/utils";
@@ -17,7 +18,11 @@ export default async function AdminRestaurantOrders({ params }: { params: Promis
   if (!restaurant) notFound();
   return (
     <main className="mx-auto max-w-6xl p-4 lg:p-6">
-      <h1 className="text-2xl font-bold">{restaurant.name} Orders</h1>
+      <AdminBreadcrumbs items={[{ label: "Restaurants", href: "/admin/restaurants" }, { label: restaurant.name, href: `/admin/restaurants/${restaurant.id}` }, { label: "Orders" }]} />
+      <div>
+        <h1 className="text-2xl font-bold">Orders</h1>
+        <p className="text-sm text-muted-foreground">View recent orders and order history for {restaurant.name}.</p>
+      </div>
       <div className="mt-5 grid gap-4">
         {restaurant.orders.map((order) => (
           <Card key={order.id}>
@@ -37,6 +42,7 @@ export default async function AdminRestaurantOrders({ params }: { params: Promis
           </Card>
         ))}
       </div>
+      {restaurant.orders.length === 0 ? <p className="mt-5 rounded-lg border bg-white p-6 text-center text-muted-foreground">No orders found for this restaurant yet.</p> : null}
     </main>
   );
 }

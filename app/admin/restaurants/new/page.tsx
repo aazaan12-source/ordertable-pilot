@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/permissions";
 import { createRestaurantWithTablesAndManager } from "@/lib/admin-restaurant-actions";
 import { slugifyRestaurant } from "@/lib/admin-restaurant-utils";
+import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -43,8 +44,9 @@ export default async function NewRestaurantPage({
 
   return (
     <main className="mx-auto max-w-6xl p-3 sm:p-4 lg:p-6">
+      <AdminBreadcrumbs items={[{ label: "Restaurants", href: "/admin/restaurants" }, { label: "Add Restaurant" }]} />
       <div className="mb-5">
-        <h1 className="text-xl font-bold sm:text-2xl">Add New Restaurant</h1>
+        <h1 className="text-xl font-bold sm:text-2xl">Add Restaurant</h1>
         <p className="text-sm text-muted-foreground">Create restaurant details, table QR codes, manager login, and optional sample menu in one clean flow.</p>
       </div>
 

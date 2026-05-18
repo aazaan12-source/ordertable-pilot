@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
 import { requirePlatformAdmin } from "@/lib/permissions";
+import { AdminBreadcrumbs } from "@/components/admin/admin-breadcrumbs";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
 
@@ -18,7 +19,11 @@ export default async function AdminRestaurantReports({ params }: { params: Promi
   ]);
   return (
     <main className="mx-auto max-w-6xl p-4 lg:p-6">
-      <h1 className="text-2xl font-bold">{restaurant.name} Reports</h1>
+      <AdminBreadcrumbs items={[{ label: "Restaurants", href: "/admin/restaurants" }, { label: restaurant.name, href: `/admin/restaurants/${restaurant.id}` }, { label: "Reports" }]} />
+      <div>
+        <h1 className="text-2xl font-bold">Reports</h1>
+        <p className="text-sm text-muted-foreground">View sales, revenue, and order status summary for {restaurant.name}.</p>
+      </div>
       <div className="mt-5 grid gap-4 md:grid-cols-4">
         <Stat title="Total orders" value={orders} />
         <Stat title="Paid orders" value={paid} />
