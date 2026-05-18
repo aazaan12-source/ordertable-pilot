@@ -33,6 +33,9 @@ const itemImages: Record<string, string> = {
 };
 
 export const MAX_STORED_IMAGE_LENGTH = 350_000;
+export const MENU_IMAGE_CANVAS_WIDTH = 900;
+export const MENU_IMAGE_CANVAS_HEIGHT = 675;
+export const MENU_IMAGE_ASPECT_LABEL = "4:3";
 
 const keywordImages: { keywords: string[]; image: string }[] = [
   { keywords: ["burger", "zinger", "beef patty"], image: itemImages["zinger burger"] },

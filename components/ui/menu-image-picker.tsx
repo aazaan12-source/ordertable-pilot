@@ -5,7 +5,8 @@ import { ImagePlus, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { MenuImage } from "@/components/ui/menu-image";
-import { MAX_STORED_IMAGE_LENGTH, safeStoredImageUrl, suggestedMenuImageFor } from "@/lib/menu-images";
+import { normalizeMenuImageFile } from "@/lib/client-image-normalizer";
+import { MAX_STORED_IMAGE_LENGTH, MENU_IMAGE_ASPECT_LABEL, safeStoredImageUrl, suggestedMenuImageFor } from "@/lib/menu-images";
 
 type CategoryOption = {
   id: string;
@@ -85,13 +86,13 @@ export function MenuImagePicker({
     }
 
     try {
-      const compressed = await compressImageFile(file);
+      const compressed = await normalizeMenuImageFile(file);
       if (compressed.length > MAX_STORED_IMAGE_LENGTH) {
-        setStatus("Photo is still too large after compression. Please choose a smaller photo or paste an image URL.");
+        setStatus("Photo is still too large after normalization. Please choose a smaller photo or paste an image URL.");
         return;
       }
       setValue(compressed);
-      setStatus("Local photo compressed and ready to save.");
+      setStatus(`Local photo normalized to the platform ${MENU_IMAGE_ASPECT_LABEL} menu ratio and ready to save.`);
     } catch (error) {
       console.error("[MenuImagePicker] image compression failed", error);
       setStatus("Could not prepare this photo. Please choose another image or paste an image URL.");
@@ -150,48 +151,9 @@ export function MenuImagePicker({
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">{status}</p>
+          <p className="text-xs text-muted-foreground">Local uploads are automatically centered, scaled, and saved in the platform menu image ratio.</p>
         </div>
       </div>
     </div>
   );
-}
-
-function loadImage(src: string) {
-  return new Promise<HTMLImageElement>((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = reject;
-    image.src = src;
-  });
-}
-
-async function compressImageFile(file: File) {
-  const objectUrl = URL.createObjectURL(file);
-  try {
-    const image = await loadImage(objectUrl);
-    const width = 720;
-    const height = 540;
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("Canvas is not available.");
-    context.fillStyle = "#ffffff";
-    context.fillRect(0, 0, width, height);
-    const ratio = Math.min(width / image.width, height / image.height);
-    const drawWidth = Math.max(1, Math.round(image.width * ratio));
-    const drawHeight = Math.max(1, Math.round(image.height * ratio));
-    const drawX = Math.round((width - drawWidth) / 2);
-    const drawY = Math.round((height - drawHeight) / 2);
-    context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
-
-    for (const quality of [0.78, 0.68, 0.58, 0.48]) {
-      const dataUrl = canvas.toDataURL("image/jpeg", quality);
-      if (dataUrl.length <= MAX_STORED_IMAGE_LENGTH) return dataUrl;
-    }
-
-    return canvas.toDataURL("image/jpeg", 0.42);
-  } finally {
-    URL.revokeObjectURL(objectUrl);
-  }
 }
