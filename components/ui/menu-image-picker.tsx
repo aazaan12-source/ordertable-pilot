@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { ImagePlus, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { MenuImage } from "@/components/ui/menu-image";
 import { MAX_STORED_IMAGE_LENGTH, safeStoredImageUrl, suggestedMenuImageFor } from "@/lib/menu-images";
 
 type CategoryOption = {
@@ -101,10 +102,11 @@ export function MenuImagePicker({
     <div className="rounded-md border bg-white p-3">
       <input ref={hiddenInputRef} type="hidden" name={name} value={value} />
       <div className="grid gap-3 sm:grid-cols-[120px_1fr]">
-        <img
+        <MenuImage
           src={value || suggested}
           alt="Menu item preview"
-          className="h-28 w-full rounded-md object-cover sm:h-24"
+          variant="picker"
+          className="sm:aspect-auto sm:h-24"
           onError={() => {
             setValue(suggested);
             setStatus("Image could not load, so the smart image is being used.");
@@ -167,16 +169,21 @@ async function compressImageFile(file: File) {
   const objectUrl = URL.createObjectURL(file);
   try {
     const image = await loadImage(objectUrl);
-    const maxSide = 720;
-    const ratio = Math.min(1, maxSide / Math.max(image.width, image.height));
-    const width = Math.max(1, Math.round(image.width * ratio));
-    const height = Math.max(1, Math.round(image.height * ratio));
+    const width = 720;
+    const height = 540;
     const canvas = document.createElement("canvas");
     canvas.width = width;
     canvas.height = height;
     const context = canvas.getContext("2d");
     if (!context) throw new Error("Canvas is not available.");
-    context.drawImage(image, 0, 0, width, height);
+    context.fillStyle = "#ffffff";
+    context.fillRect(0, 0, width, height);
+    const ratio = Math.min(width / image.width, height / image.height);
+    const drawWidth = Math.max(1, Math.round(image.width * ratio));
+    const drawHeight = Math.max(1, Math.round(image.height * ratio));
+    const drawX = Math.round((width - drawWidth) / 2);
+    const drawY = Math.round((height - drawHeight) / 2);
+    context.drawImage(image, drawX, drawY, drawWidth, drawHeight);
 
     for (const quality of [0.78, 0.68, 0.58, 0.48]) {
       const dataUrl = canvas.toDataURL("image/jpeg", quality);

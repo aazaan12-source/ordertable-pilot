@@ -8,9 +8,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MenuImagePicker } from "@/components/ui/menu-image-picker";
+import { MenuImage } from "@/components/ui/menu-image";
 import { SortableGroupedReorderPanel, SortableReorderPanel } from "@/components/ui/sortable-reorder-panel";
 import { formatCurrency } from "@/lib/utils";
-import { menuImageFor, safeStoredImageUrl } from "@/lib/menu-images";
+import { categoryImageFor, menuImageFor, safeStoredImageUrl } from "@/lib/menu-images";
 import { sortMenuItemsForDisplay } from "@/lib/menu-ordering";
 
 export const dynamic = "force-dynamic";
@@ -134,7 +135,7 @@ export default async function AdminRestaurantMenuPage({
             {sortedMenuItems.map((item) => (
               <Card id={`item-${item.id}`} key={item.id} className={!item.isActive ? "opacity-60" : ""}>
                 <CardContent className="grid gap-4 p-4 lg:grid-cols-[180px_1fr]">
-                  <img src={menuImageFor(item.name, item.category.name, item.imageUrl)} alt={item.name} className="h-40 w-full rounded-md object-cover" />
+                  <MenuImage src={menuImageFor(item.name, item.category.name, item.imageUrl)} alt={item.name} className="lg:h-40" />
                   <div>
                     <form action={updateRestaurantMenuItem} className="space-y-3">
                       <input type="hidden" name="restaurantId" value={restaurant.id} />
@@ -195,6 +196,7 @@ export default async function AdminRestaurantMenuPage({
                   id: category.id,
                   title: category.name,
                   subtitle: `${category._count.menuItems} menu item${category._count.menuItems === 1 ? "" : "s"}`,
+                  imageUrl: categoryImageFor(category.name, category.imageUrl),
                   badges: [category.isActive ? "Active" : "Inactive"],
                   actions: [{ label: "Edit, status, delete", href: `#category-${category.id}` }],
                   muted: !category.isActive
@@ -238,4 +240,3 @@ export default async function AdminRestaurantMenuPage({
     </main>
   );
 }
-

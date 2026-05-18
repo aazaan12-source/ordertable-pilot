@@ -7,6 +7,7 @@ import { Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { MenuImage } from "@/components/ui/menu-image";
 import { formatCurrency } from "@/lib/utils";
 import { categoryImageFor, menuImageFor } from "@/lib/menu-images";
 
@@ -179,7 +180,7 @@ export function OrderMenu({
                     }`}
                   >
                     <span className="flex min-w-0 flex-col items-center gap-1 sm:flex-row sm:gap-2">
-                      <img src={categoryImageFor(category.name, category.imageUrl)} alt="" className="h-8 w-8 shrink-0 rounded object-cover sm:h-9 sm:w-9" />
+                      <MenuImage src={categoryImageFor(category.name, category.imageUrl)} variant="categoryIcon" />
                       <span className="line-clamp-2 break-words">{category.name}</span>
                     </span>
                   </button>
@@ -193,11 +194,11 @@ export function OrderMenu({
               const cartItem = cartById.get(item.id);
               return (
                 <Card key={item.id} className="grid min-w-0 grid-cols-[78px_minmax(0,1fr)] overflow-hidden sm:grid-cols-[104px_minmax(0,1fr)] md:block">
-                  <img
+                  <MenuImage
                     src={menuImageFor(item.name, item.category.name, item.imageUrl)}
                     alt={item.name}
-                    className="h-full min-h-[112px] w-full object-cover md:h-36 md:min-h-0 lg:h-44"
-                    loading="lazy"
+                    variant="customerCard"
+                    className="border-0"
                   />
                   <CardContent className="min-w-0 p-2 sm:p-3 lg:p-4">
                     <div className="flex min-w-0 items-start justify-between gap-2">

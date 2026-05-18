@@ -7,6 +7,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { Check, GripVertical, X } from "lucide-react";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { Button } from "@/components/ui/button";
+import { MenuImage } from "@/components/ui/menu-image";
 import { cn } from "@/lib/utils";
 
 export type SortableDisplayItem = {
@@ -167,7 +168,7 @@ function SortableRow({ item, reordering }: { item: SortableDisplayItem; reorderi
         <GripVertical className="h-4 w-4" />
       </button>
       <div className="flex min-w-0 items-center gap-3">
-        {item.imageUrl ? <img src={item.imageUrl} alt="" className="h-10 w-10 rounded-md object-cover" /> : null}
+        {item.imageUrl ? <MenuImage src={item.imageUrl} variant="thumbnail" /> : null}
         <div className="min-w-0">
           <p className="truncate font-semibold">{item.title}</p>
           {item.subtitle ? <p className="truncate text-xs text-muted-foreground">{item.subtitle}</p> : null}

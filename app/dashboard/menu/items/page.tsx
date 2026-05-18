@@ -5,6 +5,7 @@ import { ConfirmSubmitButton, SubmitButton } from "@/components/ui/confirm-submi
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MenuImagePicker } from "@/components/ui/menu-image-picker";
+import { MenuImage } from "@/components/ui/menu-image";
 import { SortableGroupedReorderPanel } from "@/components/ui/sortable-reorder-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/utils";
@@ -194,7 +195,7 @@ export default async function MenuItemsPage() {
           {sortedItems.map((item) => (
             <Card id={`item-${item.id}`} key={item.id} className={!item.isActive ? "opacity-60" : ""}>
               <CardContent className="grid gap-4 p-4 lg:grid-cols-[180px_1fr]">
-                <img src={menuImageFor(item.name, item.category.name, item.imageUrl)} alt={item.name} className="h-40 w-full rounded-md object-cover" />
+                <MenuImage src={menuImageFor(item.name, item.category.name, item.imageUrl)} alt={item.name} className="lg:h-40" />
                 <div>
                   <form action={updateMenuItem} className="space-y-3">
                     <input type="hidden" name="id" value={item.id} />

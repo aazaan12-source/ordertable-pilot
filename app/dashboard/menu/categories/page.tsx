@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { MenuImagePicker } from "@/components/ui/menu-image-picker";
 import { SortableReorderPanel } from "@/components/ui/sortable-reorder-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cleanSubmittedMenuImage, safeStoredImageUrl } from "@/lib/menu-images";
+import { categoryImageFor, cleanSubmittedMenuImage, safeStoredImageUrl } from "@/lib/menu-images";
 import { applyCategoryOrder, normalizeCategoryPositions, orderedIdsFromForm } from "@/lib/menu-ordering";
 
 export const dynamic = "force-dynamic";
@@ -124,6 +124,7 @@ export default async function CategoriesPage() {
                   id: category.id,
                   title: category.name,
                   subtitle: `${category._count.menuItems} menu item${category._count.menuItems === 1 ? "" : "s"}`,
+                  imageUrl: categoryImageFor(category.name, category.imageUrl),
                   badges: [category.isActive ? "Active" : "Inactive"],
                   actions: [{ label: "Edit, status, delete", href: `#category-${category.id}` }],
                   muted: !category.isActive
