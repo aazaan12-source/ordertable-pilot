@@ -8,8 +8,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmSubmitButton } from "@/components/ui/confirm-submit-button";
+import { ActionMenu } from "@/components/ui/action-menu";
 import { formatPkDateTime } from "@/lib/utils";
-import { MoreVertical } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -127,7 +127,7 @@ export default async function RestaurantsPage({
         })}
       </div>
 
-      <div className="hidden overflow-hidden rounded-lg border bg-white lg:block">
+      <div className="hidden rounded-lg border bg-white lg:block">
         <div className="grid grid-cols-[1.45fr_1fr_0.75fr_1.1fr_0.85fr_0.9fr] gap-3 border-b bg-muted px-4 py-3 text-xs font-bold uppercase tracking-wide text-muted-foreground">
           <span>Restaurant</span>
           <span>Branch / City</span>
@@ -177,57 +177,52 @@ export default async function RestaurantsPage({
 
 function RestaurantActions({ restaurant }: { restaurant: any }) {
   return (
-    <details className="relative">
-      <summary className="flex h-9 w-9 list-none items-center justify-center rounded-md border bg-white text-muted-foreground hover:bg-muted [&::-webkit-details-marker]:hidden" aria-label={`Actions for ${restaurant.name}`}>
-        <MoreVertical className="h-4 w-4" />
-      </summary>
-      <div className="absolute right-0 top-10 z-20 w-56 rounded-md border bg-white p-2 text-sm shadow-lg">
-        <Link href={`/admin/restaurants/${restaurant.id}/edit`} className="block rounded px-3 py-2 hover:bg-muted">Edit Profile</Link>
-        <Link href={`/admin/restaurants/${restaurant.id}/orders`} className="block rounded px-3 py-2 hover:bg-muted">View Orders</Link>
-        <Link href={`/admin/restaurants/${restaurant.id}/reports`} className="block rounded px-3 py-2 hover:bg-muted">View Reports</Link>
-        <div className="my-1 border-t" />
-        <form action={toggleOrdering}>
-          <input type="hidden" name="id" value={restaurant.id} />
-          <input type="hidden" name="orderingEnabled" value={String(!restaurant.orderingEnabled)} />
+    <ActionMenu label={`Actions for ${restaurant.name}`}>
+      <Link href={`/admin/restaurants/${restaurant.id}/edit`} className="block rounded px-3 py-2 hover:bg-muted">Edit Profile</Link>
+      <Link href={`/admin/restaurants/${restaurant.id}/orders`} className="block rounded px-3 py-2 hover:bg-muted">View Orders</Link>
+      <Link href={`/admin/restaurants/${restaurant.id}/reports`} className="block rounded px-3 py-2 hover:bg-muted">View Reports</Link>
+      <div className="my-1 border-t" />
+      <form action={toggleOrdering}>
+        <input type="hidden" name="id" value={restaurant.id} />
+        <input type="hidden" name="orderingEnabled" value={String(!restaurant.orderingEnabled)} />
+        <ConfirmSubmitButton
+          className="w-full justify-start"
+          size="sm"
+          variant="ghost"
+          message={restaurant.orderingEnabled ? `Disable online ordering for ${restaurant.name}? Customers will not be able to place QR orders until it is enabled again.` : `Enable online ordering for ${restaurant.name}?`}
+          pendingText="Saving..."
+        >
+          {restaurant.orderingEnabled ? "Disable Ordering" : "Enable Ordering"}
+        </ConfirmSubmitButton>
+      </form>
+      <form action={toggleRestaurantStatus}>
+        <input type="hidden" name="id" value={restaurant.id} />
+        <input type="hidden" name="status" value={restaurant.status === "ACTIVE" ? "INACTIVE" : "ACTIVE"} />
+        <ConfirmSubmitButton
+          className="w-full justify-start"
+          size="sm"
+          variant={restaurant.status === "ACTIVE" ? "ghost" : "ghost"}
+          message={restaurant.status === "ACTIVE" ? `Deactivate ${restaurant.name}? Existing records remain saved, but the restaurant will be marked inactive.` : `Activate ${restaurant.name}?`}
+          pendingText="Saving..."
+        >
+          {restaurant.status === "ACTIVE" ? "Deactivate" : "Activate"}
+        </ConfirmSubmitButton>
+      </form>
+      {restaurant.status === "INACTIVE" ? (
+        <form action={deleteRestaurantCompletely} className="mt-1">
+          <input type="hidden" name="restaurantId" value={restaurant.id} />
+          <input type="hidden" name="confirmation" value={restaurant.slug} />
           <ConfirmSubmitButton
-            className="w-full justify-start"
+            className="w-full justify-start text-red-700 hover:bg-red-50"
             size="sm"
             variant="ghost"
-            message={restaurant.orderingEnabled ? `Disable online ordering for ${restaurant.name}? Customers will not be able to place QR orders until it is enabled again.` : `Enable online ordering for ${restaurant.name}?`}
-            pendingText="Saving..."
+            message={`Permanent delete warning:\n\nThis will delete ${restaurant.name} completely, including manager logins, tables, QR codes, menu, orders, bills, reports, waiter requests, feedback, and restaurant records.\n\nThis cannot be undone.`}
+            pendingText="Deleting..."
           >
-            {restaurant.orderingEnabled ? "Disable Ordering" : "Enable Ordering"}
+            Delete Permanently
           </ConfirmSubmitButton>
         </form>
-        <form action={toggleRestaurantStatus}>
-          <input type="hidden" name="id" value={restaurant.id} />
-          <input type="hidden" name="status" value={restaurant.status === "ACTIVE" ? "INACTIVE" : "ACTIVE"} />
-          <ConfirmSubmitButton
-            className="w-full justify-start"
-            size="sm"
-            variant={restaurant.status === "ACTIVE" ? "ghost" : "ghost"}
-            message={restaurant.status === "ACTIVE" ? `Deactivate ${restaurant.name}? Existing records remain saved, but the restaurant will be marked inactive.` : `Activate ${restaurant.name}?`}
-            pendingText="Saving..."
-          >
-            {restaurant.status === "ACTIVE" ? "Deactivate" : "Activate"}
-          </ConfirmSubmitButton>
-        </form>
-        {restaurant.status === "INACTIVE" ? (
-          <form action={deleteRestaurantCompletely} className="mt-1">
-            <input type="hidden" name="restaurantId" value={restaurant.id} />
-            <input type="hidden" name="confirmation" value={restaurant.slug} />
-            <ConfirmSubmitButton
-              className="w-full justify-start text-red-700 hover:bg-red-50"
-              size="sm"
-              variant="ghost"
-              message={`Permanent delete warning:\n\nThis will delete ${restaurant.name} completely, including manager logins, tables, QR codes, menu, orders, bills, reports, waiter requests, feedback, and restaurant records.\n\nThis cannot be undone.`}
-              pendingText="Deleting..."
-            >
-              Delete Permanently
-            </ConfirmSubmitButton>
-          </form>
-        ) : null}
-      </div>
-    </details>
+      ) : null}
+    </ActionMenu>
   );
 }

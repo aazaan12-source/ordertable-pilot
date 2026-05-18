@@ -4,7 +4,8 @@ import { useEffect, useMemo, useState, useTransition } from "react";
 import { closestCenter, DndContext, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Check, GripVertical, MoreVertical, X } from "lucide-react";
+import { Check, GripVertical, X } from "lucide-react";
+import { ActionMenu } from "@/components/ui/action-menu";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -181,18 +182,13 @@ function SortableRow({ item, reordering }: { item: SortableDisplayItem; reorderi
           ))}
         </div>
         {item.actions?.length ? (
-          <details className="group relative">
-            <summary className="flex h-8 w-8 list-none items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground [&::-webkit-details-marker]:hidden" aria-label="Actions">
-              <MoreVertical className="h-4 w-4" />
-            </summary>
-            <div className="absolute right-0 top-9 z-20 min-w-44 overflow-hidden rounded-md border bg-white py-1 text-sm shadow-lg">
-              {item.actions.map((action) => (
-                <a key={`${item.id}-${action.label}`} href={action.href} className="block px-3 py-2 text-foreground hover:bg-muted">
-                  {action.label}
-                </a>
-              ))}
-            </div>
-          </details>
+          <ActionMenu label={`Actions for ${item.title}`} className="h-8 w-8 border-0" menuClassName="w-44 p-1">
+            {item.actions.map((action) => (
+              <a key={`${item.id}-${action.label}`} href={action.href} className="block rounded px-3 py-2 text-foreground hover:bg-muted">
+                {action.label}
+              </a>
+            ))}
+          </ActionMenu>
         ) : null}
       </div>
     </div>
