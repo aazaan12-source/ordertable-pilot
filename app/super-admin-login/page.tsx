@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
+import Link from "next/link";
 import { headers } from "next/headers";
 import { db } from "@/lib/db";
 import { createSuperAdminSession } from "@/lib/super-admin-auth";
@@ -51,9 +52,9 @@ async function loginSuperAdmin(formData: FormData) {
 export default async function SuperAdminLoginPage({
   searchParams
 }: {
-  searchParams: Promise<{ error?: string; callbackUrl?: string }>;
+  searchParams: Promise<{ error?: string; callbackUrl?: string; reset?: string }>;
 }) {
-  const { error, callbackUrl = "/admin" } = await searchParams;
+  const { error, callbackUrl = "/admin", reset } = await searchParams;
   return (
     <main className="flex min-h-screen items-center justify-center px-4 py-10">
       <Card className="w-full max-w-md">
@@ -67,11 +68,15 @@ export default async function SuperAdminLoginPage({
             <Input name="email" type="email" placeholder="Email" required />
             <PasswordInput name="password" placeholder="Password" required />
             {error ? <p className="text-sm text-destructive">Invalid email or password.</p> : null}
+            {reset ? <p className="text-sm font-medium text-green-700">Password reset successfully. Sign in with the new password.</p> : null}
             <Button className="w-full" size="lg">Sign in as Super Admin</Button>
           </form>
           <p className="mt-5 rounded-md bg-muted p-3 text-xs text-muted-foreground">
             Use the platform admin credentials configured for this deployment.
           </p>
+          <Link href="/super-admin-login/recover" className="mt-3 block text-center text-sm font-semibold text-primary hover:underline">
+            Forgot login ID or password?
+          </Link>
         </CardContent>
       </Card>
     </main>

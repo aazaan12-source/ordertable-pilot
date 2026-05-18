@@ -335,6 +335,18 @@ Security Operations Notes:
 9. Review activity logs.
 10. Run npm audit regularly.
 
+Super Admin Recovery Notes:
+1. Login as Super Admin.
+2. Open /admin/settings.
+3. Save alternate recovery email and recovery mobile number.
+4. Forgotten login ID/password page is /super-admin-login/recover.
+5. Password reset uses a 6-digit OTP that expires after 10 minutes.
+6. OTP hashes are stored in AdminPasswordResetOtp; plain OTPs are not stored.
+7. Configure RECOVERY_EMAIL_WEBHOOK_URL to send email recovery messages.
+8. Configure RECOVERY_SMS_WEBHOOK_URL to send mobile OTP messages.
+9. Configure RECOVERY_WEBHOOK_SECRET if the webhook provider needs bearer authentication.
+10. Recovery messages can be delivered through SendGrid, Twilio, WhatsApp/SMS gateway, Make, Zapier, or another provider that accepts JSON webhooks.
+
 ============================================================
 12. Deployment Troubleshooting
 ============================================================

@@ -23,6 +23,9 @@ PRISMA_POOL_TIMEOUT="20"
 NEXTAUTH_SECRET="generate-a-long-random-secret"
 NEXTAUTH_URL="http://127.0.0.1:3000"
 APP_URL="http://127.0.0.1:3000"
+RECOVERY_EMAIL_WEBHOOK_URL=""
+RECOVERY_SMS_WEBHOOK_URL=""
+RECOVERY_WEBHOOK_SECRET=""
 ```
 
 Use the real public app URL for `APP_URL` in production so QR codes point to the correct domain.
@@ -280,6 +283,37 @@ Super admin can mark requests as contacted/closed and convert a request into a r
 - Public order, waiter request, feedback, print, status, payment, and report operations return friendly errors instead of exposing stack traces.
 - Activity logs include important order/login/print actions and can store IP/user-agent context.
 - Security headers are set for frame, content-type, referrer, and browser permission hardening.
+
+### Super Admin Credential Recovery
+
+Super admin recovery contacts are controlled from:
+
+```txt
+/admin/settings
+```
+
+The logged-in platform admin can save:
+
+- Alternate recovery email
+- Recovery mobile number
+
+Forgotten credential flow:
+
+```txt
+/super-admin-login/recover
+```
+
+- Forgot login ID: enter the saved recovery email or mobile number, and the platform sends the admin login email to that contact.
+- Forgot password: enter the admin login email plus the saved recovery email/mobile number. The platform creates a 6-digit OTP, stores only a bcrypt hash, expires it after 10 minutes, and allows a new password only after OTP verification.
+- Recovery attempts are rate-limited and activity-logged.
+
+Delivery provider setup:
+
+- `RECOVERY_EMAIL_WEBHOOK_URL` receives email recovery messages.
+- `RECOVERY_SMS_WEBHOOK_URL` receives mobile OTP messages.
+- `RECOVERY_WEBHOOK_SECRET` is sent as a bearer token if configured.
+
+These webhooks can point to a provider such as SendGrid, Twilio, WhatsApp/SMS gateway, Make, or Zapier. If no provider is configured, the recovery pages remain available but production OTP delivery will not be sent externally.
 
 Production security checklist:
 
