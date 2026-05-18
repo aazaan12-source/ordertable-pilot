@@ -1,16 +1,24 @@
 import { NextResponse } from "next/server";
+import { RestaurantStatus, TableStatus } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
+import { clientIpFromHeaders, userAgentFromHeaders } from "@/lib/security";
+import { rateLimit } from "@/lib/rate-limit";
 
 const schema = z.object({
-  restaurantSlug: z.string().optional(),
-  tableNumber: z.number().int().min(1).optional(),
-  orderId: z.string().optional(),
+  restaurantSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(80).optional(),
+  tableNumber: z.number().int().min(1).max(500).optional(),
+  orderId: z.string().max(100).optional(),
   type: z.enum(["CALL_WAITER", "BILL_REQUEST", "WATER_REQUEST", "CLEAN_TABLE"])
 });
 
 export async function POST(request: Request) {
   try {
+    const ipAddress = clientIpFromHeaders(request.headers);
+    const userAgent = userAgentFromHeaders(request.headers);
+    if (!rateLimit(`waiter:${ipAddress}`, 20, 5 * 60_000).allowed) {
+      return NextResponse.json({ error: "Too many requests. Please wait or call staff." }, { status: 429 });
+    }
     const parsed = schema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "Invalid request." }, { status: 400 });
 
@@ -20,8 +28,11 @@ export async function POST(request: Request) {
     let orderNumber: string | undefined;
 
     if (orderId) {
-      const order = await db.order.findUnique({ where: { id: orderId }, include: { table: true } });
+      const order = await db.order.findUnique({ where: { id: orderId }, include: { table: true, restaurant: true } });
       if (!order) return NextResponse.json({ error: "Order not found." }, { status: 404 });
+      if (order.restaurant.status !== RestaurantStatus.ACTIVE || !order.restaurant.orderingEnabled || order.table.status === TableStatus.INACTIVE) {
+        return NextResponse.json({ error: "This table cannot send requests right now." }, { status: 403 });
+      }
       restaurantId = order.restaurantId;
       tableId = order.tableId;
       orderNumber = order.orderNumber;
@@ -31,6 +42,9 @@ export async function POST(request: Request) {
         include: { restaurant: true }
       });
       if (!table) return NextResponse.json({ error: "Invalid table QR code." }, { status: 404 });
+      if (table.restaurant.status !== RestaurantStatus.ACTIVE || !table.restaurant.orderingEnabled || table.status === TableStatus.INACTIVE) {
+        return NextResponse.json({ error: "This table cannot send requests right now." }, { status: 403 });
+      }
       restaurantId = table.restaurantId;
       tableId = table.id;
 
@@ -87,7 +101,9 @@ export async function POST(request: Request) {
           description:
             parsed.data.type === "BILL_REQUEST"
               ? `Bill requested${orderNumber ? ` for ${orderNumber}` : ""}`
-              : "Waiter called from customer table"
+              : "Waiter called from customer table",
+          ipAddress,
+          userAgent
         }
       });
 

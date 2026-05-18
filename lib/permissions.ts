@@ -7,15 +7,23 @@ import { requireSuperAdmin } from "@/lib/super-admin-auth";
 
 export async function getCurrentUser() {
   const session = await getServerSession(authOptions);
-  return session?.user as
+  const user = session?.user as
     | ({ id: string; name?: string | null; email?: string | null; role: UserRole; restaurantId?: string | null })
     | undefined;
+  if (!user?.id || !user.role) return undefined;
+  if ((user as any).isActive === false) return undefined;
+  return user;
 }
 
 export async function requireUser() {
   const user = await getCurrentUser();
   if (!user) redirect("/login");
-  return user;
+  const freshUser = await db.user.findUnique({
+    where: { id: user.id },
+    select: { id: true, name: true, email: true, role: true, restaurantId: true, isActive: true }
+  });
+  if (!freshUser?.isActive) redirect("/login");
+  return freshUser;
 }
 
 export async function requirePlatformAdmin() {
@@ -24,7 +32,7 @@ export async function requirePlatformAdmin() {
 
 export async function requireRestaurantManager() {
   const user = await requireUser();
-  if (user.role !== "RESTAURANT_MANAGER" || !user.restaurantId) redirect("/admin");
+  if (user.role !== "RESTAURANT_MANAGER" || !user.restaurantId) redirect("/login?error=restaurant-required");
   return user;
 }
 
@@ -37,4 +45,44 @@ export async function getManagerRestaurant() {
 
 export function canAccessRestaurant(user: { role: UserRole; restaurantId?: string | null }, restaurantId: string) {
   return user.role === "PLATFORM_ADMIN" || user.restaurantId === restaurantId;
+}
+
+export async function assertRestaurantAccess(restaurantId: string) {
+  const user = await requireUser();
+  if (user.role === "PLATFORM_ADMIN") {
+    const restaurant = await db.restaurant.findUnique({ where: { id: restaurantId }, select: { id: true } });
+    if (!restaurant) redirect("/admin/restaurants");
+    return { user, restaurantId };
+  }
+  if (user.role !== "RESTAURANT_MANAGER" || user.restaurantId !== restaurantId) {
+    redirect("/login?error=unauthorized");
+  }
+  return { user, restaurantId: user.restaurantId };
+}
+
+export async function assertOrderAccess(orderId: string) {
+  const user = await requireUser();
+  const order = await db.order.findUnique({ where: { id: orderId }, select: { id: true, restaurantId: true } });
+  if (!order || (user.role !== "PLATFORM_ADMIN" && order.restaurantId !== user.restaurantId)) {
+    redirect("/login?error=unauthorized");
+  }
+  return { user, order };
+}
+
+export async function assertMenuItemAccess(menuItemId: string) {
+  const user = await requireUser();
+  const menuItem = await db.menuItem.findUnique({ where: { id: menuItemId }, select: { id: true, restaurantId: true } });
+  if (!menuItem || (user.role !== "PLATFORM_ADMIN" && menuItem.restaurantId !== user.restaurantId)) {
+    redirect("/login?error=unauthorized");
+  }
+  return { user, menuItem };
+}
+
+export async function assertTableAccess(tableId: string) {
+  const user = await requireUser();
+  const table = await db.restaurantTable.findUnique({ where: { id: tableId }, select: { id: true, restaurantId: true } });
+  if (!table || (user.role !== "PLATFORM_ADMIN" && table.restaurantId !== user.restaurantId)) {
+    redirect("/login?error=unauthorized");
+  }
+  return { user, table };
 }

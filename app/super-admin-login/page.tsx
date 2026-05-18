@@ -1,7 +1,9 @@
 import bcrypt from "bcryptjs";
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
 import { db } from "@/lib/db";
 import { createSuperAdminSession } from "@/lib/super-admin-auth";
+import { clientIpFromHeaders, isLoginRateLimited, logActivity, recordLoginAttempt } from "@/lib/security";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,10 +14,36 @@ async function loginSuperAdmin(formData: FormData) {
   const email = String(formData.get("email") || "").trim().toLowerCase();
   const password = String(formData.get("password") || "");
   const callbackUrl = String(formData.get("callbackUrl") || "/admin");
+  const requestHeaders = await headers();
+  const ipAddress = clientIpFromHeaders(requestHeaders);
+  const failureUrl = `/super-admin-login?error=1&callbackUrl=${encodeURIComponent(callbackUrl.startsWith("/admin") ? callbackUrl : "/admin")}`;
+  if (await isLoginRateLimited(email, ipAddress)) {
+    await recordLoginAttempt({ email, ipAddress, success: false });
+    redirect(failureUrl);
+  }
   const user = await db.user.findUnique({ where: { email } });
-  if (!user || user.role !== "PLATFORM_ADMIN" || !user.isActive) redirect("/super-admin-login?error=1");
+  if (!user || user.role !== "PLATFORM_ADMIN" || !user.isActive) {
+    await recordLoginAttempt({ email, ipAddress, success: false });
+    redirect(failureUrl);
+  }
   const valid = await bcrypt.compare(password, user.passwordHash);
-  if (!valid) redirect("/super-admin-login?error=1");
+  if (!valid) {
+    await recordLoginAttempt({ email, ipAddress, success: false });
+    await logActivity({
+      userId: user.id,
+      action: "LOGIN_FAILED",
+      description: "Failed platform admin login attempt",
+      ipAddress
+    });
+    redirect(failureUrl);
+  }
+  await recordLoginAttempt({ email, ipAddress, success: true });
+  await logActivity({
+    userId: user.id,
+    action: "LOGIN_SUCCESS",
+    description: "Platform admin logged in",
+    ipAddress
+  });
   await createSuperAdminSession(user.id);
   redirect(callbackUrl.startsWith("/admin") ? callbackUrl : "/admin");
 }
@@ -36,14 +64,14 @@ export default async function SuperAdminLoginPage({
         <CardContent>
           <form action={loginSuperAdmin} className="space-y-4">
             <input type="hidden" name="callbackUrl" value={callbackUrl} />
-            <Input name="email" type="email" placeholder="Email" defaultValue="admin@ordertable.pk" required />
-            <PasswordInput name="password" placeholder="Password" defaultValue="Admin12345" required />
-            {error ? <p className="text-sm text-destructive">Login failed. Check super admin credentials.</p> : null}
+            <Input name="email" type="email" placeholder="Email" required />
+            <PasswordInput name="password" placeholder="Password" required />
+            {error ? <p className="text-sm text-destructive">Invalid email or password.</p> : null}
             <Button className="w-full" size="lg">Sign in as Super Admin</Button>
           </form>
-          <div className="mt-5 rounded-md bg-muted p-3 text-xs text-muted-foreground">
-            <p>Super admin: admin@ordertable.pk / Admin12345</p>
-          </div>
+          <p className="mt-5 rounded-md bg-muted p-3 text-xs text-muted-foreground">
+            Use the platform admin credentials configured for this deployment.
+          </p>
         </CardContent>
       </Card>
     </main>

@@ -125,8 +125,8 @@ export default async function NewRestaurantPage({
             <Input name="managerName" placeholder="Manager name" defaultValue={lead?.contactName || ""} required />
             <Input name="managerEmail" type="email" placeholder="Manager email" defaultValue={lead?.email || ""} required />
             <Input name="managerPhone" placeholder="Manager phone optional" defaultValue={lead?.phone || ""} />
-            <PasswordInput name="managerPassword" placeholder="Temporary password" defaultValue="Manager12345" required />
-            <PasswordInput name="managerPasswordConfirm" placeholder="Confirm temporary password" defaultValue="Manager12345" required />
+            <PasswordInput name="managerPassword" placeholder="Temporary password, minimum 8 characters" minLength={8} required />
+            <PasswordInput name="managerPasswordConfirm" placeholder="Confirm temporary password" minLength={8} required />
             <select name="managerIsActive" defaultValue="true" className="h-10 rounded-md border bg-white px-3 text-sm">
               <option value="true">Manager active</option>
               <option value="false">Manager disabled</option>

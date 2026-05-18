@@ -12,6 +12,8 @@ import { appBaseUrl } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
 
+const publicSlugPattern = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+
 export async function generateMetadata({
   params
 }: {
@@ -19,7 +21,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { restaurantSlug, tableNumber } = await params;
   const tableNo = Number(tableNumber);
-  if (!Number.isInteger(tableNo) || tableNo < 1) {
+  if (!publicSlugPattern.test(restaurantSlug) || !Number.isInteger(tableNo) || tableNo < 1 || tableNo > 500) {
     return { title: "OrderTable" };
   }
 
@@ -50,7 +52,7 @@ export default async function CustomerTablePage({
 }) {
   const { restaurantSlug, tableNumber } = await params;
   const tableNo = Number(tableNumber);
-  if (!Number.isInteger(tableNo) || tableNo < 1) notFound();
+  if (!publicSlugPattern.test(restaurantSlug) || !Number.isInteger(tableNo) || tableNo < 1 || tableNo > 500) notFound();
 
   let restaurant;
   try {

@@ -3,6 +3,7 @@ import type { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { UserRole } from "@prisma/client";
 import { db } from "@/lib/db";
+import { clientIpFromHeaders, isLoginRateLimited, logActivity, recordLoginAttempt } from "@/lib/security";
 
 export const authOptions: NextAuthOptions = {
   session: {
@@ -21,16 +22,41 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "email" },
         password: { label: "Password", type: "password" }
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.email || !credentials.password) return null;
-        const user = await db.user.findUnique({
-          where: { email: credentials.email.toLowerCase().trim() }
-        });
-        if (!user || !user.isActive) return null;
-        if (![UserRole.RESTAURANT_MANAGER, UserRole.PLATFORM_ADMIN].includes(user.role)) return null;
+        const email = credentials.email.toLowerCase().trim();
+        const ipAddress = clientIpFromHeaders(req?.headers as any);
+        if (await isLoginRateLimited(email, ipAddress)) {
+          await recordLoginAttempt({ email, ipAddress, success: false });
+          return null;
+        }
+
+        const user = await db.user.findUnique({ where: { email } });
+        if (!user || !user.isActive || ![UserRole.RESTAURANT_MANAGER, UserRole.PLATFORM_ADMIN].includes(user.role)) {
+          await recordLoginAttempt({ email, ipAddress, success: false });
+          return null;
+        }
         const valid = await bcrypt.compare(credentials.password, user.passwordHash);
-        if (!valid) return null;
+        if (!valid) {
+          await recordLoginAttempt({ email, ipAddress, success: false });
+          await logActivity({
+            restaurantId: user.restaurantId,
+            userId: user.id,
+            action: "LOGIN_FAILED",
+            description: "Failed login attempt",
+            ipAddress
+          });
+          return null;
+        }
         await db.user.update({ where: { id: user.id }, data: { lastLoginAt: new Date() } }).catch(() => undefined);
+        await recordLoginAttempt({ email, ipAddress, success: true });
+        await logActivity({
+          restaurantId: user.restaurantId,
+          userId: user.id,
+          action: "LOGIN_SUCCESS",
+          description: "User logged in",
+          ipAddress
+        });
         return {
           id: user.id,
           name: user.name,

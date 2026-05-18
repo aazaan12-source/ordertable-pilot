@@ -32,11 +32,8 @@ function LoginShell() {
 function LoginForm() {
   const router = useRouter();
   const search = useSearchParams();
-  const demo = search.get("demo");
-  const defaultEmail = demo === "manager" ? "manager@demo.com" : "";
-  const defaultPassword = demo === "manager" ? "Manager12345" : "";
-  const [email, setEmail] = useState(defaultEmail);
-  const [password, setPassword] = useState(defaultPassword);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -63,7 +60,7 @@ function LoginForm() {
     const result = await signIn("credentials", { email, password, redirect: false });
     setLoading(false);
     if (result?.error) {
-      setError("Login failed. Check your email and password.");
+      setError("Invalid email or password.");
       return;
     }
     const session = await getSession();
@@ -92,10 +89,9 @@ function LoginForm() {
               {loading ? "Signing in..." : "Sign in"}
             </Button>
           </form>
-          <div className="mt-5 rounded-md bg-muted p-3 text-xs text-muted-foreground">
-            <p>Manager: manager@demo.com / Manager12345</p>
-            <p>Super admin: admin@ordertable.pk / Admin12345</p>
-          </div>
+          <p className="mt-5 rounded-md bg-muted p-3 text-xs text-muted-foreground">
+            Use the manager login provided by the platform admin.
+          </p>
         </CardContent>
       </Card>
     </main>

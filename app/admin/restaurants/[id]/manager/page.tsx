@@ -41,7 +41,7 @@ export default async function AdminRestaurantManagerPage({ params }: { params: P
             <Input name="name" placeholder="Manager name" defaultValue={manager?.name || ""} required />
             <Input name="email" type="email" placeholder="Manager email" defaultValue={manager?.email || ""} required />
             <Input name="phone" placeholder="Phone optional" defaultValue={manager?.phone || ""} />
-            <PasswordInput name="password" placeholder={manager ? "New temporary password optional" : "Temporary password"} defaultValue={manager ? "" : "Manager12345"} required={!manager} />
+            <PasswordInput name="password" placeholder={manager ? "New temporary password optional" : "Temporary password, minimum 8 characters"} minLength={8} required={!manager} />
             <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isActive" defaultChecked={manager?.isActive ?? true} /> Manager login active</label>
             <div className="text-sm text-muted-foreground">
               Last login: <strong>{manager?.lastLoginAt ? formatPkDateTime(manager.lastLoginAt) : "Not recorded yet"}</strong>

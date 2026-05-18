@@ -3,19 +3,26 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { calculateTotals, toNumber } from "@/lib/pricing";
 import { getCancelInfo, nextTableStatusAfterClosing, serializeOrder } from "@/lib/order-utils";
+import { clientIpFromHeaders, userAgentFromHeaders } from "@/lib/security";
+import { rateLimit } from "@/lib/rate-limit";
 
 const updateOrderSchema = z.object({
   specialNote: z.string().max(500).optional().nullable(),
   items: z.array(z.object({
-    menuItemId: z.string().min(1),
-    quantity: z.number().int().min(1).max(20),
+    menuItemId: z.string().min(1).max(100),
+    quantity: z.number().int().min(1).max(50),
     specialInstruction: z.string().max(300).optional().nullable()
-  })).min(1).max(30)
+  })).min(1).max(100)
 });
 
-export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
+    if (id.length > 100) return NextResponse.json({ error: "Invalid order." }, { status: 400 });
+    const ipAddress = clientIpFromHeaders(request.headers);
+    if (!rateLimit(`customer-order-read:${ipAddress}`, 60, 5 * 60_000).allowed) {
+      return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });
+    }
     const order = await db.order.findUnique({
       where: { id },
       include: { table: true, restaurant: true, items: true, waiterRequests: true }
@@ -34,8 +41,18 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
+    if (id.length > 100) return NextResponse.json({ error: "Invalid order." }, { status: 400 });
     const parsed = updateOrderSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "Invalid order details." }, { status: 400 });
+    const totalQuantity = parsed.data.items.reduce((sum, item) => sum + item.quantity, 0);
+    if (totalQuantity > 100) {
+      return NextResponse.json({ error: "Too many items in one order. Please split the order or call staff." }, { status: 400 });
+    }
+    const ipAddress = clientIpFromHeaders(request.headers);
+    const userAgent = userAgentFromHeaders(request.headers);
+    if (!rateLimit(`customer-order-write:${ipAddress}`, 20, 5 * 60_000).allowed) {
+      return NextResponse.json({ error: "Too many order attempts. Please wait or call staff." }, { status: 429 });
+    }
 
     const order = await db.order.findUnique({
       where: { id },
@@ -76,7 +93,9 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         data: {
           restaurantId: order.restaurantId,
           action: "ORDER_EDITED_BY_CUSTOMER",
-          description: `${order.orderNumber} edited before acceptance`
+          description: `${order.orderNumber} edited before acceptance`,
+          ipAddress,
+          userAgent
         }
       });
       return tx.order.update({
@@ -100,9 +119,15 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   }
 }
 
-export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
+export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   try {
+    if (id.length > 100) return NextResponse.json({ error: "Invalid order." }, { status: 400 });
+    const ipAddress = clientIpFromHeaders(request.headers);
+    const userAgent = userAgentFromHeaders(request.headers);
+    if (!rateLimit(`customer-order-write:${ipAddress}`, 20, 5 * 60_000).allowed) {
+      return NextResponse.json({ error: "Too many order attempts. Please wait or call staff." }, { status: 429 });
+    }
     const order = await db.order.findUnique({ where: { id }, include: { restaurant: true } });
     if (!order) return NextResponse.json({ error: "Order not found." }, { status: 404 });
     const cancelInfo = getCancelInfo(order, order.restaurant.customerCancelWindowMinutes);
@@ -134,7 +159,9 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
         data: {
           restaurantId: order.restaurantId,
           action: "ORDER_CANCELLED_BY_CUSTOMER",
-          description: `${order.orderNumber} cancelled by customer`
+          description: `${order.orderNumber} cancelled by customer`,
+          ipAddress,
+          userAgent
         }
       });
     });

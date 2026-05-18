@@ -44,13 +44,13 @@ npx prisma migrate dev
 npm run prisma:seed
 ```
 
-The seed keeps the demo restaurant active and ordering enabled:
+The seed keeps the demo restaurant active and ordering enabled. Seed credentials are for local testing only and must be changed before any public pilot:
 
 - Restaurant: `Demo Restaurant Islamabad`
 - Slug: `demo-restaurant-islamabad`
 - Tables: `1` through `20`
-- Manager: `manager@demo.com` / `Manager12345`
-- Platform admin: `admin@ordertable.pk` / `Admin12345`
+- Manager email: `manager@demo.com`
+- Platform admin email: `admin@ordertable.pk`
 
 ## Run
 
@@ -268,6 +268,43 @@ Super admin can mark requests as contacted/closed and convert a request into a r
 - Customer QR pages find restaurants by slug and tables by restaurant/table number.
 - Inactive restaurants, disabled ordering, and inactive tables block customer ordering with friendly messages.
 - Menu, tables, orders, reports, and dashboard APIs are filtered by restaurant ownership.
+
+## Security Overview
+
+- `/admin` routes are protected for `PLATFORM_ADMIN` users through middleware plus the server-side admin layout guard.
+- `/dashboard` routes require an active `RESTAURANT_MANAGER` session with a restaurant assigned.
+- NextAuth sessions carry `user.id`, `email`, `name`, `role`, `restaurantId`, and `isActive`.
+- Login attempts are recorded in the database and repeated failures are temporarily blocked.
+- Manager passwords are hashed with bcrypt and temporary passwords must be entered explicitly.
+- Customer QR orders validate slug/table input, block inactive restaurants/tables, rate-limit IP/table attempts, and recalculate all prices from database menu items.
+- Public order, waiter request, feedback, print, status, payment, and report operations return friendly errors instead of exposing stack traces.
+- Activity logs include important order/login/print actions and can store IP/user-agent context.
+- Security headers are set for frame, content-type, referrer, and browser permission hardening.
+
+Production security checklist:
+
+1. Change all seed/demo passwords before public use.
+2. Use a long random `NEXTAUTH_SECRET`.
+3. Keep `DATABASE_URL`, `DIRECT_URL`, and `NEXTAUTH_SECRET` only in `.env` and Vercel environment variables.
+4. Use HTTPS-only `NEXTAUTH_URL` and `APP_URL`.
+5. Enable 2FA on GitHub, Vercel, and Supabase.
+6. Use Supabase pooled connection string for `DATABASE_URL` and direct URL for migrations.
+7. Run `npx prisma migrate deploy` after pulling new migrations.
+8. Monitor Vercel logs and review activity logs regularly.
+9. Back up the Supabase database.
+10. Run `npm audit` regularly and avoid `npm audit fix --force` unless the upgrade path is reviewed.
+
+Security test checklist:
+
+1. Super admin can open `/admin`; manager and logged-out users cannot.
+2. Manager can open `/dashboard` only for their own restaurant.
+3. Public QR page works without login but invalid slugs/tables show friendly messages.
+4. Manager A cannot open, print, edit, or report on Restaurant B data by changing URLs.
+5. Customer order prices remain correct if browser payload prices are tampered with.
+6. Excessive QR order attempts are rate-limited.
+7. Inactive restaurants, disabled ordering, and inactive tables block ordering.
+8. Script-like text in notes/descriptions renders as text.
+9. Bad input returns friendly errors and does not produce a Vercel Application Error.
 
 ## Restaurant Manager Operations
 

@@ -188,7 +188,7 @@ export async function createRestaurantWithTablesAndManager(formData: FormData) {
   const tableCount = positiveInt(formData.get("tableCount"), 10);
   const startingTableNumber = positiveInt(formData.get("startingTableNumber"), 1);
   const managerEmail = formString(formData, "managerEmail").toLowerCase();
-  const managerPassword = formString(formData, "managerPassword", "Manager12345");
+  const managerPassword = formString(formData, "managerPassword");
   const managerPasswordConfirm = formString(formData, "managerPasswordConfirm", managerPassword);
   const managerName = formString(formData, "managerName", "Restaurant Manager");
   const managerPhone = formString(formData, "managerPhone") || null;
@@ -202,7 +202,7 @@ export async function createRestaurantWithTablesAndManager(formData: FormData) {
     }
   }
 
-  if (!name || !slug || !city || !managerEmail || !managerPassword) redirectNewRestaurantError("missing-required-fields");
+  if (!name || !slug || !city || !managerEmail || managerPassword.length < 8) redirectNewRestaurantError("missing-required-fields");
   if (managerPassword !== managerPasswordConfirm) redirectNewRestaurantError("password-mismatch");
 
   const exists = await db.restaurant.findUnique({ where: { slug } });
@@ -671,6 +671,7 @@ export async function createOrUpdateRestaurantManager(formData: FormData) {
     role: "RESTAURANT_MANAGER" as const,
     restaurantId
   };
+  if (password && password.length < 8) return;
   if (id) {
     await db.user.update({ where: { id }, data: password ? { ...data, passwordHash: await bcrypt.hash(password, 12) } : data });
   } else if (email && password) {

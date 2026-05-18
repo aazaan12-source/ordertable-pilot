@@ -213,14 +213,14 @@ Email:
 admin@ordertable.pk
 
 Password:
-Admin12345
+[WRITE LOCAL DEMO PASSWORD ONLY IF THIS FILE IS PRIVATE]
 
 Restaurant Manager:
 Email:
 manager@demo.com
 
 Password:
-Manager12345
+[WRITE LOCAL DEMO PASSWORD ONLY IF THIS FILE IS PRIVATE]
 
 Important:
 These are demo credentials for pilot/testing.
@@ -315,6 +315,25 @@ https://[VERCEL_LIVE_URL]/r/demo-restaurant-islamabad/t/20
 - Keep database backups enabled.
 - Use HTTPS live URL only.
 - Do not use localhost or 192.168.x.x URLs for real restaurant QR codes.
+- Super Admin uses PLATFORM_ADMIN role.
+- Restaurant managers use RESTAURANT_MANAGER role and must have restaurantId assigned.
+- Managers must never be given access to another restaurant's data.
+- Customer QR ordering recalculates prices from database menu items, not from browser-submitted prices.
+- Public order attempts and login attempts are rate-limited and recorded in the database.
+- Review ActivityLog records for suspicious login, print, report, and order activity.
+- Run npm audit regularly. Do not use force upgrades without testing.
+
+Security Operations Notes:
+1. Do not store real secrets in this file.
+2. Change demo passwords before launch.
+3. Use strong passwords.
+4. Enable 2FA on GitHub, Vercel, and Supabase.
+5. Keep DATABASE_URL private.
+6. Keep NEXTAUTH_SECRET private.
+7. Monitor Vercel logs.
+8. Backup database.
+9. Review activity logs.
+10. Run npm audit regularly.
 
 ============================================================
 12. Deployment Troubleshooting
