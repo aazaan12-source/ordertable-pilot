@@ -537,7 +537,7 @@ export async function reorderRestaurantCategories(formData: FormData) {
   if (!restaurant) return;
   await db.$transaction(async (tx) => {
     await applyCategoryOrder(tx, restaurantId, orderedIdsFromForm(formData));
-    await tx.activityLog.create({ data: { userId: admin.id, restaurantId, action: "MENU_CATEGORY_ORDER_UPDATED", description: "Menu category display order updated" } });
+    await tx.activityLog.create({ data: { userId: admin.id, restaurantId, action: "CATEGORY_ORDER_UPDATED", description: "Menu category display order updated" } });
   });
   await revalidateRestaurantMenuPages(restaurantId, restaurant.slug);
 }
