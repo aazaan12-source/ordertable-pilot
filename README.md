@@ -16,13 +16,18 @@ QR-based restaurant table ordering platform for a real restaurant pilot. Custome
 Create `.env`:
 
 ```env
-DATABASE_URL="postgresql://postgres@127.0.0.1:5433/ordertable?schema=public"
+DATABASE_URL="postgresql://postgres@127.0.0.1:5433/ordertable?schema=public&connection_limit=1&pool_timeout=20"
+DIRECT_URL="postgresql://postgres@127.0.0.1:5433/ordertable?schema=public"
+PRISMA_CONNECTION_LIMIT="1"
+PRISMA_POOL_TIMEOUT="20"
 NEXTAUTH_SECRET="generate-a-long-random-secret"
 NEXTAUTH_URL="http://127.0.0.1:3000"
 APP_URL="http://127.0.0.1:3000"
 ```
 
 Use the real public app URL for `APP_URL` in production so QR codes point to the correct domain.
+
+For production/serverless hosting, `DATABASE_URL` should be the provider's pooled connection string, such as the Supabase pooler URL. `DIRECT_URL` should be the direct database URL used by Prisma migrations. The app also normalizes Prisma runtime connections by adding conservative `connection_limit` and `pool_timeout` query parameters when they are missing.
 
 ## Database Setup
 
@@ -122,7 +127,10 @@ This refreshes demo users, restaurant settings, 20 tables, categories, and menu 
 ## Deployment
 
 1. Create a PostgreSQL database on Supabase, Neon, Railway, or another provider.
-2. Add `DATABASE_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, and `APP_URL` to hosting environment variables.
+2. Add `DATABASE_URL`, `DIRECT_URL`, `NEXTAUTH_SECRET`, `NEXTAUTH_URL`, and `APP_URL` to hosting environment variables.
+   - Use a pooled database URL for `DATABASE_URL`.
+   - Use the direct database URL for `DIRECT_URL`.
+   - For Supabase pooler URLs, include `pgbouncer=true`, `connection_limit=1`, and `pool_timeout=20`; the app adds these at runtime when they are missing.
 3. Run migrations:
 
 ```bash
