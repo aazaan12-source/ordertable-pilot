@@ -114,10 +114,31 @@ async function confirmManagerPayment(formData: FormData) {
       paymentConfirmedAt: new Date(),
       paymentConfirmedById: user.id,
       paymentReference: text(formData, "paymentReference") || text(formData, "claimReference") || null,
-      paymentClaimedAt: null
+      paymentClaimedAt: null,
+      paymentRejectedAt: null,
+      paymentRejectionNote: null
     }
   });
   await db.activityLog.create({ data: { userId: user.id, restaurantId: invoice.restaurantId, action: "BILLING_PAYMENT_CONFIRMED", description: `${invoice.billingMonth} invoice payment confirmed by super admin` } });
+  revalidatePath("/admin/billing");
+  revalidatePath("/dashboard/billing");
+}
+
+async function markPaymentNotReceived(formData: FormData) {
+  "use server";
+  const user = await requirePlatformAdmin();
+  const id = text(formData, "id");
+  const note = text(formData, "paymentRejectionNote", "Payment was not received by Super Admin. Please check the transaction and submit payment again.");
+  const invoice = await db.billingInvoice.update({
+    where: { id },
+    data: {
+      status: "DUE",
+      paymentClaimedAt: null,
+      paymentRejectedAt: new Date(),
+      paymentRejectionNote: note
+    }
+  });
+  await db.activityLog.create({ data: { userId: user.id, restaurantId: invoice.restaurantId, action: "BILLING_PAYMENT_NOT_RECEIVED", description: `${invoice.billingMonth} payment claim rejected: ${note}` } });
   revalidatePath("/admin/billing");
   revalidatePath("/dashboard/billing");
 }
@@ -276,6 +297,18 @@ export default async function AdminBillingPage() {
                         pendingText="Confirming..."
                       >
                         Confirm Payment Received
+                      </ConfirmSubmitButton>
+                    </form>
+                    <form action={markPaymentNotReceived} className="mt-3 grid gap-2 md:grid-cols-[1fr_auto]">
+                      <input type="hidden" name="id" value={invoice.id} />
+                      <Input name="paymentRejectionNote" placeholder="Message to manager, e.g. payment not received in account" defaultValue="Payment was not received yet. Please verify the transaction and submit again." />
+                      <ConfirmSubmitButton
+                        variant="destructive"
+                        size="md"
+                        message="Mark this payment as not received and notify the manager dashboard?"
+                        pendingText="Notifying..."
+                      >
+                        Not Received
                       </ConfirmSubmitButton>
                     </form>
                   </div>

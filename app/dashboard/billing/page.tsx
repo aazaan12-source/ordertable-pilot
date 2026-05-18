@@ -29,7 +29,9 @@ async function submitPaymentRequest(formData: FormData) {
         paymentClaimedAt: new Date(),
         paymentClaimMethod: text(formData, "paymentClaimMethod"),
         paymentClaimReference: text(formData, "paymentClaimReference") || null,
-        paymentClaimNote: text(formData, "paymentClaimNote") || null
+        paymentClaimNote: text(formData, "paymentClaimNote") || null,
+        paymentRejectedAt: null,
+        paymentRejectionNote: null
       }
     });
     await tx.activityLog.create({
@@ -97,9 +99,10 @@ export default async function ManagerBillingPage() {
       <div className="mt-6 grid gap-4">
         {invoices.map((invoice) => {
           const pendingConfirmation = Boolean(invoice.paymentClaimedAt && invoice.status !== "PAID");
+          const rejectedPayment = Boolean(invoice.paymentRejectedAt && invoice.status !== "PAID");
           const selectedAccount = invoice.paymentAccount || accounts[0];
           return (
-            <Card key={invoice.id} className={invoice.status === "PAID" ? "bg-green-50/40" : pendingConfirmation ? "border-blue-300 bg-blue-50/40" : ""}>
+            <Card key={invoice.id} className={invoice.status === "PAID" ? "bg-green-50/40" : pendingConfirmation ? "border-blue-300 bg-blue-50/40" : rejectedPayment ? "border-red-300 bg-red-50/40" : ""}>
               <CardContent className="p-4">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
@@ -134,6 +137,14 @@ export default async function ManagerBillingPage() {
                     <p className="mt-1 text-muted-foreground">Reference: {invoice.paymentClaimReference || "Not provided"} - Method: {invoice.paymentClaimMethod || "Not provided"}</p>
                   </div>
                 ) : (
+                  <>
+                  {rejectedPayment ? (
+                    <div className="mt-3 rounded-md border border-red-200 bg-white p-3 text-sm text-red-800">
+                      <p className="font-semibold">Super Admin marked the previous payment as not received.</p>
+                      <p className="mt-1">{invoice.paymentRejectionNote || "Please verify your transaction and submit payment again."}</p>
+                      {invoice.paymentRejectedAt ? <p className="mt-1 text-xs text-muted-foreground">Updated {formatPkDateTime(invoice.paymentRejectedAt)}</p> : null}
+                    </div>
+                  ) : null}
                   <form action={submitPaymentRequest} className="mt-3 grid gap-3 md:grid-cols-[180px_1fr_auto]">
                     <input type="hidden" name="invoiceId" value={invoice.id} />
                     <select name="paymentClaimMethod" className="h-10 rounded-md border bg-white px-3 text-sm" defaultValue="BANK_TRANSFER">
@@ -153,6 +164,7 @@ export default async function ManagerBillingPage() {
                     </ConfirmSubmitButton>
                     <Textarea className="md:col-span-3" name="paymentClaimNote" placeholder="Optional note, e.g. paid from account title or screenshot reference" />
                   </form>
+                  </>
                 )}
               </CardContent>
             </Card>

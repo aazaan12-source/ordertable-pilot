@@ -15,7 +15,7 @@ const links = [
   { href: "/dashboard/settings", label: "Settings", icon: Settings }
 ];
 
-export function DashboardNav({ restaurantName }: { restaurantName: string }) {
+export function DashboardNav({ restaurantName, billingAlertCount = 0 }: { restaurantName: string; billingAlertCount?: number }) {
   return (
     <aside className="no-print border-b bg-white lg:min-h-screen lg:w-64 lg:border-b-0 lg:border-r">
       <div className="p-4">
@@ -29,6 +29,9 @@ export function DashboardNav({ restaurantName }: { restaurantName: string }) {
             <Link key={link.href} href={link.href} className="flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-muted">
               <Icon className="h-4 w-4" />
               {link.label}
+              {link.href === "/dashboard/billing" && billingAlertCount > 0 ? (
+                <span className="ml-auto rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white">{billingAlertCount}</span>
+              ) : null}
             </Link>
           );
         })}

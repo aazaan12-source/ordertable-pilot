@@ -303,6 +303,8 @@ model BillingInvoice {
   paymentClaimMethod String?
   paymentClaimReference String?
   paymentClaimNote String?
+  paymentRejectedAt DateTime?
+  paymentRejectionNote String?
   paymentConfirmedAt DateTime?
   paymentConfirmedById String?
   notes         String?

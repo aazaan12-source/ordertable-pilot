@@ -9,7 +9,7 @@ const links = [
   { href: "/admin/settings", label: "Settings" }
 ];
 
-export function AdminNav() {
+export function AdminNav({ billingAlertCount = 0 }: { billingAlertCount?: number }) {
   return (
     <header className="sticky top-0 z-30 border-b bg-white/95 backdrop-blur">
       <div className="mx-auto max-w-7xl px-3 py-3 sm:px-4">
@@ -21,6 +21,9 @@ export function AdminNav() {
           {links.map((link) => (
             <Link key={link.href} href={link.href} className="whitespace-nowrap rounded-md border px-3 py-2 hover:bg-muted">
               {link.label}
+              {link.href === "/admin/settings" && billingAlertCount > 0 ? (
+                <span className="ml-2 rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white">{billingAlertCount}</span>
+              ) : null}
             </Link>
           ))}
         </nav>
