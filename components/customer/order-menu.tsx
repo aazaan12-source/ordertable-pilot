@@ -85,28 +85,13 @@ export function OrderMenu({
   const [placedByType, setPlacedByType] = useState<"CUSTOMER" | "WAITER">("CUSTOMER");
   const [customerName, setCustomerName] = useState(editOrder?.items ? "" : "");
   const [waiterName, setWaiterName] = useState("");
-  const [waiterEntryMode, setWaiterEntryMode] = useState<"LIST" | "MANUAL">("LIST");
-  const [selectedWaiterName, setSelectedWaiterName] = useState("");
   const [error, setError] = useState("");
   const [placing, setPlacing] = useState(false);
 
   useEffect(() => {
     const savedWaiterName = localStorage.getItem("ordertable_waiter_name") || "";
-    if (savedWaiterName) {
-      const inList = waiterOptions.some((waiter) => waiter.name === savedWaiterName);
-      if (inList) {
-        setWaiterEntryMode("LIST");
-        setSelectedWaiterName(savedWaiterName);
-      } else {
-        setWaiterEntryMode("MANUAL");
-        setWaiterName(savedWaiterName);
-      }
-    } else if (waiterOptions[0]?.name) {
-      setSelectedWaiterName(waiterOptions[0].name);
-    } else {
-      setWaiterEntryMode("MANUAL");
-    }
-  }, [waiterOptions]);
+    if (savedWaiterName) setWaiterName(savedWaiterName);
+  }, []);
 
   const visibleItems = activeCategory ? items.filter((item) => item.category.id === activeCategory) : items;
   const totalQty = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -159,7 +144,7 @@ export function OrderMenu({
 
   async function placeOrder() {
     if (cart.length === 0) return;
-    const effectiveWaiterName = waiterEntryMode === "LIST" ? selectedWaiterName.trim() : waiterName.trim();
+    const effectiveWaiterName = waiterName.trim();
     if (!editOrder && placedByType === "WAITER" && !effectiveWaiterName) {
       setError("Please enter waiter name before sending the order.");
       return;
@@ -248,45 +233,19 @@ export function OrderMenu({
                     />
                   ) : (
                     <div className="space-y-2">
-                      {waiterOptions.length > 0 ? (
-                        <div className="grid gap-2">
-                          <select
-                            className="h-10 w-full rounded-md border bg-white px-3 text-sm"
-                            value={waiterEntryMode === "LIST" ? selectedWaiterName : "__manual"}
-                            onChange={(event) => {
-                              if (event.target.value === "__manual") {
-                                setWaiterEntryMode("MANUAL");
-                                return;
-                              }
-                              setWaiterEntryMode("LIST");
-                              setSelectedWaiterName(event.target.value);
-                              setWaiterName("");
-                            }}
-                          >
-                            {waiterOptions.map((waiter) => (
-                              <option key={waiter.id} value={waiter.name}>{waiter.name}</option>
-                            ))}
-                            <option value="__manual">Manual entry / name not in list</option>
-                          </select>
-                          {waiterEntryMode === "MANUAL" ? (
-                            <input
-                              className="h-10 w-full rounded-md border px-3 text-sm"
-                              value={waiterName}
-                              onChange={(event) => setWaiterName(event.target.value.slice(0, 80))}
-                              placeholder="Enter waiter name manually"
-                              required
-                            />
-                          ) : null}
-                        </div>
-                      ) : (
-                        <input
-                          className="h-10 w-full rounded-md border px-3 text-sm"
-                          value={waiterName}
-                          onChange={(event) => setWaiterName(event.target.value.slice(0, 80))}
-                          placeholder="Enter waiter name"
-                          required
-                        />
-                      )}
+                      <input
+                        className="h-10 w-full rounded-md border bg-white px-3 text-sm"
+                        value={waiterName}
+                        onChange={(event) => setWaiterName(event.target.value.slice(0, 80))}
+                        placeholder={waiterOptions.length > 0 ? "Select or type waiter name" : "Enter waiter name"}
+                        list="ordertable-waiter-names"
+                        required
+                      />
+                      <datalist id="ordertable-waiter-names">
+                        {waiterOptions.map((waiter) => (
+                          <option key={waiter.id} value={waiter.name} />
+                        ))}
+                      </datalist>
                       <p className="text-xs text-muted-foreground">Use this when a waiter is taking the order on behalf of customers.</p>
                     </div>
                   )}
