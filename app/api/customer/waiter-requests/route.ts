@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { RestaurantStatus, TableStatus } from "@prisma/client";
+import { Prisma, RestaurantStatus, TableStatus } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { clientIpFromHeaders, userAgentFromHeaders } from "@/lib/security";
@@ -84,31 +84,31 @@ export async function POST(request: Request) {
       return NextResponse.json({ id: recentDuplicate.id, duplicate: true });
     }
 
-    const waiterRequest = await db.$transaction(async (tx) => {
-      const created = await tx.waiterRequest.create({
+    const writes: Prisma.PrismaPromise<unknown>[] = [
+      db.waiterRequest.create({
         data: { restaurantId, tableId, orderId, type: parsed.data.type }
-      });
+      })
+    ];
 
-      if (parsed.data.type === "BILL_REQUEST" && orderId) {
-        await tx.order.update({ where: { id: orderId }, data: { status: "BILL_REQUESTED" } });
-        await tx.restaurantTable.update({ where: { id: tableId }, data: { status: "BILL_REQUESTED" } });
+    if (parsed.data.type === "BILL_REQUEST" && orderId) {
+      writes.push(db.order.update({ where: { id: orderId }, data: { status: "BILL_REQUESTED" } }));
+      writes.push(db.restaurantTable.update({ where: { id: tableId }, data: { status: "BILL_REQUESTED" } }));
+    }
+
+    writes.push(db.activityLog.create({
+      data: {
+        restaurantId,
+        action: parsed.data.type === "BILL_REQUEST" ? "BILL_REQUESTED" : "WAITER_CALLED",
+        description:
+          parsed.data.type === "BILL_REQUEST"
+            ? `Bill requested${orderNumber ? ` for ${orderNumber}` : ""}`
+            : "Waiter called from customer table",
+        ipAddress,
+        userAgent
       }
+    }));
 
-      await tx.activityLog.create({
-        data: {
-          restaurantId,
-          action: parsed.data.type === "BILL_REQUEST" ? "BILL_REQUESTED" : "WAITER_CALLED",
-          description:
-            parsed.data.type === "BILL_REQUEST"
-              ? `Bill requested${orderNumber ? ` for ${orderNumber}` : ""}`
-              : "Waiter called from customer table",
-          ipAddress,
-          userAgent
-        }
-      });
-
-      return created;
-    });
+    const [waiterRequest] = await db.$transaction(writes) as [{ id: string }, ...unknown[]];
 
     return NextResponse.json({ id: waiterRequest.id });
   } catch (error) {
