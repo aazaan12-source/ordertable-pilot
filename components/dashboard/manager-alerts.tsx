@@ -17,13 +17,20 @@ const storageKey = "ordertable:manager-alerts-enabled";
 const announcedKey = "ordertable:announced-waiter-request-ids";
 const maxStoredRequestIds = 200;
 
+type WakeLockSentinelLike = {
+  release: () => Promise<void>;
+  addEventListener: (type: "release", listener: () => void) => void;
+};
+
 export function ManagerAlerts() {
   const [enabled, setEnabled] = useState(true);
   const [requests, setRequests] = useState<WaiterRequest[]>([]);
   const [popup, setPopup] = useState<WaiterRequest | null>(null);
   const seen = useRef<Set<string>>(new Set());
   const initialized = useRef(false);
+  const inFlight = useRef(false);
   const audioContext = useRef<AudioContext | null>(null);
+  const wakeLock = useRef<WakeLockSentinelLike | null>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem(storageKey);
@@ -35,16 +42,53 @@ export function ManagerAlerts() {
     loadRequests();
     const timer = window.setInterval(loadRequests, 1000);
     const reconnect = () => void loadRequests();
+    const wakeAndRefresh = () => {
+      void requestWakeLock();
+      void loadRequests();
+    };
     window.addEventListener("online", reconnect);
     window.addEventListener("ordertable-network-online", reconnect);
+    window.addEventListener("focus", wakeAndRefresh);
+    document.addEventListener("visibilitychange", wakeAndRefresh);
+    void requestWakeLock();
     return () => {
       window.clearInterval(timer);
       window.removeEventListener("online", reconnect);
       window.removeEventListener("ordertable-network-online", reconnect);
+      window.removeEventListener("focus", wakeAndRefresh);
+      document.removeEventListener("visibilitychange", wakeAndRefresh);
+      void releaseWakeLock();
     };
   }, [enabled]);
 
+  async function requestWakeLock() {
+    if (!enabled || document.hidden || wakeLock.current) return;
+    try {
+      const navigatorWithWakeLock = navigator as Navigator & {
+        wakeLock?: { request: (type: "screen") => Promise<WakeLockSentinelLike> };
+      };
+      wakeLock.current = await navigatorWithWakeLock.wakeLock?.request("screen") || null;
+      wakeLock.current?.addEventListener("release", () => {
+        wakeLock.current = null;
+      });
+    } catch {
+      wakeLock.current = null;
+    }
+  }
+
+  async function releaseWakeLock() {
+    const lock = wakeLock.current;
+    wakeLock.current = null;
+    try {
+      await lock?.release();
+    } catch {
+      // Wake lock may already be released by the browser.
+    }
+  }
+
   async function loadRequests() {
+    if (inFlight.current) return;
+    inFlight.current = true;
     try {
       const response = await fetch("/api/dashboard/waiter-requests", { cache: "no-store" });
       if (!response.ok) return;
@@ -71,6 +115,8 @@ export function ManagerAlerts() {
       }
     } catch {
       // Orders and request pages already show connection warnings; this alert stays quiet on transient failures.
+    } finally {
+      inFlight.current = false;
     }
   }
 
@@ -107,6 +153,9 @@ export function ManagerAlerts() {
     if (next) {
       primeAudio();
       ringBell();
+      void requestWakeLock();
+    } else {
+      void releaseWakeLock();
     }
   }
 

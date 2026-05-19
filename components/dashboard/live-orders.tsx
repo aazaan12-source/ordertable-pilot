@@ -10,6 +10,8 @@ import { DirectPrintButton } from "@/components/dashboard/direct-print-button";
 import { formatCurrency, formatPkTime } from "@/lib/utils";
 
 const statuses = ["PENDING", "ACCEPTED", "PREPARING", "READY", "SERVED", "BILL_REQUESTED", "PAID", "CANCELLED"];
+const announcedOrdersKey = "ordertable:announced-order-ids";
+const maxStoredOrderIds = 200;
 const transitions: Record<string, { label: string; status: string; variant?: "default" | "destructive" | "outline" | "secondary" }[]> = {
   PENDING: [
     { label: "Accept", status: "ACCEPTED" },
@@ -56,6 +58,11 @@ type Order = {
   }[];
 };
 
+type WakeLockSentinelLike = {
+  release: () => Promise<void>;
+  addEventListener: (type: "release", listener: () => void) => void;
+};
+
 export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Order[]; restaurantName: string; initialStatus?: string }) {
   const [orders, setOrders] = useState(initialOrders);
   const [active, setActive] = useState(statuses.includes(initialStatus || "") ? initialStatus! : "PENDING");
@@ -66,10 +73,52 @@ export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Or
   const ordersRef = useRef(initialOrders);
   const optimisticStatusRef = useRef(new Map<string, string>());
   const refreshRef = useRef({ inFlight: false, sequence: 0, queued: false });
+  const wakeLock = useRef<WakeLockSentinelLike | null>(null);
 
   useEffect(() => {
     ordersRef.current = orders;
   }, [orders]);
+
+  useEffect(() => {
+    try {
+      const stored = JSON.parse(localStorage.getItem(announcedOrdersKey) || "[]") as string[];
+      seenPending.current = new Set([...stored, ...initialOrders.filter((order) => order.status === "PENDING").map((order) => order.id)]);
+      saveAnnouncedOrderIds();
+    } catch {
+      seenPending.current = new Set(initialOrders.filter((order) => order.status === "PENDING").map((order) => order.id));
+    }
+  }, [initialOrders]);
+
+  function saveAnnouncedOrderIds() {
+    const ids = Array.from(seenPending.current).slice(-maxStoredOrderIds);
+    seenPending.current = new Set(ids);
+    localStorage.setItem(announcedOrdersKey, JSON.stringify(ids));
+  }
+
+  async function requestWakeLock() {
+    if (document.hidden || wakeLock.current) return;
+    try {
+      const navigatorWithWakeLock = navigator as Navigator & {
+        wakeLock?: { request: (type: "screen") => Promise<WakeLockSentinelLike> };
+      };
+      wakeLock.current = await navigatorWithWakeLock.wakeLock?.request("screen") || null;
+      wakeLock.current?.addEventListener("release", () => {
+        wakeLock.current = null;
+      });
+    } catch {
+      wakeLock.current = null;
+    }
+  }
+
+  async function releaseWakeLock() {
+    const lock = wakeLock.current;
+    wakeLock.current = null;
+    try {
+      await lock?.release();
+    } catch {
+      // Browser may have released it already.
+    }
+  }
 
   function applyOptimisticStatuses(nextOrders: Order[]) {
     return nextOrders.map((order) => {
@@ -108,6 +157,7 @@ export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Or
         playNotification();
         speakNewOrder(freshPending.at(-1)?.table.tableNumber);
         nextPending.forEach((order) => seenPending.current.add(order.id));
+        saveAnnouncedOrderIds();
       }
       setOrders(nextOrders);
       setWarning("");
@@ -131,13 +181,23 @@ export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Or
     };
     timer = setTimeout(tick, 700);
     const reconnect = () => void loadOrders();
+    const wakeAndRefresh = () => {
+      void requestWakeLock();
+      void loadOrders();
+    };
     window.addEventListener("online", reconnect);
     window.addEventListener("ordertable-network-online", reconnect);
+    window.addEventListener("focus", wakeAndRefresh);
+    document.addEventListener("visibilitychange", wakeAndRefresh);
+    void requestWakeLock();
     return () => {
       cancelled = true;
       clearTimeout(timer);
       window.removeEventListener("online", reconnect);
       window.removeEventListener("ordertable-network-online", reconnect);
+      window.removeEventListener("focus", wakeAndRefresh);
+      document.removeEventListener("visibilitychange", wakeAndRefresh);
+      void releaseWakeLock();
     };
   }, []);
 
@@ -223,7 +283,7 @@ export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Or
               <CardHeader>
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <CardTitle>{order.orderNumber} - Table {order.table.tableNumber}</CardTitle>
+                    <CardTitle>{displayOrderTitle(order)}</CardTitle>
                     <p className="text-sm text-muted-foreground">{formatPkTime(order.createdAt)} - {sourceLabel(order.source)}</p>
                     {order.waiterName ? <p className="mt-1 text-sm font-semibold text-primary">Waiter: {order.waiterName}</p> : null}
                     {!order.waiterName && order.customerName ? <p className="mt-1 text-sm text-muted-foreground">Customer: {order.customerName}</p> : null}
@@ -306,6 +366,10 @@ function sourceLabel(source: string) {
   if (source === "WAITER_ENTRY") return "Waiter Entry";
   if (source === "WAITER_ASSISTED_QR") return "Waiter Assisted";
   return "Customer QR";
+}
+
+function displayOrderTitle(order: Order) {
+  return /\bTable\s+\d+\b/i.test(order.orderNumber) ? order.orderNumber : `${order.orderNumber} - Table ${order.table.tableNumber}`;
 }
 
 function playNotification() {

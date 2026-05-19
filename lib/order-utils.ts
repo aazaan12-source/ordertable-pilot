@@ -1,7 +1,58 @@
 import { OrderSource, OrderStatus, PaymentStatus, TableStatus, type Prisma } from "@prisma/client";
 import { db } from "@/lib/db";
 
-export async function nextOrderNumber(restaurantId: string) {
+function restaurantOrderKey(restaurant: { name: string; branchName?: string | null; city?: string | null; slug?: string | null }) {
+  const words = [restaurant.name, restaurant.branchName, restaurant.city, restaurant.slug]
+    .filter(Boolean)
+    .join(" ")
+    .replace(/[^a-zA-Z0-9\s-]/g, " ")
+    .split(/[\s-]+/)
+    .filter((word) => word.length > 1);
+  const initials = words
+    .filter((word) => !["restaurant", "branch", "food", "foods", "the", "and"].includes(word.toLowerCase()))
+    .map((word) => word[0])
+    .join("")
+    .toUpperCase();
+  const compact = initials || words.map((word) => word[0]).join("").toUpperCase() || "OT";
+  return compact.slice(0, 5).padEnd(2, "X");
+}
+
+function sequenceFromOrderNumber(orderNumber: string) {
+  const modern = /^ORD-[A-Z0-9]{2,5}-(\d+)(?:\s+-\s+Table\s+\d+)?$/i.exec(orderNumber);
+  if (modern) return Number(modern[1]);
+  const legacy = /^ORD-(\d+)$/i.exec(orderNumber);
+  return legacy ? Number(legacy[1]) : null;
+}
+
+export async function nextOrderNumber(restaurantId: string, options: { tableNumber?: number; sequenceOffset?: number } = {}) {
+  const [restaurant, recentOrders, orderCount] = await Promise.all([
+    db.restaurant.findUnique({
+      where: { id: restaurantId },
+      select: { name: true, branchName: true, city: true, slug: true }
+    }),
+    db.order.findMany({
+      where: { restaurantId, orderNumber: { startsWith: "ORD-" } },
+      select: { orderNumber: true },
+      orderBy: { createdAt: "desc" },
+      take: 300
+    }),
+    db.order.count({ where: { restaurantId } })
+  ]);
+  const key = restaurant ? restaurantOrderKey(restaurant) : "OT";
+  const highest = recentOrders.reduce((max, order) => {
+    const sequence = sequenceFromOrderNumber(order.orderNumber);
+    return sequence && sequence > max ? sequence : max;
+  }, 0);
+  const nextSequence = Math.max(highest, orderCount) + 1 + (options.sequenceOffset || 0);
+  const prefix = `ORD-${key}-${String(nextSequence).padStart(4, "0")}`;
+  return options.tableNumber ? `${prefix} - Table ${options.tableNumber}` : prefix;
+}
+
+export function orderTitle(order: { orderNumber: string; table: { tableNumber: number } }) {
+  return /\bTable\s+\d+\b/i.test(order.orderNumber) ? order.orderNumber : `${order.orderNumber} - Table ${order.table.tableNumber}`;
+}
+
+export async function legacyNextOrderNumber(restaurantId: string) {
   const latest = await db.order.findFirst({
     where: { restaurantId, orderNumber: { startsWith: "ORD-" } },
     select: { orderNumber: true },

@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { calculateTotals, toNumber } from "@/lib/pricing";
 import { clientIpFromHeaders } from "@/lib/security";
 import { rateLimit } from "@/lib/rate-limit";
+import { nextOrderNumber } from "@/lib/order-utils";
 
 const createOrderSchema = z.object({
   restaurantSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(80),
@@ -24,12 +25,6 @@ const createOrderSchema = z.object({
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
-
-function publicOrderNumber() {
-  const timePart = Date.now().toString(36).toUpperCase();
-  const randomPart = Math.random().toString(36).slice(2, 5).toUpperCase();
-  return `ORD-${timePart}-${randomPart}`;
-}
 
 export async function POST(request: NextRequest) {
   let debugInfo: { restaurantSlug?: string; tableNumber?: number; placedByType?: string; itemCount?: number } = {};
@@ -100,7 +95,7 @@ export async function POST(request: NextRequest) {
     const source = placedByType === "WAITER" ? "WAITER_ASSISTED_QR" : "ONLINE_QR_CUSTOMER";
     let order: { id: string; orderNumber: string } | null = null;
 
-    let orderNumber = publicOrderNumber();
+    let orderNumber = await nextOrderNumber(restaurant.id, { tableNumber });
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
         order = await db.order.create({
@@ -127,11 +122,25 @@ export async function POST(request: NextRequest) {
       } catch (error) {
         const isOrderNumberCollision = error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
         if (!isOrderNumberCollision || attempt === 2) throw error;
-        orderNumber = publicOrderNumber();
+        orderNumber = await nextOrderNumber(restaurant.id, { tableNumber, sequenceOffset: attempt + 1 });
       }
     }
 
     if (!order) throw new Error("Order could not be created.");
+
+    Promise.allSettled([
+      db.restaurantTable.update({ where: { id: table.id }, data: { status: "ACTIVE_ORDER" } }),
+      db.activityLog.create({
+        data: {
+          restaurantId: restaurant.id,
+          orderId: order.id,
+          action: placedByType === "WAITER" ? "WAITER_ASSISTED_ORDER_CREATED" : "ONLINE_ORDER_CREATED",
+          description: `${order.orderNumber} created from table QR`
+        }
+      })
+    ]).then((results) => {
+      for (const result of results) if (result.status === "rejected") console.error("QR_ORDER_SIDE_EFFECT_FAILED", result.reason);
+    });
 
     return NextResponse.json({ orderId: order.id, orderNumber: order.orderNumber });
   } catch (error) {

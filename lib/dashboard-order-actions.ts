@@ -75,7 +75,7 @@ export async function createManualOrder(formData: FormData) {
   if (draftItems.length === 0) return;
   const discount = num(formData, "discount");
   const totals = calculateTotalsFromOrderItems(draftItems, restaurant.serviceChargePercent, restaurant.taxPercent, discount);
-  const orderNumber = await nextOrderNumber(restaurant.id);
+  const orderNumber = await nextOrderNumber(restaurant.id, { tableNumber });
 
   const order = await db.$transaction(async (tx) => {
     const created = await tx.order.create({

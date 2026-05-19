@@ -51,6 +51,7 @@ type OrderSnapshot = {
 
 export function OrderStatusPanel({ initialOrder }: { initialOrder: OrderSnapshot }) {
   const [order, setOrder] = useState(initialOrder);
+  const [closed, setClosed] = useState(false);
   const [warning, setWarning] = useState("");
   const [message, setMessage] = useState("");
   const [statusNotice, setStatusNotice] = useState("");
@@ -62,6 +63,10 @@ export function OrderStatusPanel({ initialOrder }: { initialOrder: OrderSnapshot
   useEffect(() => {
     lastStatusRef.current = lastStatus;
   }, [lastStatus]);
+
+  useEffect(() => {
+    setClosed(localStorage.getItem(`ordertable:closed-order:${initialOrder.id}`) === "true");
+  }, [initialOrder.id]);
 
   async function loadOrder(silent = false) {
     if (refreshRef.current.inFlight) return;
@@ -117,6 +122,18 @@ export function OrderStatusPanel({ initialOrder }: { initialOrder: OrderSnapshot
     await loadOrder(true);
   }
 
+  function closePaidOrder() {
+    localStorage.setItem(`ordertable:closed-order:${order.id}`, "true");
+    setClosed(true);
+    window.setTimeout(() => {
+      try {
+        window.close();
+      } catch {
+        // Browsers may keep tabs open if they were not opened by script.
+      }
+    }, 900);
+  }
+
   const cancelText = useMemo(() => {
     if (order.cancelInfo.canCancel) {
       const seconds = Math.max(0, order.cancelInfo.remainingSeconds);
@@ -128,6 +145,21 @@ export function OrderStatusPanel({ initialOrder }: { initialOrder: OrderSnapshot
     if (order.cancelInfo.reason === "kitchen_started") return "This order is already being prepared. Please call waiter.";
     return "This order can no longer be cancelled.";
   }, [order]);
+
+  if (closed) {
+    return (
+      <main className="mx-auto flex min-h-screen max-w-xl items-center px-4 py-8">
+        <Card className="w-full text-center">
+          <CardHeader>
+            <CardTitle>Thank you for dining at {order.restaurant.name}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">Your bill is paid and this order is closed.</p>
+          </CardContent>
+        </Card>
+      </main>
+    );
+  }
 
   return (
     <main className="mx-auto min-h-screen max-w-xl px-4 py-8">
@@ -222,8 +254,18 @@ export function OrderStatusPanel({ initialOrder }: { initialOrder: OrderSnapshot
             </div>
           ) : null}
 
-          <RequestButtons orderId={order.id} />
-          <FeedbackForm orderId={order.id} />
+          {(order.status === "PAID" || order.paymentStatus === "PAID") ? (
+            <div className="mt-5 rounded-lg border border-green-300 bg-green-50 p-4 text-center">
+              <h2 className="text-xl font-black text-green-950">Payment received</h2>
+              <p className="mt-1 text-sm text-green-900">You can close this order page now.</p>
+              <Button className="mt-3 w-full" onClick={closePaidOrder}>
+                Close Order Page
+              </Button>
+            </div>
+          ) : null}
+
+          {order.status !== "PAID" && order.paymentStatus !== "PAID" ? <RequestButtons orderId={order.id} /> : null}
+          {order.status !== "PAID" && order.paymentStatus !== "PAID" ? <FeedbackForm orderId={order.id} /> : null}
         </CardContent>
       </Card>
     </main>
