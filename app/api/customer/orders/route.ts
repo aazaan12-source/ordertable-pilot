@@ -3,8 +3,7 @@ import { Prisma, RestaurantStatus, TableStatus } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { calculateTotals, toNumber } from "@/lib/pricing";
-import { nextOrderNumber } from "@/lib/order-utils";
-import { clientIpFromHeaders, userAgentFromHeaders } from "@/lib/security";
+import { clientIpFromHeaders } from "@/lib/security";
 import { rateLimit } from "@/lib/rate-limit";
 
 const createOrderSchema = z.object({
@@ -22,11 +21,16 @@ const createOrderSchema = z.object({
   })).min(1).max(100)
 });
 
+function publicOrderNumber() {
+  const timePart = Date.now().toString(36).toUpperCase();
+  const randomPart = Math.random().toString(36).slice(2, 5).toUpperCase();
+  return `ORD-${timePart}-${randomPart}`;
+}
+
 export async function POST(request: NextRequest) {
   let debugInfo: { restaurantSlug?: string; tableNumber?: number; placedByType?: string; itemCount?: number } = {};
   try {
     const ipAddress = clientIpFromHeaders(request.headers);
-    const userAgent = userAgentFromHeaders(request.headers);
 
     const parsed = createOrderSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "Invalid order details." }, { status: 400 });
@@ -92,7 +96,7 @@ export async function POST(request: NextRequest) {
     const source = placedByType === "WAITER" ? "WAITER_ASSISTED_QR" : "ONLINE_QR_CUSTOMER";
     let order: { id: string; orderNumber: string } | null = null;
 
-    let orderNumber = await nextOrderNumber(restaurant.id);
+    let orderNumber = publicOrderNumber();
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
         order = await db.order.create({
@@ -119,28 +123,11 @@ export async function POST(request: NextRequest) {
       } catch (error) {
         const isOrderNumberCollision = error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
         if (!isOrderNumberCollision || attempt === 2) throw error;
-        orderNumber = await nextOrderNumber(restaurant.id);
+        orderNumber = publicOrderNumber();
       }
     }
 
     if (!order) throw new Error("Order could not be created.");
-
-    Promise.allSettled([
-      db.publicOrderAttempt.create({ data: { ipAddress, restaurantId: restaurant.id, tableNumber, customerSessionId: customerSessionId || null } }),
-      db.restaurantTable.update({ where: { id: table.id }, data: { status: TableStatus.ACTIVE_ORDER } }),
-      db.activityLog.create({
-        data: {
-          restaurantId: restaurant.id,
-          orderId: order.id,
-          action: source === "WAITER_ASSISTED_QR" ? "WAITER_ASSISTED_ORDER_CREATED" : "ONLINE_ORDER_CREATED",
-          description: `${order.orderNumber} created from table ${table.tableNumber}${waiterName ? ` by waiter ${waiterName}` : ""}`,
-          ipAddress,
-          userAgent
-        }
-      })
-    ]).then((results) => {
-      for (const result of results) if (result.status === "rejected") console.error("customer order side effect failed", result.reason);
-    });
 
     return NextResponse.json({ orderId: order.id, orderNumber: order.orderNumber });
   } catch (error) {
