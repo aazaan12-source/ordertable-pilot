@@ -127,7 +127,7 @@ export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Or
     const tick = async () => {
       await loadOrders();
       if (cancelled) return;
-      timer = setTimeout(tick, document.hidden ? 2500 : 700);
+      timer = setTimeout(tick, document.hidden ? 3000 : 1200);
     };
     timer = setTimeout(tick, 700);
     const reconnect = () => void loadOrders();

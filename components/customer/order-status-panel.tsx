@@ -92,7 +92,7 @@ export function OrderStatusPanel({ initialOrder }: { initialOrder: OrderSnapshot
     const tick = async () => {
       await loadOrder(true);
       if (cancelled) return;
-      timer = setTimeout(tick, document.hidden ? 2500 : 700);
+      timer = setTimeout(tick, document.hidden ? 3000 : 1500);
     };
     timer = setTimeout(tick, 700);
     return () => {

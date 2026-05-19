@@ -20,7 +20,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
   try {
     if (id.length > 100) return NextResponse.json({ error: "Invalid order." }, { status: 400 });
     const ipAddress = clientIpFromHeaders(request.headers);
-    if (!rateLimit(`customer-order-read:${ipAddress}`, 60, 5 * 60_000).allowed) {
+    if (!rateLimit(`customer-order-read:${ipAddress}`, 600, 5 * 60_000).allowed) {
       return NextResponse.json({ error: "Too many requests. Please wait." }, { status: 429 });
     }
     const order = await db.order.findUnique({

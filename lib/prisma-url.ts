@@ -1,5 +1,5 @@
-const DEFAULT_CONNECTION_LIMIT = "1";
-const DEFAULT_POOL_TIMEOUT = "20";
+const DEFAULT_CONNECTION_LIMIT = "5";
+const DEFAULT_POOL_TIMEOUT = "30";
 
 export function pooledPrismaUrl(rawUrl = process.env.DATABASE_URL) {
   if (!rawUrl) return rawUrl;
@@ -20,4 +20,3 @@ export function pooledPrismaUrl(rawUrl = process.env.DATABASE_URL) {
     return rawUrl;
   }
 }
-
