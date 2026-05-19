@@ -100,91 +100,92 @@ export async function POST(request: NextRequest) {
         })
       : null;
     const source = placedByType === "WAITER" ? "WAITER_ASSISTED_QR" : "ONLINE_QR_CUSTOMER";
-    let orderNumber = activeOrder ? null : await nextOrderNumber(restaurant.id);
     let order: { id: string; orderNumber: string } | null = null;
 
-    for (let attempt = 0; attempt < 3; attempt += 1) {
-      try {
-        order = await db.$transaction(
-          async (tx) => {
-            if (activeOrder) {
-              const nextSubtotal = toNumber(activeOrder.subtotal) + totals.subtotal;
-              const nextTotals = calculateTotals([nextSubtotal], restaurant.serviceChargePercent, restaurant.taxPercent, activeOrder.discount);
-              const updated = await tx.order.update({
-                where: { id: activeOrder.id },
-                data: {
-                  subtotal: nextTotals.subtotal,
-                  serviceCharges: nextTotals.serviceCharges,
-                  tax: nextTotals.tax,
-                  discount: nextTotals.discount,
-                  total: nextTotals.total,
-                  specialNote: specialNote || activeOrder.specialNote,
-                  customerName: customerName || activeOrder.customerName,
-                  waiterName: waiterName || activeOrder.waiterName,
-                  source: activeOrder.source === "WAITER_ASSISTED_QR" || source === "WAITER_ASSISTED_QR" ? "WAITER_ASSISTED_QR" : activeOrder.source,
-                  items: { create: orderItems.map((item) => ({ ...item, addedAfterInitialOrder: true })) }
-                }
-              });
-              await tx.publicOrderAttempt.create({
-                data: { ipAddress, restaurantId: restaurant.id, tableNumber, customerSessionId: customerSessionId || null }
-              });
-              await tx.restaurantTable.update({ where: { id: table.id }, data: { status: nextTableStatusAfterClosing([{ status: updated.status, createdAt: updated.createdAt }]) } });
-              await tx.activityLog.create({
-                data: {
-                  restaurantId: restaurant.id,
-                  orderId: updated.id,
-                  action: source === "WAITER_ASSISTED_QR" ? "WAITER_ASSISTED_ITEMS_ADDED" : "ONLINE_ORDER_ITEMS_ADDED",
-                  description: `${updated.orderNumber} received added QR items from table ${table.tableNumber}${waiterName ? ` by waiter ${waiterName}` : ""}`,
-                  ipAddress,
-                  userAgent
-                }
-              });
-              return updated;
-            }
+    if (activeOrder) {
+      const nextSubtotal = toNumber(activeOrder.subtotal) + totals.subtotal;
+      const nextTotals = calculateTotals([nextSubtotal], restaurant.serviceChargePercent, restaurant.taxPercent, activeOrder.discount);
+      order = await db.order.update({
+        where: { id: activeOrder.id },
+        data: {
+          subtotal: nextTotals.subtotal,
+          serviceCharges: nextTotals.serviceCharges,
+          tax: nextTotals.tax,
+          discount: nextTotals.discount,
+          total: nextTotals.total,
+          specialNote: specialNote || activeOrder.specialNote,
+          customerName: customerName || activeOrder.customerName,
+          waiterName: waiterName || activeOrder.waiterName,
+          source: activeOrder.source === "WAITER_ASSISTED_QR" || source === "WAITER_ASSISTED_QR" ? "WAITER_ASSISTED_QR" : activeOrder.source,
+          items: { create: orderItems.map((item) => ({ ...item, addedAfterInitialOrder: true })) }
+        }
+      });
 
-            const created = await tx.order.create({
-              data: {
-                restaurantId: restaurant.id,
-                tableId: table.id,
-                orderNumber: orderNumber!,
-                source,
-                status: "PENDING",
-                subtotal: totals.subtotal,
-                serviceCharges: totals.serviceCharges,
-                tax: totals.tax,
-                discount: totals.discount,
-                total: totals.total,
-                customerSessionId: customerSessionId || null,
-                customerName,
-                waiterName,
-                specialNote: specialNote || null,
-                items: { create: orderItems }
-              }
-            });
-            await tx.publicOrderAttempt.create({
-              data: { ipAddress, restaurantId: restaurant.id, tableNumber, customerSessionId: customerSessionId || null }
-            });
-            await tx.restaurantTable.update({ where: { id: table.id }, data: { status: TableStatus.ACTIVE_ORDER } });
-            await tx.activityLog.create({
-              data: {
-                restaurantId: restaurant.id,
-                orderId: created.id,
-                action: source === "WAITER_ASSISTED_QR" ? "WAITER_ASSISTED_ORDER_CREATED" : "ONLINE_ORDER_CREATED",
-                description: `${created.orderNumber} created from table ${table.tableNumber}${waiterName ? ` by waiter ${waiterName}` : ""}`,
-                ipAddress,
-                userAgent
-              }
-            });
-            return created;
-          },
-          { maxWait: 10000, timeout: 20000 }
-        );
-        break;
-      } catch (error) {
-        const isOrderNumberCollision = error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002" && !activeOrder;
-        if (!isOrderNumberCollision || attempt === 2) throw error;
-        orderNumber = await nextOrderNumber(restaurant.id);
+      Promise.allSettled([
+        db.publicOrderAttempt.create({ data: { ipAddress, restaurantId: restaurant.id, tableNumber, customerSessionId: customerSessionId || null } }),
+        db.restaurantTable.update({ where: { id: table.id }, data: { status: nextTableStatusAfterClosing([{ status: activeOrder.status, createdAt: activeOrder.createdAt }]) } }),
+        db.activityLog.create({
+          data: {
+            restaurantId: restaurant.id,
+            orderId: order.id,
+            action: source === "WAITER_ASSISTED_QR" ? "WAITER_ASSISTED_ITEMS_ADDED" : "ONLINE_ORDER_ITEMS_ADDED",
+            description: `${order.orderNumber} received added QR items from table ${table.tableNumber}${waiterName ? ` by waiter ${waiterName}` : ""}`,
+            ipAddress,
+            userAgent
+          }
+        })
+      ]).then((results) => {
+        for (const result of results) if (result.status === "rejected") console.error("customer order side effect failed", result.reason);
+      });
+    } else {
+      let orderNumber = await nextOrderNumber(restaurant.id);
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        try {
+          order = await db.order.create({
+            data: {
+              restaurantId: restaurant.id,
+              tableId: table.id,
+              orderNumber,
+              source,
+              status: "PENDING",
+              subtotal: totals.subtotal,
+              serviceCharges: totals.serviceCharges,
+              tax: totals.tax,
+              discount: totals.discount,
+              total: totals.total,
+              customerSessionId: customerSessionId || null,
+              customerName,
+              waiterName,
+              specialNote: specialNote || null,
+              items: { create: orderItems }
+            }
+          });
+          break;
+        } catch (error) {
+          const isOrderNumberCollision = error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002";
+          if (!isOrderNumberCollision || attempt === 2) throw error;
+          orderNumber = await nextOrderNumber(restaurant.id);
+        }
       }
+
+      if (!order) throw new Error("Order could not be created.");
+
+      Promise.allSettled([
+        db.publicOrderAttempt.create({ data: { ipAddress, restaurantId: restaurant.id, tableNumber, customerSessionId: customerSessionId || null } }),
+        db.restaurantTable.update({ where: { id: table.id }, data: { status: TableStatus.ACTIVE_ORDER } }),
+        db.activityLog.create({
+          data: {
+            restaurantId: restaurant.id,
+            orderId: order.id,
+            action: source === "WAITER_ASSISTED_QR" ? "WAITER_ASSISTED_ORDER_CREATED" : "ONLINE_ORDER_CREATED",
+            description: `${order.orderNumber} created from table ${table.tableNumber}${waiterName ? ` by waiter ${waiterName}` : ""}`,
+            ipAddress,
+            userAgent
+          }
+        })
+      ]).then((results) => {
+        for (const result of results) if (result.status === "rejected") console.error("customer order side effect failed", result.reason);
+      });
     }
 
     if (!order) throw new Error("Order could not be created.");
