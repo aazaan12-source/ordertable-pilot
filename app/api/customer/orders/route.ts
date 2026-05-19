@@ -100,6 +100,7 @@ export async function POST(request: NextRequest) {
         })
       : null;
     const source = placedByType === "WAITER" ? "WAITER_ASSISTED_QR" : "ONLINE_QR_CUSTOMER";
+    const orderNumber = activeOrder ? null : await nextOrderNumber(restaurant.id);
 
     const order = await db.$transaction(async (tx) => {
       if (activeOrder) {
@@ -137,12 +138,11 @@ export async function POST(request: NextRequest) {
         return updated;
       }
 
-      const orderNumber = await nextOrderNumber(restaurant.id);
       const created = await tx.order.create({
         data: {
           restaurantId: restaurant.id,
           tableId: table.id,
-          orderNumber,
+          orderNumber: orderNumber!,
           source,
           status: "PENDING",
           subtotal: totals.subtotal,

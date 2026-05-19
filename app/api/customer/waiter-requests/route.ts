@@ -53,7 +53,7 @@ export async function POST(request: Request) {
           where: {
             restaurantId,
             tableId,
-            status: { in: ["SERVED", "BILL_REQUESTED"] },
+            status: { in: ["PENDING", "ACCEPTED", "PREPARING", "READY", "SERVED", "BILL_REQUESTED"] },
             paymentStatus: "UNPAID"
           },
           orderBy: { createdAt: "desc" }
