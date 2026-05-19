@@ -2,8 +2,15 @@ import { OrderSource, OrderStatus, PaymentStatus, TableStatus, type Prisma } fro
 import { db } from "@/lib/db";
 
 export async function nextOrderNumber(restaurantId: string) {
-  const count = await db.order.count({ where: { restaurantId } });
-  return `ORD-${String(count + 1).padStart(4, "0")}`;
+  const orders = await db.order.findMany({
+    where: { restaurantId, orderNumber: { startsWith: "ORD-" } },
+    select: { orderNumber: true }
+  });
+  const highest = orders.reduce((max, order) => {
+    const match = /^ORD-(\d+)$/.exec(order.orderNumber);
+    return match ? Math.max(max, Number(match[1])) : max;
+  }, 0);
+  return `ORD-${String(highest + 1).padStart(4, "0")}`;
 }
 
 export const orderStatuses: OrderStatus[] = [
