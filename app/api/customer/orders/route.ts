@@ -136,14 +136,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ orderId: order.id, orderNumber: order.orderNumber });
   } catch (error) {
     console.error("QR_ORDER_CREATE_FAILED", { ...debugInfo, error });
-    if (request.headers.get("x-ordertable-debug") === "1") {
-      const code = error instanceof Prisma.PrismaClientKnownRequestError ? error.code : "UNKNOWN";
-      const message = error instanceof Error ? error.message : "Unknown error";
-      return NextResponse.json(
-        { error: "Could not place order right now. Please ask restaurant staff for help.", debug: { code, message, version: "order-route-node-20260519" } },
-        { status: 500 }
-      );
-    }
     return NextResponse.json({ error: "Could not place order right now. Please ask restaurant staff for help." }, { status: 500 });
   }
 }
