@@ -344,6 +344,32 @@ Security test checklist:
 
 OrderTable can now be used as one order and billing platform for both QR orders and staff-entered orders.
 
+### Waiter-Assisted QR Ordering
+
+The same table QR page supports both customer self-ordering and waiter-assisted ordering:
+
+```txt
+/r/[restaurant-slug]/t/[table-number]
+```
+
+On the QR page, choose:
+
+- `Customer ordering`: customer may enter their name optionally and place the order.
+- `Waiter taking order`: waiter enters their name, adds items from their Android phone, and sends the order to the counter.
+
+Waiter-assisted orders are saved with source `WAITER_ASSISTED_QR`. The waiter name appears on the manager dashboard, order detail page, kitchen slip, and customer bill. The waiter name is remembered in that phone browser using localStorage key `ordertable_waiter_name`, so the waiter does not need to retype their name at every table.
+
+If a table already has an unpaid active order, the QR page shows `Current order for this table` with order number, status, source, waiter/customer name, items, and total. New QR items default to `Add to current`, which appends items to the active order, marks them as added later, recalculates totals, and allows the existing added-items kitchen slip to print the new items.
+
+Active table order statuses shown on QR pages:
+
+- Pending
+- Accepted
+- Preparing
+- Ready
+- Served
+- Bill Requested
+
 ### Manual Orders
 
 Managers can create waiter/cashier orders from:

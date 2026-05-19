@@ -29,10 +29,16 @@ export const orderStatusLabels: Record<OrderStatus, string> = {
 };
 
 export const orderSourceLabels: Record<OrderSource, string> = {
-  ONLINE_QR: "Online QR",
+  ONLINE_QR: "Customer QR",
+  ONLINE_QR_CUSTOMER: "Customer QR",
+  WAITER_ASSISTED_QR: "Waiter Assisted",
   MANUAL_DASHBOARD: "Manual",
   WAITER_ENTRY: "Waiter Entry"
 };
+
+export function orderSourceLabel(source: string) {
+  return orderSourceLabels[source as OrderSource] || "Customer QR";
+}
 
 export const tableStatusByOrder: Partial<Record<OrderStatus, TableStatus>> = {
   PENDING: "ACTIVE_ORDER",
@@ -86,7 +92,7 @@ export function serializeOrder(order: Prisma.OrderGetPayload<{
     status: order.status,
     statusLabel: orderStatusLabels[order.status],
     source: order.source,
-    sourceLabel: orderSourceLabels[order.source],
+    sourceLabel: orderSourceLabel(order.source),
     paymentStatus: order.paymentStatus,
     paymentMethod: order.paymentMethod,
     specialNote: order.specialNote,

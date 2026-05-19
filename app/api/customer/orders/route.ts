@@ -1,15 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
-import { RestaurantStatus, TableStatus } from "@prisma/client";
+import { OrderStatus, RestaurantStatus, TableStatus } from "@prisma/client";
 import { z } from "zod";
 import { db } from "@/lib/db";
 import { calculateTotals, toNumber } from "@/lib/pricing";
-import { nextOrderNumber } from "@/lib/order-utils";
+import { nextOrderNumber, nextTableStatusAfterClosing } from "@/lib/order-utils";
 import { clientIpFromHeaders, publicOrderLimitStatus, recordPublicOrderAttempt, userAgentFromHeaders } from "@/lib/security";
 
 const createOrderSchema = z.object({
   restaurantSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(80),
   tableNumber: z.number().int().min(1).max(500),
   customerSessionId: z.string().max(120).optional().nullable(),
+  placedByType: z.enum(["CUSTOMER", "WAITER"]).default("CUSTOMER"),
+  customerName: z.string().max(80).optional().nullable(),
+  waiterName: z.string().max(80).optional().nullable(),
+  activeOrderId: z.string().max(100).optional().nullable(),
   specialNote: z.string().max(500).optional().nullable(),
   items: z.array(z.object({
     menuItemId: z.string().min(1).max(100),
@@ -26,7 +30,12 @@ export async function POST(request: NextRequest) {
     const parsed = createOrderSchema.safeParse(await request.json());
     if (!parsed.success) return NextResponse.json({ error: "Invalid order details." }, { status: 400 });
 
-    const { restaurantSlug, tableNumber, items, specialNote, customerSessionId } = parsed.data;
+    const { restaurantSlug, tableNumber, items, specialNote, customerSessionId, placedByType, activeOrderId } = parsed.data;
+    const customerName = (parsed.data.customerName || "").trim() || null;
+    const waiterName = placedByType === "WAITER" ? (parsed.data.waiterName || "").trim() : null;
+    if (placedByType === "WAITER" && !waiterName) {
+      return NextResponse.json({ error: "Please enter waiter name before sending the order." }, { status: 400 });
+    }
     const totalQuantity = items.reduce((sum, item) => sum + item.quantity, 0);
     if (totalQuantity > 100) {
       return NextResponse.json({ error: "Too many items in one order. Please split the order or call staff." }, { status: 400 });
@@ -83,15 +92,58 @@ export async function POST(request: NextRequest) {
       };
     });
     const totals = calculateTotals(orderItems.map((item) => item.totalPrice), restaurant.serviceChargePercent, restaurant.taxPercent);
-    const orderNumber = await nextOrderNumber(restaurant.id);
+    const activeStatuses: OrderStatus[] = ["PENDING", "ACCEPTED", "PREPARING", "READY", "SERVED", "BILL_REQUESTED"];
+    const activeOrder = activeOrderId
+      ? await db.order.findFirst({
+          where: { id: activeOrderId, restaurantId: restaurant.id, tableId: table.id, status: { in: activeStatuses }, paymentStatus: { not: "PAID" } },
+          include: { items: true }
+        })
+      : null;
+    const source = placedByType === "WAITER" ? "WAITER_ASSISTED_QR" : "ONLINE_QR_CUSTOMER";
 
     const order = await db.$transaction(async (tx) => {
+      if (activeOrder) {
+        const nextSubtotal = toNumber(activeOrder.subtotal) + totals.subtotal;
+        const nextTotals = calculateTotals([nextSubtotal], restaurant.serviceChargePercent, restaurant.taxPercent, activeOrder.discount);
+        const updated = await tx.order.update({
+          where: { id: activeOrder.id },
+          data: {
+            subtotal: nextTotals.subtotal,
+            serviceCharges: nextTotals.serviceCharges,
+            tax: nextTotals.tax,
+            discount: nextTotals.discount,
+            total: nextTotals.total,
+            specialNote: specialNote || activeOrder.specialNote,
+            customerName: customerName || activeOrder.customerName,
+            waiterName: waiterName || activeOrder.waiterName,
+            source: activeOrder.source === "WAITER_ASSISTED_QR" || source === "WAITER_ASSISTED_QR" ? "WAITER_ASSISTED_QR" : activeOrder.source,
+            items: { create: orderItems.map((item) => ({ ...item, addedAfterInitialOrder: true })) }
+          }
+        });
+        await tx.publicOrderAttempt.create({
+          data: { ipAddress, restaurantId: restaurant.id, tableNumber, customerSessionId: customerSessionId || null }
+        });
+        await tx.restaurantTable.update({ where: { id: table.id }, data: { status: nextTableStatusAfterClosing([{ status: updated.status, createdAt: updated.createdAt }]) } });
+        await tx.activityLog.create({
+          data: {
+            restaurantId: restaurant.id,
+            orderId: updated.id,
+            action: source === "WAITER_ASSISTED_QR" ? "WAITER_ASSISTED_ITEMS_ADDED" : "ONLINE_ORDER_ITEMS_ADDED",
+            description: `${updated.orderNumber} received added QR items from table ${table.tableNumber}${waiterName ? ` by waiter ${waiterName}` : ""}`,
+            ipAddress,
+            userAgent
+          }
+        });
+        return updated;
+      }
+
+      const orderNumber = await nextOrderNumber(restaurant.id);
       const created = await tx.order.create({
         data: {
           restaurantId: restaurant.id,
           tableId: table.id,
           orderNumber,
-          source: "ONLINE_QR",
+          source,
           status: "PENDING",
           subtotal: totals.subtotal,
           serviceCharges: totals.serviceCharges,
@@ -99,6 +151,8 @@ export async function POST(request: NextRequest) {
           discount: totals.discount,
           total: totals.total,
           customerSessionId: customerSessionId || null,
+          customerName,
+          waiterName,
           specialNote: specialNote || null,
           items: { create: orderItems }
         }
@@ -110,8 +164,9 @@ export async function POST(request: NextRequest) {
       await tx.activityLog.create({
         data: {
           restaurantId: restaurant.id,
-          action: "ORDER_CREATED",
-          description: `${created.orderNumber} created from table ${table.tableNumber}`,
+          orderId: created.id,
+          action: source === "WAITER_ASSISTED_QR" ? "WAITER_ASSISTED_ORDER_CREATED" : "ONLINE_ORDER_CREATED",
+          description: `${created.orderNumber} created from table ${table.tableNumber}${waiterName ? ` by waiter ${waiterName}` : ""}`,
           ipAddress,
           userAgent
         }

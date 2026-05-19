@@ -15,6 +15,7 @@ type OrderSnapshot = {
   orderNumber: string;
   status: string;
   statusLabel: string;
+  sourceLabel: string;
   paymentStatus: string;
   specialNote: string | null;
   subtotal: string;
@@ -23,6 +24,8 @@ type OrderSnapshot = {
   discount: string;
   total: string;
   createdAt: string;
+  customerName: string | null;
+  waiterName: string | null;
   cancelInfo: {
     canCancel: boolean;
     expiresAt: string;
@@ -134,6 +137,9 @@ export function OrderStatusPanel({ initialOrder }: { initialOrder: OrderSnapshot
             <div>
               <CardTitle>{order.orderNumber}</CardTitle>
               <p className="text-sm text-muted-foreground">{order.restaurant.name} - Table {order.table.tableNumber}</p>
+              <p className="text-xs font-semibold text-primary">{order.sourceLabel}</p>
+              {order.waiterName ? <p className="text-xs text-muted-foreground">Placed by Waiter {order.waiterName}</p> : null}
+              {!order.waiterName && order.customerName ? <p className="text-xs text-muted-foreground">Customer: {order.customerName}</p> : null}
               <p className="text-xs text-muted-foreground">{formatPkDateTime(order.createdAt)}</p>
             </div>
             <StatusBadge status={order.status} />

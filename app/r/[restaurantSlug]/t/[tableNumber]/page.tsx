@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { RestaurantStatus, TableStatus } from "@prisma/client";
+import { OrderStatus, RestaurantStatus, TableStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { OrderMenu } from "@/components/customer/order-menu";
 import { RecentOrderLink } from "@/components/customer/recent-order-link";
 import { RequestButtons } from "@/components/customer/request-buttons";
 import { safeStoredImageUrl } from "@/lib/menu-images";
 import { sortMenuItemsForDisplay } from "@/lib/menu-ordering";
+import { orderSourceLabel, orderStatusLabels } from "@/lib/order-utils";
 import { tableQrUrl } from "@/lib/qr";
 import { appBaseUrl } from "@/lib/site-url";
 
@@ -79,6 +80,18 @@ export default async function CustomerTablePage({
   if (restaurant.tables[0].status === TableStatus.INACTIVE) return <Message title="Table inactive" body="This table QR is currently inactive. Please contact restaurant staff." />;
   if (!restaurant.orderingEnabled) return <Message title="Ordering paused" body="Online ordering is temporarily paused. Please call the waiter." />;
 
+  const activeStatuses: OrderStatus[] = ["PENDING", "ACCEPTED", "PREPARING", "READY", "SERVED", "BILL_REQUESTED"];
+  const activeOrder = await db.order.findFirst({
+    where: {
+      restaurantId: restaurant.id,
+      tableId: restaurant.tables[0].id,
+      status: { in: activeStatuses },
+      paymentStatus: { not: "PAID" }
+    },
+    include: { items: { orderBy: { createdAt: "asc" } } },
+    orderBy: { createdAt: "desc" }
+  });
+
   return (
     <>
       <div className="mx-auto max-w-5xl px-4 pt-4">
@@ -104,6 +117,23 @@ export default async function CustomerTablePage({
           imageUrl: safeStoredImageUrl(item.imageUrl),
           category: { id: item.category.id, name: item.category.name }
         }))}
+        activeOrder={activeOrder ? {
+          id: activeOrder.id,
+          orderNumber: activeOrder.orderNumber,
+          status: activeOrder.status,
+          statusLabel: orderStatusLabels[activeOrder.status],
+          sourceLabel: orderSourceLabel(activeOrder.source),
+          customerName: activeOrder.customerName,
+          waiterName: activeOrder.waiterName,
+          total: activeOrder.total.toString(),
+          items: activeOrder.items.map((item) => ({
+            id: item.id,
+            itemName: item.itemName,
+            quantity: item.quantity,
+            totalPrice: item.totalPrice.toString(),
+            specialInstruction: item.specialInstruction
+          }))
+        } : null}
       />
       <div className="mx-auto max-w-5xl px-4 pb-44 sm:pb-28">
         <RequestButtons restaurantSlug={restaurant.slug} tableNumber={tableNo} pinnedMobile />

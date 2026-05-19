@@ -576,4 +576,18 @@ Creating monthly financial statement:
 3. Click Print / Save Monthly PDF.
 4. In browser print dialog, choose Save as PDF.
 
+Waiter-Assisted Ordering:
+1. Waiter goes to customer table.
+2. Waiter scans the same table QR code.
+3. Waiter selects Waiter taking order.
+4. Waiter enters name.
+5. Waiter adds customer's order to cart.
+6. Waiter submits order.
+7. Counter/dashboard receives the order with source Waiter Assisted and waiter name.
+8. Kitchen slip can be printed with waiter name.
+9. Customer can later scan the same QR and see the current active order.
+10. Customer can call waiter or ask for bill from the same QR page.
+11. If an active unpaid order exists, added items default to adding into the current order.
+12. Added items are marked as added later for the added-items kitchen slip.
+
 Do not store secrets in this file.

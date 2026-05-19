@@ -66,6 +66,8 @@ enum PaymentMethod {
 
 enum OrderSource {
   ONLINE_QR
+  ONLINE_QR_CUSTOMER
+  WAITER_ASSISTED_QR
   MANUAL_DASHBOARD
   WAITER_ENTRY
 }
@@ -213,7 +215,7 @@ model Order {
   table             RestaurantTable @relation(fields: [tableId], references: [id])
   orderNumber       String
   customerSessionId String?
-  source            OrderSource   @default(ONLINE_QR)
+  source            OrderSource   @default(ONLINE_QR_CUSTOMER)
   status            OrderStatus   @default(PENDING)
   subtotal          Decimal       @db.Decimal(10, 2)
   serviceCharges    Decimal       @db.Decimal(10, 2)

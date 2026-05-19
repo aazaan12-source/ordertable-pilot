@@ -41,6 +41,8 @@ type Order = {
   paymentStatus: string;
   paymentMethod?: string | null;
   specialNote: string | null;
+  customerName?: string | null;
+  waiterName?: string | null;
   createdAt: string;
   table: { tableNumber: number };
   waiterRequests?: { id: string; type: string; status: string }[];
@@ -222,7 +224,9 @@ export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Or
                 <div className="flex items-start justify-between gap-3">
                   <div>
                     <CardTitle>{order.orderNumber} - Table {order.table.tableNumber}</CardTitle>
-                    <p className="text-sm text-muted-foreground">{formatPkTime(order.createdAt)} · {sourceLabel(order.source)}</p>
+                    <p className="text-sm text-muted-foreground">{formatPkTime(order.createdAt)} - {sourceLabel(order.source)}</p>
+                    {order.waiterName ? <p className="mt-1 text-sm font-semibold text-primary">Waiter: {order.waiterName}</p> : null}
+                    {!order.waiterName && order.customerName ? <p className="mt-1 text-sm text-muted-foreground">Customer: {order.customerName}</p> : null}
                     {hasBillRequest ? <p className="mt-1 text-sm font-semibold text-primary">Bill requested</p> : null}
                   </div>
                   <StatusBadge status={order.status} />
@@ -300,7 +304,8 @@ function BillRow({ label, value, strong }: { label: string; value: string; stron
 function sourceLabel(source: string) {
   if (source === "MANUAL_DASHBOARD") return "Manual";
   if (source === "WAITER_ENTRY") return "Waiter Entry";
-  return "Online QR";
+  if (source === "WAITER_ASSISTED_QR") return "Waiter Assisted";
+  return "Customer QR";
 }
 
 function playNotification() {

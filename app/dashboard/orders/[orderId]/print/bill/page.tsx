@@ -40,6 +40,7 @@ export default async function CustomerBillPage({
         <Meta label="Table" value={String(order.table.tableNumber)} />
         <Meta label="Date" value={formatPkDateTime(order.createdAt)} />
         {order.waiterName ? <Meta label="Waiter" value={order.waiterName} /> : null}
+        {order.customerName ? <Meta label="Customer" value={order.customerName} /> : null}
         <div className="my-2 border-t border-dashed border-black" />
         <div className="space-y-3">
           {order.items.map((item) => (

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Minus, Plus, ShoppingCart, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,11 +28,24 @@ type CartItem = {
   specialInstruction: string;
 };
 
+type ActiveOrderSummary = {
+  id: string;
+  orderNumber: string;
+  status: string;
+  statusLabel: string;
+  sourceLabel: string;
+  customerName: string | null;
+  waiterName: string | null;
+  total: string;
+  items: { id: string; itemName: string; quantity: number; totalPrice: string; specialInstruction: string | null }[];
+};
+
 export function OrderMenu({
   restaurant,
   tableNumber,
   categories,
   items,
+  activeOrder,
   editOrder
 }: {
   restaurant: {
@@ -47,6 +60,7 @@ export function OrderMenu({
   tableNumber: number;
   categories: { id: string; name: string; imageUrl?: string | null }[];
   items: MenuItem[];
+  activeOrder?: ActiveOrderSummary | null;
   editOrder?: {
     id: string;
     orderNumber: string;
@@ -66,8 +80,17 @@ export function OrderMenu({
     })) || []
   );
   const [specialNote, setSpecialNote] = useState(editOrder?.specialNote || "");
+  const [placedByType, setPlacedByType] = useState<"CUSTOMER" | "WAITER">("CUSTOMER");
+  const [customerName, setCustomerName] = useState(editOrder?.items ? "" : "");
+  const [waiterName, setWaiterName] = useState("");
+  const [addToActiveOrder, setAddToActiveOrder] = useState(Boolean(activeOrder && !editOrder));
   const [error, setError] = useState("");
   const [placing, setPlacing] = useState(false);
+
+  useEffect(() => {
+    const savedWaiterName = localStorage.getItem("ordertable_waiter_name") || "";
+    if (savedWaiterName) setWaiterName(savedWaiterName);
+  }, []);
 
   const visibleItems = activeCategory ? items.filter((item) => item.category.id === activeCategory) : items;
   const totalQty = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -120,6 +143,13 @@ export function OrderMenu({
 
   async function placeOrder() {
     if (cart.length === 0) return;
+    if (!editOrder && placedByType === "WAITER" && !waiterName.trim()) {
+      setError("Please enter waiter name before sending the order.");
+      return;
+    }
+    if (!editOrder && placedByType === "WAITER") {
+      localStorage.setItem("ordertable_waiter_name", waiterName.trim());
+    }
     setPlacing(true);
     setError("");
     try {
@@ -129,6 +159,10 @@ export function OrderMenu({
         body: JSON.stringify({
           restaurantSlug: restaurant.slug,
           tableNumber,
+          placedByType,
+          customerName: customerName.trim() || null,
+          waiterName: placedByType === "WAITER" ? waiterName.trim() : null,
+          activeOrderId: addToActiveOrder && activeOrder ? activeOrder.id : null,
           specialNote,
           items: cart.map(({ menuItemId, quantity, specialInstruction }) => ({ menuItemId, quantity, specialInstruction }))
         })
@@ -166,6 +200,99 @@ export function OrderMenu({
             Back to order status
           </Link>
         ) : null}
+
+        {!editOrder ? (
+          <section className="mb-4 grid gap-3 lg:grid-cols-[1fr_1fr]">
+            <Card>
+              <CardContent className="p-3 sm:p-4">
+                <p className="text-sm font-semibold">Who is placing this order?</p>
+                <div className="mt-3 grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setPlacedByType("CUSTOMER")}
+                    className={`rounded-md border px-3 py-2 text-sm font-semibold ${placedByType === "CUSTOMER" ? "border-primary bg-primary text-primary-foreground" : "bg-white"}`}
+                  >
+                    Customer ordering
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPlacedByType("WAITER")}
+                    className={`rounded-md border px-3 py-2 text-sm font-semibold ${placedByType === "WAITER" ? "border-primary bg-primary text-primary-foreground" : "bg-white"}`}
+                  >
+                    Waiter taking order
+                  </button>
+                </div>
+                <div className="mt-3">
+                  {placedByType === "CUSTOMER" ? (
+                    <input
+                      className="h-10 w-full rounded-md border px-3 text-sm"
+                      value={customerName}
+                      onChange={(event) => setCustomerName(event.target.value.slice(0, 80))}
+                      placeholder="Your name optional"
+                    />
+                  ) : (
+                    <div className="space-y-2">
+                      <input
+                        className="h-10 w-full rounded-md border px-3 text-sm"
+                        value={waiterName}
+                        onChange={(event) => setWaiterName(event.target.value.slice(0, 80))}
+                        placeholder="Enter waiter name"
+                        required
+                      />
+                      <p className="text-xs text-muted-foreground">Use this when a waiter is taking the order on behalf of customers.</p>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            {activeOrder ? (
+              <Card>
+                <CardContent className="p-3 sm:p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold">Current order for this table</p>
+                      <p className="text-xs text-muted-foreground">
+                        {activeOrder.orderNumber} - {activeOrder.statusLabel} - {activeOrder.sourceLabel}
+                      </p>
+                      {activeOrder.waiterName ? <p className="mt-1 text-sm font-medium">Placed by Waiter {activeOrder.waiterName}</p> : null}
+                      {!activeOrder.waiterName && activeOrder.customerName ? <p className="mt-1 text-sm font-medium">Customer: {activeOrder.customerName}</p> : null}
+                    </div>
+                    <Link href={`/order/${activeOrder.id}/status`} className="shrink-0 rounded-md border px-3 py-2 text-xs font-semibold hover:bg-muted">
+                      View status
+                    </Link>
+                  </div>
+                  <div className="mt-3 max-h-28 space-y-1 overflow-y-auto rounded-md bg-muted p-2 text-xs">
+                    {activeOrder.items.map((item) => (
+                      <p key={item.id} className="flex justify-between gap-2">
+                        <span>{item.quantity} x {item.itemName}</span>
+                        <span>{formatCurrency(item.totalPrice)}</span>
+                      </p>
+                    ))}
+                  </div>
+                  <p className="mt-2 text-sm font-bold">Total: {formatCurrency(activeOrder.total)}</p>
+                  <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
+                    <button
+                      type="button"
+                      onClick={() => setAddToActiveOrder(true)}
+                      className={`rounded-md border px-3 py-2 font-semibold ${addToActiveOrder ? "border-primary bg-primary text-primary-foreground" : "bg-white"}`}
+                    >
+                      Add to current
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setAddToActiveOrder(false)}
+                      className={`rounded-md border px-3 py-2 font-semibold ${!addToActiveOrder ? "border-primary bg-primary text-primary-foreground" : "bg-white"}`}
+                    >
+                      Separate order
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : null}
+          </section>
+        ) : null}
+
         <div className="grid grid-cols-[74px_minmax(0,1fr)] gap-2 sm:grid-cols-[112px_minmax(0,1fr)] sm:gap-3 lg:grid-cols-[190px_1fr] lg:gap-5">
           <aside className="sticky top-[65px] z-10 self-start sm:top-20 lg:top-24">
             <div className="max-h-[calc(100vh-150px)] overflow-y-auto rounded-md border bg-white p-1 sm:rounded-lg sm:p-3">
@@ -285,7 +412,7 @@ export function OrderMenu({
           </div>
           <Button size="lg" disabled={cart.length === 0 || placing} onClick={placeOrder}>
             <ShoppingCart className="h-5 w-5" />
-            {placing ? "Sending..." : editOrder ? "Save changes" : "Place order"}
+            {placing ? "Sending..." : editOrder ? "Save changes" : placedByType === "WAITER" ? "Send Order to Counter" : addToActiveOrder && activeOrder ? "Add Items to Order" : "Place Order"}
           </Button>
         </div>
       </div>
