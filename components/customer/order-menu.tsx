@@ -233,19 +233,12 @@ export function OrderMenu({
                     />
                   ) : (
                     <div className="space-y-2">
-                      <input
-                        className="h-10 w-full rounded-md border bg-white px-3 text-sm"
+                      <WaiterNameCombobox
                         value={waiterName}
-                        onChange={(event) => setWaiterName(event.target.value.slice(0, 80))}
+                        onChange={setWaiterName}
+                        options={waiterOptions.map((waiter) => waiter.name)}
                         placeholder={waiterOptions.length > 0 ? "Select or type waiter name" : "Enter waiter name"}
-                        list="ordertable-waiter-names"
-                        required
                       />
-                      <datalist id="ordertable-waiter-names">
-                        {waiterOptions.map((waiter) => (
-                          <option key={waiter.id} value={waiter.name} />
-                        ))}
-                      </datalist>
                       <p className="text-xs text-muted-foreground">Use this when a waiter is taking the order on behalf of customers.</p>
                     </div>
                   )}
@@ -410,6 +403,67 @@ export function OrderMenu({
           </Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function WaiterNameCombobox({
+  value,
+  onChange,
+  options,
+  placeholder
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  options: string[];
+  placeholder: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const uniqueOptions = useMemo(() => Array.from(new Set(options.filter(Boolean))), [options]);
+
+  return (
+    <div className="relative">
+      <input
+        className="h-10 w-full rounded-md border bg-white px-3 pr-10 text-sm"
+        value={value}
+        onChange={(event) => {
+          onChange(event.target.value.slice(0, 80));
+          setOpen(true);
+        }}
+        onFocus={() => setOpen(true)}
+        onClick={() => setOpen(true)}
+        onBlur={() => window.setTimeout(() => setOpen(false), 140)}
+        placeholder={placeholder}
+        autoComplete="off"
+        required
+      />
+      <button
+        type="button"
+        className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted-foreground"
+        onMouseDown={(event) => event.preventDefault()}
+        onClick={() => setOpen((current) => !current)}
+        aria-label="Show waiter names"
+      >
+        v
+      </button>
+      {open && uniqueOptions.length > 0 ? (
+        <div className="absolute z-50 mt-1 max-h-52 w-full overflow-y-auto rounded-md border bg-white py-1 shadow-lg">
+          {uniqueOptions.map((name) => (
+            <button
+              key={name}
+              type="button"
+              className={`block w-full px-3 py-2 text-left text-sm hover:bg-muted ${value === name ? "bg-muted font-semibold" : ""}`}
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                onChange(name);
+                setOpen(false);
+              }}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

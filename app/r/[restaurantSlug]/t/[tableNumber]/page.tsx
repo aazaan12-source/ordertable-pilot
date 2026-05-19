@@ -92,6 +92,14 @@ export default async function CustomerTablePage({
     include: { items: { orderBy: { createdAt: "asc" } } },
     orderBy: { createdAt: "desc" }
   });
+  const globalWaiters = await db.restaurantWaiter.findMany({
+    where: { isActive: true },
+    orderBy: [{ name: "asc" }],
+    select: { id: true, name: true }
+  });
+  const waiterOptions = Array.from(
+    new Map(globalWaiters.map((waiter) => [waiter.name.toLocaleLowerCase(), waiter])).values()
+  );
 
   return (
     <>
@@ -110,7 +118,7 @@ export default async function CustomerTablePage({
         }}
         tableNumber={tableNo}
         categories={restaurant.categories.map((category) => ({ id: category.id, name: category.name, imageUrl: safeStoredImageUrl(category.imageUrl) }))}
-        waiterOptions={restaurant.waiters.map((waiter) => ({ id: waiter.id, name: waiter.name }))}
+        waiterOptions={waiterOptions.map((waiter) => ({ id: waiter.id, name: waiter.name }))}
         items={sortMenuItemsForDisplay(restaurant.menuItems).map((item) => ({
           id: item.id,
           name: item.name,
