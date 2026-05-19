@@ -87,7 +87,6 @@ export function OrderMenu({
   const [waiterName, setWaiterName] = useState("");
   const [waiterEntryMode, setWaiterEntryMode] = useState<"LIST" | "MANUAL">("LIST");
   const [selectedWaiterName, setSelectedWaiterName] = useState("");
-  const [addToActiveOrder, setAddToActiveOrder] = useState(Boolean(activeOrder && !editOrder));
   const [error, setError] = useState("");
   const [placing, setPlacing] = useState(false);
 
@@ -180,7 +179,6 @@ export function OrderMenu({
           placedByType,
           customerName: customerName.trim() || null,
           waiterName: placedByType === "WAITER" ? effectiveWaiterName : null,
-          activeOrderId: addToActiveOrder && activeOrder ? activeOrder.id : null,
           specialNote,
           items: cart.map(({ menuItemId, quantity, specialInstruction }) => ({ menuItemId, quantity, specialInstruction }))
         })
@@ -321,22 +319,9 @@ export function OrderMenu({
                     ))}
                   </div>
                   <p className="mt-2 text-sm font-bold">Total: {formatCurrency(activeOrder.total)}</p>
-                  <div className="mt-3 grid grid-cols-2 gap-2 text-sm">
-                    <button
-                      type="button"
-                      onClick={() => setAddToActiveOrder(true)}
-                      className={`rounded-md border px-3 py-2 font-semibold ${addToActiveOrder ? "border-primary bg-primary text-primary-foreground" : "bg-white"}`}
-                    >
-                      Add to current
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setAddToActiveOrder(false)}
-                      className={`rounded-md border px-3 py-2 font-semibold ${!addToActiveOrder ? "border-primary bg-primary text-primary-foreground" : "bg-white"}`}
-                    >
-                      Separate order
-                    </button>
-                  </div>
+                  <p className="mt-3 rounded-md border bg-muted p-2 text-xs text-muted-foreground">
+                    New cart items will be sent as a new order for this table.
+                  </p>
                 </CardContent>
               </Card>
             ) : null}
@@ -462,7 +447,7 @@ export function OrderMenu({
           </div>
           <Button size="lg" disabled={cart.length === 0 || placing} onClick={placeOrder}>
             <ShoppingCart className="h-5 w-5" />
-            {placing ? "Sending..." : editOrder ? "Save changes" : placedByType === "WAITER" ? "Send Order to Counter" : addToActiveOrder && activeOrder ? "Add Items to Order" : "Place Order"}
+            {placing ? "Sending..." : editOrder ? "Save changes" : placedByType === "WAITER" ? "Send Order to Counter" : "Place Order"}
           </Button>
         </div>
       </div>
