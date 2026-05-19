@@ -61,6 +61,7 @@ export default async function CustomerTablePage({
       where: { slug: restaurantSlug },
       include: {
         tables: { where: { tableNumber: tableNo } },
+        waiters: { where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { name: "asc" }] },
         categories: { where: { isActive: true }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
         menuItems: {
           where: { isActive: true, isAvailable: true },
@@ -109,6 +110,7 @@ export default async function CustomerTablePage({
         }}
         tableNumber={tableNo}
         categories={restaurant.categories.map((category) => ({ id: category.id, name: category.name, imageUrl: safeStoredImageUrl(category.imageUrl) }))}
+        waiterOptions={restaurant.waiters.map((waiter) => ({ id: waiter.id, name: waiter.name }))}
         items={sortMenuItemsForDisplay(restaurant.menuItems).map((item) => ({
           id: item.id,
           name: item.name,

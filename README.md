@@ -359,6 +359,14 @@ On the QR page, choose:
 
 Waiter-assisted orders are saved with source `WAITER_ASSISTED_QR`. The waiter name appears on the manager dashboard, order detail page, kitchen slip, and customer bill. The waiter name is remembered in that phone browser using localStorage key `ordertable_waiter_name`, so the waiter does not need to retype their name at every table.
 
+Managers maintain waiter dropdown names from:
+
+```txt
+/dashboard/waiters
+```
+
+Active waiter names appear in the QR page `Waiter taking order` dropdown. The QR page also keeps `Manual entry / name not in list` so temporary or newly hired waiters can still submit orders before the manager updates the list.
+
 If a table already has an unpaid active order, the QR page shows `Current order for this table` with order number, status, source, waiter/customer name, items, and total. New QR items default to `Add to current`, which appends items to the active order, marks them as added later, recalculates totals, and allows the existing added-items kitchen slip to print the new items.
 
 Active table order statuses shown on QR pages:

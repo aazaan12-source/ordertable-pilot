@@ -1,4 +1,5 @@
 import { revalidatePath } from "next/cache";
+import Link from "next/link";
 import { db } from "@/lib/db";
 import { getManagerRestaurant } from "@/lib/permissions";
 import { Button } from "@/components/ui/button";
@@ -54,6 +55,13 @@ export default async function SettingsPage() {
             </label>
             <Button className="md:col-span-2">Save settings</Button>
           </form>
+        </CardContent>
+      </Card>
+      <Card className="mt-5 max-w-3xl">
+        <CardHeader><CardTitle>Waiter-assisted QR ordering</CardTitle></CardHeader>
+        <CardContent className="space-y-3">
+          <p className="text-sm text-muted-foreground">Maintain waiter names for the QR order page dropdown. Manual entry remains available for new or temporary waiters.</p>
+          <Link href="/dashboard/waiters"><Button variant="outline">Manage Waiter List</Button></Link>
         </CardContent>
       </Card>
     </main>

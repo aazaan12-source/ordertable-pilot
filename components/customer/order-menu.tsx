@@ -44,6 +44,7 @@ export function OrderMenu({
   restaurant,
   tableNumber,
   categories,
+  waiterOptions = [],
   items,
   activeOrder,
   editOrder
@@ -59,6 +60,7 @@ export function OrderMenu({
   };
   tableNumber: number;
   categories: { id: string; name: string; imageUrl?: string | null }[];
+  waiterOptions?: { id: string; name: string }[];
   items: MenuItem[];
   activeOrder?: ActiveOrderSummary | null;
   editOrder?: {
@@ -83,14 +85,29 @@ export function OrderMenu({
   const [placedByType, setPlacedByType] = useState<"CUSTOMER" | "WAITER">("CUSTOMER");
   const [customerName, setCustomerName] = useState(editOrder?.items ? "" : "");
   const [waiterName, setWaiterName] = useState("");
+  const [waiterEntryMode, setWaiterEntryMode] = useState<"LIST" | "MANUAL">("LIST");
+  const [selectedWaiterName, setSelectedWaiterName] = useState("");
   const [addToActiveOrder, setAddToActiveOrder] = useState(Boolean(activeOrder && !editOrder));
   const [error, setError] = useState("");
   const [placing, setPlacing] = useState(false);
 
   useEffect(() => {
     const savedWaiterName = localStorage.getItem("ordertable_waiter_name") || "";
-    if (savedWaiterName) setWaiterName(savedWaiterName);
-  }, []);
+    if (savedWaiterName) {
+      const inList = waiterOptions.some((waiter) => waiter.name === savedWaiterName);
+      if (inList) {
+        setWaiterEntryMode("LIST");
+        setSelectedWaiterName(savedWaiterName);
+      } else {
+        setWaiterEntryMode("MANUAL");
+        setWaiterName(savedWaiterName);
+      }
+    } else if (waiterOptions[0]?.name) {
+      setSelectedWaiterName(waiterOptions[0].name);
+    } else {
+      setWaiterEntryMode("MANUAL");
+    }
+  }, [waiterOptions]);
 
   const visibleItems = activeCategory ? items.filter((item) => item.category.id === activeCategory) : items;
   const totalQty = cart.reduce((sum, item) => sum + item.quantity, 0);
@@ -143,12 +160,13 @@ export function OrderMenu({
 
   async function placeOrder() {
     if (cart.length === 0) return;
-    if (!editOrder && placedByType === "WAITER" && !waiterName.trim()) {
+    const effectiveWaiterName = waiterEntryMode === "LIST" ? selectedWaiterName.trim() : waiterName.trim();
+    if (!editOrder && placedByType === "WAITER" && !effectiveWaiterName) {
       setError("Please enter waiter name before sending the order.");
       return;
     }
     if (!editOrder && placedByType === "WAITER") {
-      localStorage.setItem("ordertable_waiter_name", waiterName.trim());
+      localStorage.setItem("ordertable_waiter_name", effectiveWaiterName);
     }
     setPlacing(true);
     setError("");
@@ -161,7 +179,7 @@ export function OrderMenu({
           tableNumber,
           placedByType,
           customerName: customerName.trim() || null,
-          waiterName: placedByType === "WAITER" ? waiterName.trim() : null,
+          waiterName: placedByType === "WAITER" ? effectiveWaiterName : null,
           activeOrderId: addToActiveOrder && activeOrder ? activeOrder.id : null,
           specialNote,
           items: cart.map(({ menuItemId, quantity, specialInstruction }) => ({ menuItemId, quantity, specialInstruction }))
@@ -232,13 +250,45 @@ export function OrderMenu({
                     />
                   ) : (
                     <div className="space-y-2">
-                      <input
-                        className="h-10 w-full rounded-md border px-3 text-sm"
-                        value={waiterName}
-                        onChange={(event) => setWaiterName(event.target.value.slice(0, 80))}
-                        placeholder="Enter waiter name"
-                        required
-                      />
+                      {waiterOptions.length > 0 ? (
+                        <div className="grid gap-2">
+                          <select
+                            className="h-10 w-full rounded-md border bg-white px-3 text-sm"
+                            value={waiterEntryMode === "LIST" ? selectedWaiterName : "__manual"}
+                            onChange={(event) => {
+                              if (event.target.value === "__manual") {
+                                setWaiterEntryMode("MANUAL");
+                                return;
+                              }
+                              setWaiterEntryMode("LIST");
+                              setSelectedWaiterName(event.target.value);
+                              setWaiterName("");
+                            }}
+                          >
+                            {waiterOptions.map((waiter) => (
+                              <option key={waiter.id} value={waiter.name}>{waiter.name}</option>
+                            ))}
+                            <option value="__manual">Manual entry / name not in list</option>
+                          </select>
+                          {waiterEntryMode === "MANUAL" ? (
+                            <input
+                              className="h-10 w-full rounded-md border px-3 text-sm"
+                              value={waiterName}
+                              onChange={(event) => setWaiterName(event.target.value.slice(0, 80))}
+                              placeholder="Enter waiter name manually"
+                              required
+                            />
+                          ) : null}
+                        </div>
+                      ) : (
+                        <input
+                          className="h-10 w-full rounded-md border px-3 text-sm"
+                          value={waiterName}
+                          onChange={(event) => setWaiterName(event.target.value.slice(0, 80))}
+                          placeholder="Enter waiter name"
+                          required
+                        />
+                      )}
                       <p className="text-xs text-muted-foreground">Use this when a waiter is taking the order on behalf of customers.</p>
                     </div>
                   )}
