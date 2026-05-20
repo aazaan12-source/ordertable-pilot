@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 type ReportQuery = {
   from?: string;
   to?: string;
+  generated?: string;
   tableNumber?: string;
   source?: string;
   paymentStatus?: string;
@@ -40,13 +41,11 @@ const reportTimeZone = "Asia/Karachi";
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<ReportQuery> }) {
   const { restaurant } = await getManagerRestaurant();
   const query = await searchParams;
-  const today = new Date();
-  const defaultTo = toDateInput(today);
-  const defaultFrom = toDateInput(new Date(today.getTime() - 6 * dayMs));
-  const from = safeDateInput(query.from) || defaultFrom;
-  const to = safeDateInput(query.to) || defaultTo;
-  const start = startOfDay(from);
-  const end = endExclusive(to);
+  const from = safeDateInput(query.from) || "";
+  const to = safeDateInput(query.to) || "";
+  const reportGenerated = query.generated === "1";
+  const hasDateRange = Boolean(from && to);
+  const showDateError = reportGenerated && !hasDateRange;
   const selectedTableNumber = positiveInt(query.tableNumber);
   const source = enumValue(query.source, OrderSource);
   const paymentStatus = enumValue(query.paymentStatus, PaymentStatus);
@@ -59,30 +58,20 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   });
   const selectedTable = selectedTableNumber ? tables.find((table) => table.tableNumber === selectedTableNumber) : null;
 
-  const reportWhere = {
+  const reportWhere = hasDateRange ? {
     restaurantId: restaurant.id,
-    createdAt: { gte: start, lt: end },
+    createdAt: { gte: startOfDay(from), lt: endExclusive(to) },
     ...(selectedTable ? { tableId: selectedTable.id } : {}),
     ...(source ? { source } : {}),
     ...(paymentStatus ? { paymentStatus } : {}),
     ...(paymentMethod ? { paymentMethod } : {})
-  };
+  } : null;
 
-  const [orders, revenue, paidRevenue, history] = await Promise.all([
+  const [orders, history] = reportWhere ? await Promise.all([
     db.order.findMany({
       where: reportWhere,
       include: { table: true, items: true },
       orderBy: { createdAt: "asc" }
-    }),
-    db.order.aggregate({
-      where: { ...reportWhere, status: { not: "CANCELLED" } },
-      _sum: { subtotal: true, discount: true, serviceCharges: true, tax: true, total: true },
-      _avg: { total: true }
-    }),
-    db.order.aggregate({
-      where: { ...reportWhere, status: { not: "CANCELLED" }, paymentStatus: "PAID" },
-      _sum: { total: true },
-      _avg: { total: true }
     }),
     db.order.findMany({
       where: reportWhere,
@@ -90,17 +79,21 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       orderBy: { createdAt: "desc" },
       take: 40
     })
-  ]);
+  ]) : [[], []];
 
   const nonCancelled = orders.filter((order) => order.status !== "CANCELLED");
   const paidOrders = orders.filter((order) => order.paymentStatus === "PAID");
   const unpaidOrders = orders.filter((order) => order.paymentStatus === "UNPAID");
+  const grossItemSales = nonCancelled.reduce((sum, order) => sum + Number(order.subtotal), 0);
+  const discounts = nonCancelled.reduce((sum, order) => sum + Number(order.discount), 0);
+  const netPaidRevenue = paidOrders.reduce((sum, order) => sum + Number(order.total), 0);
+  const averagePaidOrder = paidOrders.length ? netPaidRevenue / paidOrders.length : 0;
   const productRows = buildProductRows(nonCancelled);
   const topProduct = productRows[0];
   const weakProducts = productRows.slice(-5).reverse();
   const tableRows = buildTableRows(nonCancelled);
   const dailyRevenueRows = buildDailyRevenueRows(nonCancelled);
-  const printParams = new URLSearchParams({
+  const printParams = new URLSearchParams(hasDateRange ? {
     from,
     to,
     autoPrint: "1",
@@ -108,7 +101,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     ...(source ? { source } : {}),
     ...(paymentStatus ? { paymentStatus } : {}),
     ...(paymentMethod ? { paymentMethod } : {})
-  });
+  } : {});
   const pdfParams = new URLSearchParams(printParams);
   pdfParams.delete("autoPrint");
 
@@ -119,14 +112,16 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           <h1 className="text-2xl font-bold">Reports</h1>
           <p className="text-sm text-muted-foreground">Choose dates, table, payment, or order source to understand sales and product performance.</p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href={`/dashboard/reports/monthly/print?${printParams.toString()}`} target="_blank">
-            <Button><Printer className="h-4 w-4" />Print</Button>
-          </Link>
-          <Link href={`/dashboard/reports/monthly/pdf?${pdfParams.toString()}`} target="_blank">
-            <Button variant="outline"><Download className="h-4 w-4" />PDF</Button>
-          </Link>
-        </div>
+        {hasDateRange ? (
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/dashboard/reports/monthly/print?${printParams.toString()}`} target="_blank">
+              <Button><Printer className="h-4 w-4" />Print</Button>
+            </Link>
+            <Link href={`/dashboard/reports/monthly/pdf?${pdfParams.toString()}`} target="_blank">
+              <Button variant="outline"><Download className="h-4 w-4" />PDF</Button>
+            </Link>
+          </div>
+        ) : null}
       </div>
 
       <Card className="mt-5">
@@ -136,6 +131,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         </CardHeader>
         <CardContent>
           <form className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+            <input type="hidden" name="generated" value="1" />
             <label className="text-sm font-semibold">
               From date
               <input type="date" name="from" defaultValue={from} className="mt-1 block h-10 w-full rounded-md border bg-white px-3 text-sm" />
@@ -156,18 +152,32 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
             <Select name="paymentMethod" label="Method" value={paymentMethod || ""} options={[["", "All"], ["CASH", "Cash"], ["CARD", "Card"], ["JAZZCASH", "JazzCash"], ["EASYPAISA", "EasyPaisa"], ["BANK_TRANSFER", "Bank Transfer"], ["OTHER", "Other"]]} />
             <Button className="md:col-span-3 xl:col-span-6">Generate Report</Button>
           </form>
+          {showDateError ? (
+            <p className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-800">
+              Please select both From date and To date, then press Generate Report.
+            </p>
+          ) : null}
         </CardContent>
       </Card>
 
+      {!hasDateRange ? (
+        <Card className="mt-5">
+          <CardContent className="p-8 text-center">
+            <p className="text-lg font-bold">Select a date range to generate a report.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Print and PDF buttons will appear after the report is generated.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
       <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Stat title="Report period" value={`${from} to ${to}`} />
         <Stat title="Orders" value={orders.length} />
         <Stat title="Paid orders" value={paidOrders.length} />
         <Stat title="Unpaid orders" value={unpaidOrders.length} />
-        <Stat title="Gross item sales" value={formatCurrency(revenue._sum.subtotal?.toString() || 0)} />
-        <Stat title="Discounts" value={formatCurrency(revenue._sum.discount?.toString() || 0)} />
-        <Stat title="Net paid revenue" value={formatCurrency(paidRevenue._sum.total?.toString() || 0)} />
-        <Stat title="Average paid order" value={formatCurrency(paidRevenue._avg.total?.toString() || 0)} />
+        <Stat title="Gross item sales" value={formatCurrency(grossItemSales)} />
+        <Stat title="Discounts" value={formatCurrency(discounts)} />
+        <Stat title="Net paid revenue" value={formatCurrency(netPaidRevenue)} />
+        <Stat title="Average paid order" value={formatCurrency(averagePaidOrder)} />
       </div>
 
       <div className="mt-6 grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
@@ -310,6 +320,8 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       </Card>
 
       <p className="mt-5 text-xs text-muted-foreground">Generated {formatPkDateTime(new Date())}. Cancelled orders are shown in order history but excluded from product revenue and table revenue decisions.</p>
+        </>
+      )}
     </main>
   );
 }
@@ -367,10 +379,6 @@ function safeDateInput(value?: string) {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const date = new Date(`${value}T00:00:00`);
   return Number.isNaN(date.getTime()) ? null : value;
-}
-
-function toDateInput(date: Date) {
-  return date.toISOString().slice(0, 10);
 }
 
 function startOfDay(value: string) {
