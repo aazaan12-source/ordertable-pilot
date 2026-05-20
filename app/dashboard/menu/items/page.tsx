@@ -1,13 +1,12 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getManagerRestaurant } from "@/lib/permissions";
-import { ConfirmSubmitButton, SubmitButton } from "@/components/ui/confirm-submit-button";
+import { SubmitButton } from "@/components/ui/confirm-submit-button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { MenuImagePicker } from "@/components/ui/menu-image-picker";
-import { MenuImage } from "@/components/ui/menu-image";
-import { SortableGroupedReorderPanel } from "@/components/ui/sortable-reorder-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { MenuItemsCategoryView } from "@/components/dashboard/menu-items-category-view";
 import { formatCurrency } from "@/lib/utils";
 import { cleanSubmittedMenuImage, menuImageFor, safeStoredImageUrl } from "@/lib/menu-images";
 import { applyMenuItemOrder, normalizeMenuItemPositions, orderedIdsFromForm, sortMenuItemsForDisplay } from "@/lib/menu-ordering";
@@ -135,6 +134,33 @@ export default async function MenuItemsPage() {
     category,
     items: sortedItems.filter((item) => item.categoryId === category.id)
   }));
+  const categoryOptions = allCategories.map((category) => ({ id: category.id, name: category.name }));
+  const reorderGroups = itemsByCategory.map(({ category, items: categoryItems }) => ({
+    id: category.id,
+    label: category.name,
+    items: categoryItems.map((item) => ({
+      id: item.id,
+      title: item.name,
+      subtitle: `${category.name} - ${formatCurrency(item.price.toString())}`,
+      imageUrl: menuImageFor(item.name, category.name, item.imageUrl),
+      badges: [item.isAvailable ? "Available" : "Unavailable", item.isActive ? "Active" : "Inactive"],
+      actions: [{ label: "Edit, status, delete", href: `#item-${item.id}` }],
+      muted: !item.isActive || !item.isAvailable
+    }))
+  }));
+  const itemCards = sortedItems.map((item) => ({
+    id: item.id,
+    name: item.name,
+    description: item.description,
+    categoryId: item.categoryId,
+    categoryName: item.category.name,
+    price: item.price.toString(),
+    imageUrl: safeStoredImageUrl(item.imageUrl),
+    displayImageUrl: menuImageFor(item.name, item.category.name, item.imageUrl),
+    isActive: item.isActive,
+    isAvailable: item.isAvailable
+  }));
+
   return (
     <main className="p-4 lg:p-6">
       <h1 className="text-2xl font-bold">Menu Items</h1>
@@ -168,73 +194,14 @@ export default async function MenuItemsPage() {
           </CardContent>
         </Card>
 
-        <div className="grid gap-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Arrange Menu Items</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <SortableGroupedReorderPanel
-                groups={itemsByCategory.map(({ category, items: categoryItems }) => ({
-                  id: category.id,
-                  label: category.name,
-                  items: categoryItems.map((item) => ({
-                    id: item.id,
-                    title: item.name,
-                    subtitle: `${category.name} - ${formatCurrency(item.price.toString())}`,
-                    imageUrl: menuImageFor(item.name, category.name, item.imageUrl),
-                    badges: [item.isAvailable ? "Available" : "Unavailable", item.isActive ? "Active" : "Inactive"],
-                    actions: [{ label: "Edit, status, delete", href: `#item-${item.id}` }],
-                    muted: !item.isActive || !item.isAvailable
-                  }))
-                }))}
-                action={reorderMenuItems}
-              />
-            </CardContent>
-          </Card>
-          {sortedItems.map((item) => (
-            <Card id={`item-${item.id}`} key={item.id} className={!item.isActive ? "opacity-60" : ""}>
-              <CardContent className="grid gap-4 p-4 lg:grid-cols-[180px_1fr]">
-                <MenuImage src={menuImageFor(item.name, item.category.name, item.imageUrl)} alt={item.name} className="lg:h-40" />
-                <div>
-                  <form action={updateMenuItem} className="space-y-3">
-                    <input type="hidden" name="id" value={item.id} />
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <Input name="name" defaultValue={item.name} placeholder="Item name" />
-                      <select name="categoryId" className="h-10 rounded-md border bg-white px-3 text-sm" defaultValue={item.categoryId}>
-                        {allCategories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-                      </select>
-                      <Input name="price" type="number" defaultValue={item.price.toString()} placeholder="Price" />
-                    </div>
-                    <MenuImagePicker
-                      defaultValue={safeStoredImageUrl(item.imageUrl)}
-                      defaultItemName={item.name}
-                      defaultCategoryName={item.category.name}
-                      categories={allCategories.map((category) => ({ id: category.id, name: category.name }))}
-                    />
-                    <Textarea name="description" defaultValue={item.description} placeholder="Short customer-friendly description" />
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex items-center gap-4 text-sm">
-                        <label className="flex items-center gap-2"><input type="checkbox" name="isAvailable" defaultChecked={item.isAvailable} /> Available</label>
-                        <label className="flex items-center gap-2"><input type="checkbox" name="isActive" defaultChecked={item.isActive} /> Active</label>
-                      </div>
-                      <div className="flex gap-2">
-                        <SubmitButton pendingText="Saving...">Save</SubmitButton>
-                      </div>
-                    </div>
-                  </form>
-                  <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t pt-3 text-sm text-muted-foreground">
-                    <p>{item.category.name} · {formatCurrency(item.price.toString())}</p>
-                    <form action={deleteMenuItem}>
-                      <input type="hidden" name="id" value={item.id} />
-                      <ConfirmSubmitButton message="Delete this menu item?" pendingText="Deleting...">Delete</ConfirmSubmitButton>
-                    </form>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <MenuItemsCategoryView
+          groups={reorderGroups}
+          items={itemCards}
+          categories={categoryOptions}
+          reorderAction={reorderMenuItems}
+          updateAction={updateMenuItem}
+          deleteAction={deleteMenuItem}
+        />
       </div>
     </main>
   );

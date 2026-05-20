@@ -201,20 +201,30 @@ export function SortableGroupedReorderPanel({
   action,
   hiddenFields = {},
   groupFieldName = "categoryId",
-  title = "Arrange Menu Items"
+  title = "Arrange Menu Items",
+  selectedGroupId: controlledSelectedGroupId,
+  onSelectedGroupIdChange
 }: {
   groups: { id: string; label: string; items: SortableDisplayItem[] }[];
   action: SortAction;
   hiddenFields?: Record<string, string>;
   groupFieldName?: string;
   title?: string;
+  selectedGroupId?: string;
+  onSelectedGroupIdChange?: (groupId: string) => void;
 }) {
-  const [selectedGroupId, setSelectedGroupId] = useState(groups[0]?.id || "");
+  const [internalSelectedGroupId, setInternalSelectedGroupId] = useState(groups[0]?.id || "");
+  const selectedGroupId = controlledSelectedGroupId ?? internalSelectedGroupId;
   const selectedGroup = groups.find((group) => group.id === selectedGroupId);
 
   useEffect(() => {
     if (!selectedGroupId && groups[0]?.id) setSelectedGroupId(groups[0].id);
   }, [groups, selectedGroupId]);
+
+  function setSelectedGroupId(groupId: string) {
+    if (onSelectedGroupIdChange) onSelectedGroupIdChange(groupId);
+    else setInternalSelectedGroupId(groupId);
+  }
 
   return (
     <div className="rounded-md border bg-white p-3">
