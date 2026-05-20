@@ -214,7 +214,9 @@ export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Or
   }, []);
 
   async function updateStatus(orderId: string, status: string) {
+    const previousActive = active;
     setUpdating(`${orderId}:${status}`);
+    setActive(status);
     optimisticStatusRef.current.set(orderId, status);
     const previousOrders = ordersRef.current;
     const paymentMethod = status === "PAID" ? "CASH" : undefined;
@@ -241,6 +243,7 @@ export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Or
         const payload = await response.json().catch(() => ({}));
         optimisticStatusRef.current.delete(orderId);
         setOrders(previousOrders);
+        setActive(previousActive);
         setWarning(payload.error || "Could not update order. Retrying...");
         return;
       }
@@ -248,6 +251,7 @@ export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Or
     } catch {
       optimisticStatusRef.current.delete(orderId);
       setOrders(previousOrders);
+      setActive(previousActive);
       setWarning("Connection issue. Action was not saved. Retrying...");
     } finally {
       setUpdating("");
