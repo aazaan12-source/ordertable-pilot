@@ -262,7 +262,6 @@ export function SortableGroupedReorderPanel({
       <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div>
           <p className="text-sm font-semibold">{title}</p>
-          <p className="mt-1 text-xs text-muted-foreground">Select a category to reorder items within that category.</p>
         </div>
         <select value={selectedGroupId} onChange={(event) => setSelectedGroupId(event.target.value)} className="h-9 rounded-md border bg-white px-3 text-sm">
           {groups.map((group) => (

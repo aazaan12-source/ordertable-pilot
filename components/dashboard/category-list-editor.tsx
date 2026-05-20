@@ -20,7 +20,7 @@ type CategoryCard = {
 
 export function CategoryListEditor({
   title = "Arrange Category Order",
-  description = "Click a category row to edit it. Click Reorder Categories, drag by the handle, then save.",
+  description,
   items,
   categories,
   reorderAction,
@@ -67,7 +67,7 @@ export function CategoryListEditor({
       <Card>
         <CardHeader>
           <CardTitle>{title}</CardTitle>
-          <p className="text-sm text-muted-foreground">{description}</p>
+          {description ? <p className="text-sm text-muted-foreground">{description}</p> : null}
         </CardHeader>
         <CardContent>
           <SortableReorderPanel
@@ -83,16 +83,6 @@ export function CategoryListEditor({
           />
         </CardContent>
       </Card>
-
-      <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
-        {selectedCategory ? (
-          <>
-            Editing <strong className="text-foreground">{selectedCategory.name}</strong>. Click outside this edit card to close it.
-          </>
-        ) : (
-          "Select a category row above to open its edit card."
-        )}
-      </div>
 
       {selectedCategory ? (
         <div ref={editCardRef}>

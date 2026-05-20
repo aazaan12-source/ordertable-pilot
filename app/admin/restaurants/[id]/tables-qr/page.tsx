@@ -34,7 +34,7 @@ export default async function AdminTablesQrPage({
   const errorMessage = tableErrorMessage(error, tableNumber);
   const restaurant = await db.restaurant.findUnique({
     where: { id },
-    include: { tables: { include: { _count: { select: { orders: true } } }, orderBy: { tableNumber: "asc" } } }
+    include: { tables: { orderBy: { tableNumber: "asc" } } }
   });
   if (!restaurant) notFound();
 
@@ -111,7 +111,6 @@ export default async function AdminTablesQrPage({
                 </CardHeader>
                 <CardContent>
                   <p className="break-all text-xs text-muted-foreground">{table.qrUrl}</p>
-                  <p className="mt-2 text-xs text-muted-foreground">{table._count.orders} previous orders</p>
                   <form action={updateSingleTable} className="mt-4 grid gap-2 sm:grid-cols-[1fr_1fr_auto] xl:grid-cols-1">
                     <input type="hidden" name="restaurantId" value={restaurant.id} />
                     <input type="hidden" name="tableId" value={table.id} />
@@ -165,4 +164,3 @@ function Stat({ title, value }: { title: string; value: React.ReactNode }) {
     </Card>
   );
 }
-

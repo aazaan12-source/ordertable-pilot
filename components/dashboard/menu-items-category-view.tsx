@@ -108,17 +108,6 @@ export function MenuItemsCategoryView({
         </CardContent>
       </Card>
 
-      <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
-        Showing <strong className="text-foreground">{visibleItems.length}</strong> items
-        {selectedCategory ? <> from <strong className="text-foreground">{selectedCategory.label}</strong></> : null}.
-        {" "}
-        {selectedItem ? (
-          <>Editing <strong className="text-foreground">{selectedItem.name}</strong>. Click outside the edit card to close it.</>
-        ) : (
-          "Click an item row to open its edit card."
-        )}
-      </div>
-
       {selectedItem ? (
         <div ref={editCardRef}>
           <Card id={`item-${selectedItem.id}`} className={!selectedItem.isActive ? "opacity-60" : ""}>
