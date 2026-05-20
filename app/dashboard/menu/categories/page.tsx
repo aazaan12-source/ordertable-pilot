@@ -1,11 +1,11 @@
 import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { getManagerRestaurant } from "@/lib/permissions";
-import { ConfirmSubmitButton, SubmitButton } from "@/components/ui/confirm-submit-button";
+import { SubmitButton } from "@/components/ui/confirm-submit-button";
 import { Input } from "@/components/ui/input";
 import { MenuImagePicker } from "@/components/ui/menu-image-picker";
-import { SortableReorderPanel } from "@/components/ui/sortable-reorder-panel";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { CategoryListEditor } from "@/components/dashboard/category-list-editor";
 import { categoryImageFor, cleanSubmittedMenuImage, safeStoredImageUrl } from "@/lib/menu-images";
 import { applyCategoryOrder, normalizeCategoryPositions, orderedIdsFromForm } from "@/lib/menu-ordering";
 
@@ -95,6 +95,23 @@ export default async function CategoriesPage() {
     include: { _count: { select: { menuItems: true } } },
     orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }]
   });
+  const categoryItems = categories.map((category) => ({
+    id: category.id,
+    title: category.name,
+    subtitle: `${category._count.menuItems} menu item${category._count.menuItems === 1 ? "" : "s"}`,
+    imageUrl: categoryImageFor(category.name, category.imageUrl),
+    badges: [category.isActive ? "Active" : "Inactive"],
+    actions: [{ label: "Edit, status, delete", href: `#category-${category.id}` }],
+    muted: !category.isActive
+  }));
+  const categoryCards = categories.map((category) => ({
+    id: category.id,
+    name: category.name,
+    imageUrl: safeStoredImageUrl(category.imageUrl),
+    isActive: category.isActive,
+    itemCount: category._count.menuItems
+  }));
+
   return (
     <main className="p-4 lg:p-6">
       <h1 className="text-2xl font-bold">Menu Categories</h1>
@@ -112,54 +129,13 @@ export default async function CategoriesPage() {
           </CardContent>
         </Card>
 
-        <div className="grid gap-3">
-          <Card>
-            <CardHeader>
-              <CardTitle>Arrange Category Order</CardTitle>
-              <p className="text-sm text-muted-foreground">Click Reorder, drag categories by the handle, then save. This is the order customers see.</p>
-            </CardHeader>
-            <CardContent>
-              <SortableReorderPanel
-                items={categories.map((category) => ({
-                  id: category.id,
-                  title: category.name,
-                  subtitle: `${category._count.menuItems} menu item${category._count.menuItems === 1 ? "" : "s"}`,
-                  imageUrl: categoryImageFor(category.name, category.imageUrl),
-                  badges: [category.isActive ? "Active" : "Inactive"],
-                  actions: [{ label: "Edit, status, delete", href: `#category-${category.id}` }],
-                  muted: !category.isActive
-                }))}
-                action={reorderCategories}
-                reorderLabel="Reorder Categories"
-                reorderButtonLabel="Reorder Categories"
-                saveLabel="Save Category Order"
-                emptyText="No categories to arrange yet."
-              />
-            </CardContent>
-          </Card>
-          {categories.map((category) => (
-            <Card id={`category-${category.id}`} key={category.id} className={!category.isActive ? "opacity-60" : ""}>
-              <CardContent className="p-4">
-                <form action={updateCategory} className="grid gap-3 md:grid-cols-[1fr_120px_100px]">
-                  <input type="hidden" name="id" value={category.id} />
-                  <Input name="name" defaultValue={category.name} placeholder="Category name" />
-                  <div className="md:col-span-3">
-                    <MenuImagePicker defaultValue={safeStoredImageUrl(category.imageUrl)} defaultItemName={category.name} defaultCategoryName={category.name} itemNameField="name" />
-                  </div>
-                  <label className="flex items-center gap-2 text-sm"><input type="checkbox" name="isActive" defaultChecked={category.isActive} /> Active</label>
-                  <SubmitButton pendingText="Saving...">Save</SubmitButton>
-                </form>
-                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t pt-3 text-sm text-muted-foreground">
-                  <span>{category._count.menuItems} menu items</span>
-                  <form action={deleteCategory}>
-                    <input type="hidden" name="id" value={category.id} />
-                    <ConfirmSubmitButton message="Delete this category and all its menu items?" pendingText="Deleting...">Delete</ConfirmSubmitButton>
-                  </form>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+        <CategoryListEditor
+          items={categoryItems}
+          categories={categoryCards}
+          reorderAction={reorderCategories}
+          updateAction={updateCategory}
+          deleteAction={deleteCategory}
+        />
       </div>
     </main>
   );

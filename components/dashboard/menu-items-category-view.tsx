@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ConfirmSubmitButton, SubmitButton } from "@/components/ui/confirm-submit-button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -36,7 +36,8 @@ export function MenuItemsCategoryView({
   categories,
   reorderAction,
   updateAction,
-  deleteAction
+  deleteAction,
+  hiddenFields = {}
 }: {
   groups: { id: string; label: string; items: SortableDisplayItem[] }[];
   items: MenuItemCard[];
@@ -44,8 +45,11 @@ export function MenuItemsCategoryView({
   reorderAction: SortAction;
   updateAction: SortAction;
   deleteAction: SortAction;
+  hiddenFields?: Record<string, string>;
 }) {
   const [selectedCategoryId, setSelectedCategoryId] = useState(groups[0]?.id || "");
+  const [selectedItemId, setSelectedItemId] = useState("");
+  const editCardRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     if (!selectedCategoryId && groups[0]?.id) setSelectedCategoryId(groups[0].id);
@@ -59,6 +63,28 @@ export function MenuItemsCategoryView({
     () => items.filter((item) => item.categoryId === selectedCategoryId),
     [items, selectedCategoryId]
   );
+  const selectedItem = useMemo(
+    () => visibleItems.find((item) => item.id === selectedItemId),
+    [selectedItemId, visibleItems]
+  );
+
+  useEffect(() => {
+    if (selectedItemId && !visibleItems.some((item) => item.id === selectedItemId)) {
+      setSelectedItemId("");
+    }
+  }, [selectedItemId, visibleItems]);
+
+  useEffect(() => {
+    function handlePointerDown(event: PointerEvent) {
+      if (!selectedItemId) return;
+      const target = event.target;
+      if (target instanceof Node && editCardRef.current?.contains(target)) return;
+      setSelectedItemId("");
+    }
+
+    document.addEventListener("pointerdown", handlePointerDown);
+    return () => document.removeEventListener("pointerdown", handlePointerDown);
+  }, [selectedItemId]);
 
   return (
     <div className="grid gap-4">
@@ -70,8 +96,14 @@ export function MenuItemsCategoryView({
           <SortableGroupedReorderPanel
             groups={groups}
             action={reorderAction}
+            hiddenFields={hiddenFields}
             selectedGroupId={selectedCategoryId}
-            onSelectedGroupIdChange={setSelectedCategoryId}
+            onSelectedGroupIdChange={(categoryId) => {
+              setSelectedCategoryId(categoryId);
+              setSelectedItemId("");
+            }}
+            selectedItemId={selectedItemId}
+            onItemSelect={setSelectedItemId}
           />
         </CardContent>
       </Card>
@@ -79,50 +111,64 @@ export function MenuItemsCategoryView({
       <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
         Showing <strong className="text-foreground">{visibleItems.length}</strong> items
         {selectedCategory ? <> from <strong className="text-foreground">{selectedCategory.label}</strong></> : null}.
+        {" "}
+        {selectedItem ? (
+          <>Editing <strong className="text-foreground">{selectedItem.name}</strong>. Click outside the edit card to close it.</>
+        ) : (
+          "Click an item row to open its edit card."
+        )}
       </div>
 
-      {visibleItems.map((item) => (
-        <Card id={`item-${item.id}`} key={item.id} className={!item.isActive ? "opacity-60" : ""}>
-          <CardContent className="grid gap-4 p-4 lg:grid-cols-[180px_1fr]">
-            <MenuImage src={item.displayImageUrl} alt={item.name} className="lg:h-40" />
-            <div>
-              <form action={updateAction} className="space-y-3">
-                <input type="hidden" name="id" value={item.id} />
-                <div className="grid gap-3 md:grid-cols-2">
-                  <Input name="name" defaultValue={item.name} placeholder="Item name" />
-                  <select name="categoryId" className="h-10 rounded-md border bg-white px-3 text-sm" defaultValue={item.categoryId}>
-                    {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
-                  </select>
-                  <Input name="price" type="number" defaultValue={item.price} placeholder="Price" />
-                </div>
-                <MenuImagePicker
-                  defaultValue={item.imageUrl}
-                  defaultItemName={item.name}
-                  defaultCategoryName={item.categoryName}
-                  categories={categories}
-                />
-                <Textarea name="description" defaultValue={item.description} placeholder="Short customer-friendly description" />
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex items-center gap-4 text-sm">
-                    <label className="flex items-center gap-2"><input type="checkbox" name="isAvailable" defaultChecked={item.isAvailable} /> Available</label>
-                    <label className="flex items-center gap-2"><input type="checkbox" name="isActive" defaultChecked={item.isActive} /> Active</label>
+      {selectedItem ? (
+        <div ref={editCardRef}>
+          <Card id={`item-${selectedItem.id}`} className={!selectedItem.isActive ? "opacity-60" : ""}>
+            <CardContent className="grid gap-4 p-4 lg:grid-cols-[180px_1fr]">
+              <MenuImage src={selectedItem.displayImageUrl} alt={selectedItem.name} className="lg:h-40" />
+              <div>
+                <form action={updateAction} className="space-y-3">
+                  {Object.entries(hiddenFields).map(([key, value]) => (
+                    <input key={key} type="hidden" name={key} value={value} />
+                  ))}
+                  <input type="hidden" name="id" value={selectedItem.id} />
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <Input name="name" defaultValue={selectedItem.name} placeholder="Item name" />
+                    <select name="categoryId" className="h-10 rounded-md border bg-white px-3 text-sm" defaultValue={selectedItem.categoryId}>
+                      {categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}
+                    </select>
+                    <Input name="price" type="number" defaultValue={selectedItem.price} placeholder="Price" />
                   </div>
-                  <div className="flex gap-2">
-                    <SubmitButton pendingText="Saving...">Save</SubmitButton>
+                  <MenuImagePicker
+                    defaultValue={selectedItem.imageUrl}
+                    defaultItemName={selectedItem.name}
+                    defaultCategoryName={selectedItem.categoryName}
+                    categories={categories}
+                  />
+                  <Textarea name="description" defaultValue={selectedItem.description} placeholder="Short customer-friendly description" />
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-4 text-sm">
+                      <label className="flex items-center gap-2"><input type="checkbox" name="isAvailable" defaultChecked={selectedItem.isAvailable} /> Available</label>
+                      <label className="flex items-center gap-2"><input type="checkbox" name="isActive" defaultChecked={selectedItem.isActive} /> Active</label>
+                    </div>
+                    <div className="flex gap-2">
+                      <SubmitButton pendingText="Saving...">Save</SubmitButton>
+                    </div>
                   </div>
-                </div>
-              </form>
-              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t pt-3 text-sm text-muted-foreground">
-                <p>{item.categoryName} - {formatCurrency(item.price)}</p>
-                <form action={deleteAction}>
-                  <input type="hidden" name="id" value={item.id} />
-                  <ConfirmSubmitButton message="Delete this menu item?" pendingText="Deleting...">Delete</ConfirmSubmitButton>
                 </form>
+                <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t pt-3 text-sm text-muted-foreground">
+                  <p>{selectedItem.categoryName} - {formatCurrency(selectedItem.price)}</p>
+                  <form action={deleteAction}>
+                    {Object.entries(hiddenFields).map(([key, value]) => (
+                      <input key={key} type="hidden" name={key} value={value} />
+                    ))}
+                    <input type="hidden" name="id" value={selectedItem.id} />
+                    <ConfirmSubmitButton message="Delete this menu item?" pendingText="Deleting...">Delete</ConfirmSubmitButton>
+                  </form>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
+            </CardContent>
+          </Card>
+        </div>
+      ) : null}
 
       {selectedCategory && visibleItems.length === 0 ? (
         <p className="rounded-md border bg-white p-6 text-center text-sm text-muted-foreground">No menu items in {selectedCategory.label} yet.</p>

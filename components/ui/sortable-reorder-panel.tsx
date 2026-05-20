@@ -30,7 +30,9 @@ export function SortableReorderPanel({
   reorderButtonLabel = "Reorder",
   saveLabel = "Save Order",
   emptyText = "No items to arrange yet.",
-  helperText = "Drag items to change their display order, then click Save Order."
+  helperText = "Drag items to change their display order, then click Save Order.",
+  selectedItemId,
+  onItemSelect
 }: {
   items: SortableDisplayItem[];
   action: SortAction;
@@ -40,6 +42,8 @@ export function SortableReorderPanel({
   saveLabel?: string;
   emptyText?: string;
   helperText?: string;
+  selectedItemId?: string;
+  onItemSelect?: (itemId: string) => void;
 }) {
   const [orderedItems, setOrderedItems] = useState(items);
   const [originalItems, setOriginalItems] = useState(items);
@@ -134,7 +138,13 @@ export function SortableReorderPanel({
           <SortableContext items={orderedIds} strategy={verticalListSortingStrategy}>
             <div className="divide-y">
               {orderedItems.map((item) => (
-                <SortableRow key={item.id} item={item} reordering={reordering} />
+                <SortableRow
+                  key={item.id}
+                  item={item}
+                  reordering={reordering}
+                  selected={selectedItemId === item.id}
+                  onSelect={onItemSelect}
+                />
               ))}
             </div>
           </SortableContext>
@@ -144,7 +154,17 @@ export function SortableReorderPanel({
   );
 }
 
-function SortableRow({ item, reordering }: { item: SortableDisplayItem; reordering: boolean }) {
+function SortableRow({
+  item,
+  reordering,
+  selected,
+  onSelect
+}: {
+  item: SortableDisplayItem;
+  reordering: boolean;
+  selected?: boolean;
+  onSelect?: (itemId: string) => void;
+}) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: item.id, disabled: !reordering });
   const style = { transform: CSS.Transform.toString(transform), transition };
 
@@ -152,8 +172,13 @@ function SortableRow({ item, reordering }: { item: SortableDisplayItem; reorderi
     <div
       ref={setNodeRef}
       style={style}
+      onClick={() => {
+        if (!reordering) onSelect?.(item.id);
+      }}
       className={cn(
         "grid grid-cols-[32px_1fr_auto] items-center gap-3 bg-white px-3 py-2 text-sm transition hover:bg-muted/40",
+        onSelect && !reordering && "cursor-pointer",
+        selected && "bg-primary/5 ring-1 ring-inset ring-primary/30",
         isDragging && "relative z-10 rounded-md shadow-lg",
         item.muted && "opacity-60"
       )}
@@ -183,13 +208,15 @@ function SortableRow({ item, reordering }: { item: SortableDisplayItem; reorderi
           ))}
         </div>
         {item.actions?.length ? (
-          <ActionMenu label={`Actions for ${item.title}`} className="h-8 w-8 border-0" menuClassName="w-44 p-1">
-            {item.actions.map((action) => (
-              <a key={`${item.id}-${action.label}`} href={action.href} className="block rounded px-3 py-2 text-foreground hover:bg-muted">
-                {action.label}
-              </a>
-            ))}
-          </ActionMenu>
+          <div onClick={(event) => event.stopPropagation()}>
+            <ActionMenu label={`Actions for ${item.title}`} className="h-8 w-8 border-0" menuClassName="w-44 p-1">
+              {item.actions.map((action) => (
+                <a key={`${item.id}-${action.label}`} href={action.href} className="block rounded px-3 py-2 text-foreground hover:bg-muted">
+                  {action.label}
+                </a>
+              ))}
+            </ActionMenu>
+          </div>
         ) : null}
       </div>
     </div>
@@ -203,7 +230,9 @@ export function SortableGroupedReorderPanel({
   groupFieldName = "categoryId",
   title = "Arrange Menu Items",
   selectedGroupId: controlledSelectedGroupId,
-  onSelectedGroupIdChange
+  onSelectedGroupIdChange,
+  selectedItemId,
+  onItemSelect
 }: {
   groups: { id: string; label: string; items: SortableDisplayItem[] }[];
   action: SortAction;
@@ -212,6 +241,8 @@ export function SortableGroupedReorderPanel({
   title?: string;
   selectedGroupId?: string;
   onSelectedGroupIdChange?: (groupId: string) => void;
+  selectedItemId?: string;
+  onItemSelect?: (itemId: string) => void;
 }) {
   const [internalSelectedGroupId, setInternalSelectedGroupId] = useState(groups[0]?.id || "");
   const selectedGroupId = controlledSelectedGroupId ?? internalSelectedGroupId;
@@ -251,6 +282,8 @@ export function SortableGroupedReorderPanel({
           reorderButtonLabel="Reorder Items"
           saveLabel="Save Item Order"
           emptyText="No menu items in this category yet."
+          selectedItemId={selectedItemId}
+          onItemSelect={onItemSelect}
         />
       ) : (
         <p className="rounded-md border bg-muted/40 p-4 text-center text-sm text-muted-foreground">Select a category to reorder items within that category.</p>
