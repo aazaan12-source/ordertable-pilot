@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Download, Printer } from "lucide-react";
 import { OrderSource, PaymentMethod, PaymentStatus } from "@prisma/client";
 import { db } from "@/lib/db";
 import { getManagerRestaurant } from "@/lib/permissions";
@@ -102,11 +103,14 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const printParams = new URLSearchParams({
     from,
     to,
+    autoPrint: "1",
     ...(selectedTableNumber ? { tableNumber: String(selectedTableNumber) } : {}),
     ...(source ? { source } : {}),
     ...(paymentStatus ? { paymentStatus } : {}),
     ...(paymentMethod ? { paymentMethod } : {})
   });
+  const pdfParams = new URLSearchParams(printParams);
+  pdfParams.delete("autoPrint");
 
   return (
     <main className="p-4 lg:p-6">
@@ -115,9 +119,14 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           <h1 className="text-2xl font-bold">Reports</h1>
           <p className="text-sm text-muted-foreground">Choose dates, table, payment, or order source to understand sales and product performance.</p>
         </div>
-        <Link href={`/dashboard/reports/monthly/print?${printParams.toString()}`} target="_blank">
-          <Button>Print / Save PDF</Button>
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/dashboard/reports/monthly/print?${printParams.toString()}`} target="_blank">
+            <Button><Printer className="h-4 w-4" />Print</Button>
+          </Link>
+          <Link href={`/dashboard/reports/monthly/pdf?${pdfParams.toString()}`} target="_blank">
+            <Button variant="outline"><Download className="h-4 w-4" />PDF</Button>
+          </Link>
+        </div>
       </div>
 
       <Card className="mt-5">

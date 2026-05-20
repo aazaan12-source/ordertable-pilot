@@ -16,6 +16,7 @@ type PrintQuery = {
   source?: string;
   paymentStatus?: string;
   paymentMethod?: string;
+  autoPrint?: string;
 };
 
 const dayMs = 24 * 60 * 60 * 1000;
@@ -65,7 +66,7 @@ export default async function MonthlyFinancialPrintPage({ searchParams }: { sear
 
   return (
     <main className="mx-auto max-w-5xl bg-white p-6 text-black print:max-w-none">
-      <PrintControls />
+      <PrintControls autoPrint={query.autoPrint === "1"} />
       <section>
         <div className="border-b pb-4">
           <p className="text-sm uppercase tracking-wide">Revenue and Product Performance Report</p>
@@ -151,7 +152,7 @@ export default async function MonthlyFinancialPrintPage({ searchParams }: { sear
           </tbody>
         </table>
 
-        <p className="mt-6 text-xs">Notes: Cancelled orders are listed for control but excluded from revenue and product-performance totals. Use the browser print dialog and choose Save as PDF to store this report locally.</p>
+        <p className="mt-6 text-xs">Notes: Cancelled orders are listed for control but excluded from revenue and product-performance totals.</p>
       </section>
     </main>
   );
