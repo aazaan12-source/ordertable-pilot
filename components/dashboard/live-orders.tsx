@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BellRing, Edit3, Eye, RefreshCw } from "lucide-react";
+import { BellRing, Edit3, Eye, LayoutGrid, List, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { StatusBadge } from "@/components/dashboard/status-badge";
@@ -11,6 +11,7 @@ import { formatCurrency, formatPkTime } from "@/lib/utils";
 
 const statuses = ["PENDING", "ACCEPTED", "PREPARING", "READY", "SERVED", "BILL_REQUESTED", "PAID", "CANCELLED"];
 const announcedOrdersKey = "ordertable:announced-order-ids";
+const orderViewModeKey = "ordertable:live-orders-view-mode";
 const maxStoredOrderIds = 200;
 const transitions: Record<string, { label: string; status: string; variant?: "default" | "destructive" | "outline" | "secondary" }[]> = {
   PENDING: [
@@ -66,6 +67,7 @@ type WakeLockSentinelLike = {
 export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Order[]; restaurantName: string; initialStatus?: string }) {
   const [orders, setOrders] = useState(initialOrders);
   const [active, setActive] = useState(statuses.includes(initialStatus || "") ? initialStatus! : "PENDING");
+  const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
   const [newPending, setNewPending] = useState(false);
   const [warning, setWarning] = useState("");
   const [updating, setUpdating] = useState("");
@@ -78,6 +80,11 @@ export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Or
   useEffect(() => {
     ordersRef.current = orders;
   }, [orders]);
+
+  useEffect(() => {
+    const storedViewMode = localStorage.getItem(orderViewModeKey);
+    if (storedViewMode === "cards" || storedViewMode === "list") setViewMode(storedViewMode);
+  }, []);
 
   useEffect(() => {
     try {
@@ -93,6 +100,11 @@ export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Or
     const ids = Array.from(seenPending.current).slice(-maxStoredOrderIds);
     seenPending.current = new Set(ids);
     localStorage.setItem(announcedOrdersKey, JSON.stringify(ids));
+  }
+
+  function changeViewMode(nextViewMode: "cards" | "list") {
+    setViewMode(nextViewMode);
+    localStorage.setItem(orderViewModeKey, nextViewMode);
   }
 
   async function requestWakeLock() {
@@ -261,7 +273,7 @@ export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Or
         </button>
       ) : null}
 
-      <div id="live-order-tabs" className="scroll-mt-4 flex items-center justify-between gap-3">
+      <div id="live-order-tabs" className="scroll-mt-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex gap-2 overflow-x-auto pb-2">
           {statuses.map((status) => (
             <Button key={status} variant={active === status ? "default" : "outline"} onClick={() => setActive(status)} className="shrink-0">
@@ -269,87 +281,200 @@ export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Or
             </Button>
           ))}
         </div>
-        <Button variant="outline" onClick={loadOrders} className="shrink-0">
-          <RefreshCw className="h-4 w-4" />
-          Refresh
-        </Button>
+        <div className="flex shrink-0 items-center gap-2">
+          <div className="flex rounded-md border bg-white p-1">
+            <Button type="button" size="sm" variant={viewMode === "cards" ? "default" : "ghost"} onClick={() => changeViewMode("cards")}>
+              <LayoutGrid className="h-4 w-4" />
+              Cards
+            </Button>
+            <Button type="button" size="sm" variant={viewMode === "list" ? "default" : "ghost"} onClick={() => changeViewMode("list")}>
+              <List className="h-4 w-4" />
+              List
+            </Button>
+          </div>
+          <Button variant="outline" onClick={loadOrders} className="shrink-0">
+            <RefreshCw className="h-4 w-4" />
+            Refresh
+          </Button>
+        </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-2">
-        {visible.map((order) => {
-          const hasBillRequest = order.waiterRequests?.some((request) => request.type === "BILL_REQUEST" && request.status === "PENDING");
-          return (
-            <Card key={order.id} className={order.status === "PENDING" ? "border-orange-300" : hasBillRequest ? "border-primary" : ""}>
-              <CardHeader>
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <CardTitle>{displayOrderTitle(order)}</CardTitle>
-                    <p className="text-sm text-muted-foreground">{formatPkTime(order.createdAt)} - {sourceLabel(order.source)}</p>
-                    {order.waiterName ? <p className="mt-1 text-sm font-semibold text-primary">Waiter: {order.waiterName}</p> : null}
-                    {!order.waiterName && order.customerName ? <p className="mt-1 text-sm text-muted-foreground">Customer: {order.customerName}</p> : null}
-                    {hasBillRequest ? <p className="mt-1 text-sm font-semibold text-primary">Bill requested</p> : null}
-                  </div>
-                  <StatusBadge status={order.status} />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {order.items.map((item) => (
-                    <div key={item.id} className="rounded-md bg-muted p-3">
-                      <div className="flex justify-between gap-3 font-medium">
-                        <span>{item.quantity} x {item.itemName}</span>
-                        <span>{formatCurrency(item.totalPrice)}</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground">{formatCurrency(item.unitPrice)} x {item.quantity}</p>
-                      {item.specialInstruction ? <p className="mt-1 text-sm text-muted-foreground">Note: {item.specialInstruction}</p> : null}
-                    </div>
-                  ))}
-                </div>
-                {order.specialNote ? <p className="mt-3 rounded-md border p-3 text-sm">Order note: {order.specialNote}</p> : null}
-                <div className="mt-4 space-y-1 rounded-md border p-3 text-sm">
-                  <BillRow label="Subtotal" value={order.subtotal} />
-                  <BillRow label="Service Charges" value={order.serviceCharges} />
-                  <BillRow label="Tax" value={order.tax} />
-                  <BillRow label="Discount" value={order.discount} />
-                  <div className="border-t pt-2">
-                    <BillRow label="Total" value={order.total} strong />
-                  </div>
-                  <p className="pt-1 text-muted-foreground">Payment: {order.paymentStatus}{order.paymentMethod ? ` · ${order.paymentMethod}` : ""}</p>
-                </div>
-                <div className="mt-4 flex flex-wrap gap-2">
-                  <Link href={`/dashboard/orders/${order.id}`}>
-                    <Button variant="outline">
-                      <Eye className="h-4 w-4" />
-                      View
-                    </Button>
-                  </Link>
-                  <Link href={`/dashboard/orders/${order.id}/edit`}>
-                    <Button variant="outline">
-                      <Edit3 className="h-4 w-4" />
-                      Edit
-                    </Button>
-                  </Link>
-                  <DirectPrintButton href={`/dashboard/orders/${order.id}/print/kitchen`} label="Print Kitchen Slip" />
-                  <DirectPrintButton href={`/dashboard/orders/${order.id}/print/bill`} label="Print Customer Bill" type="bill" />
-                  {(transitions[order.status] || []).map((action) => (
-                    <Button
-                      key={action.status}
-                      variant={action.variant || "default"}
-                      disabled={updating === `${order.id}:${action.status}`}
-                      onClick={() => updateStatus(order.id, action.status)}
-                    >
-                      {updating === `${order.id}:${action.status}` ? "Updating..." : action.label}
-                    </Button>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
+      {viewMode === "list" ? (
+        <OrderListView visible={visible} updating={updating} updateStatus={updateStatus} />
+      ) : (
+        <OrderCardView visible={visible} updating={updating} updateStatus={updateStatus} />
+      )}
       {visible.length === 0 ? <p className="rounded-md border bg-white p-6 text-center text-muted-foreground">No orders in this status.</p> : null}
     </div>
   );
+}
+
+function OrderCardView({
+  visible,
+  updating,
+  updateStatus
+}: {
+  visible: Order[];
+  updating: string;
+  updateStatus: (orderId: string, status: string) => void;
+}) {
+  return (
+    <div className="grid gap-4 xl:grid-cols-2">
+      {visible.map((order) => {
+        const hasBillRequest = hasPendingBillRequest(order);
+        return (
+          <Card key={order.id} className={order.status === "PENDING" ? "border-orange-300" : hasBillRequest ? "border-primary" : ""}>
+            <CardHeader>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <CardTitle>{displayOrderTitle(order)}</CardTitle>
+                  <p className="text-sm text-muted-foreground">{formatPkTime(order.createdAt)} - {sourceLabel(order.source)}</p>
+                  {order.waiterName ? <p className="mt-1 text-sm font-semibold text-primary">Waiter: {order.waiterName}</p> : null}
+                  {!order.waiterName && order.customerName ? <p className="mt-1 text-sm text-muted-foreground">Customer: {order.customerName}</p> : null}
+                  {hasBillRequest ? <p className="mt-1 text-sm font-semibold text-primary">Bill requested</p> : null}
+                </div>
+                <StatusBadge status={order.status} />
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-3">
+                {order.items.map((item) => (
+                  <div key={item.id} className="rounded-md bg-muted p-3">
+                    <div className="flex justify-between gap-3 font-medium">
+                      <span>{item.quantity} x {item.itemName}</span>
+                      <span>{formatCurrency(item.totalPrice)}</span>
+                    </div>
+                    <p className="text-sm text-muted-foreground">{formatCurrency(item.unitPrice)} x {item.quantity}</p>
+                    {item.specialInstruction ? <p className="mt-1 text-sm text-muted-foreground">Note: {item.specialInstruction}</p> : null}
+                  </div>
+                ))}
+              </div>
+              {order.specialNote ? <p className="mt-3 rounded-md border p-3 text-sm">Order note: {order.specialNote}</p> : null}
+              <div className="mt-4 space-y-1 rounded-md border p-3 text-sm">
+                <BillRow label="Subtotal" value={order.subtotal} />
+                <BillRow label="Service Charges" value={order.serviceCharges} />
+                <BillRow label="Tax" value={order.tax} />
+                <BillRow label="Discount" value={order.discount} />
+                <div className="border-t pt-2">
+                  <BillRow label="Total" value={order.total} strong />
+                </div>
+                <p className="pt-1 text-muted-foreground">Payment: {order.paymentStatus}{order.paymentMethod ? ` - ${order.paymentMethod}` : ""}</p>
+              </div>
+              <OrderActions order={order} updating={updating} updateStatus={updateStatus} />
+            </CardContent>
+          </Card>
+        );
+      })}
+    </div>
+  );
+}
+
+function OrderListView({
+  visible,
+  updating,
+  updateStatus
+}: {
+  visible: Order[];
+  updating: string;
+  updateStatus: (orderId: string, status: string) => void;
+}) {
+  return (
+    <div className="overflow-x-auto rounded-lg border bg-white">
+      <table className="w-full min-w-[1120px] text-sm">
+        <thead>
+          <tr className="border-b bg-muted/60 text-left text-xs uppercase tracking-wide text-muted-foreground">
+            <th className="p-3">Order</th>
+            <th className="p-3">Table</th>
+            <th className="p-3">Source</th>
+            <th className="p-3">Items</th>
+            <th className="p-3 text-right">Total</th>
+            <th className="p-3">Payment</th>
+            <th className="p-3">Status</th>
+            <th className="p-3">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {visible.map((order) => {
+            const hasBillRequest = hasPendingBillRequest(order);
+            return (
+              <tr key={order.id} className={order.status === "PENDING" ? "border-b bg-orange-50/45 align-top" : hasBillRequest ? "border-b bg-primary/5 align-top" : "border-b align-top"}>
+                <td className="p-3">
+                  <p className="font-bold">{displayOrderTitle(order)}</p>
+                  <p className="text-xs text-muted-foreground">{formatPkTime(order.createdAt)}</p>
+                  {order.waiterName ? <p className="text-xs font-semibold text-primary">Waiter: {order.waiterName}</p> : null}
+                  {!order.waiterName && order.customerName ? <p className="text-xs text-muted-foreground">Customer: {order.customerName}</p> : null}
+                </td>
+                <td className="p-3 font-semibold">Table {order.table.tableNumber}</td>
+                <td className="p-3">{sourceLabel(order.source)}</td>
+                <td className="max-w-[340px] p-3">
+                  <p className="font-medium">{itemsSummary(order)}</p>
+                  {order.specialNote ? <p className="mt-1 text-xs text-muted-foreground">Note: {order.specialNote}</p> : null}
+                  {hasBillRequest ? <p className="mt-1 text-xs font-semibold text-primary">Bill requested</p> : null}
+                </td>
+                <td className="p-3 text-right font-bold">{formatCurrency(order.total)}</td>
+                <td className="p-3">{order.paymentStatus}{order.paymentMethod ? ` - ${order.paymentMethod}` : ""}</td>
+                <td className="p-3"><StatusBadge status={order.status} /></td>
+                <td className="p-3">
+                  <OrderActions order={order} updating={updating} updateStatus={updateStatus} compact />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function OrderActions({
+  order,
+  updating,
+  updateStatus,
+  compact = false
+}: {
+  order: Order;
+  updating: string;
+  updateStatus: (orderId: string, status: string) => void;
+  compact?: boolean;
+}) {
+  return (
+    <div className={compact ? "flex max-w-[360px] flex-wrap gap-1.5" : "mt-4 flex flex-wrap gap-2"}>
+      <Link href={`/dashboard/orders/${order.id}`}>
+        <Button variant="outline" size={compact ? "sm" : "md"}>
+          <Eye className="h-4 w-4" />
+          View
+        </Button>
+      </Link>
+      <Link href={`/dashboard/orders/${order.id}/edit`}>
+        <Button variant="outline" size={compact ? "sm" : "md"}>
+          <Edit3 className="h-4 w-4" />
+          Edit
+        </Button>
+      </Link>
+      <DirectPrintButton href={`/dashboard/orders/${order.id}/print/kitchen`} label={compact ? "Kitchen" : "Print Kitchen Slip"} size={compact ? "sm" : "md"} />
+      <DirectPrintButton href={`/dashboard/orders/${order.id}/print/bill`} label={compact ? "Bill" : "Print Customer Bill"} type="bill" size={compact ? "sm" : "md"} />
+      {(transitions[order.status] || []).map((action) => (
+        <Button
+          key={action.status}
+          size={compact ? "sm" : "md"}
+          variant={action.variant || "default"}
+          disabled={updating === `${order.id}:${action.status}`}
+          onClick={() => updateStatus(order.id, action.status)}
+        >
+          {updating === `${order.id}:${action.status}` ? "Updating..." : action.label}
+        </Button>
+      ))}
+    </div>
+  );
+}
+
+function hasPendingBillRequest(order: Order) {
+  return order.waiterRequests?.some((request) => request.type === "BILL_REQUEST" && request.status === "PENDING");
+}
+
+function itemsSummary(order: Order) {
+  const summary = order.items.slice(0, 3).map((item) => `${item.quantity}x ${item.itemName}`).join(", ");
+  return order.items.length > 3 ? `${summary} +${order.items.length - 3} more` : summary;
 }
 
 function BillRow({ label, value, strong }: { label: string; value: string; strong?: boolean }) {
