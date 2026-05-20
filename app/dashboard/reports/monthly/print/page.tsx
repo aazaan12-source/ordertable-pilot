@@ -19,6 +19,7 @@ type PrintQuery = {
 };
 
 const dayMs = 24 * 60 * 60 * 1000;
+const reportTimeZone = "Asia/Karachi";
 
 export default async function MonthlyFinancialPrintPage({ searchParams }: { searchParams: Promise<PrintQuery> }) {
   const { restaurant } = await getManagerRestaurant();
@@ -60,7 +61,7 @@ export default async function MonthlyFinancialPrintPage({ searchParams }: { sear
   const byPayment = groupTotals(paid, (order) => order.paymentMethod || "UNSELECTED");
   const bySource = groupTotals(nonCancelled, (order) => orderSourceLabels[order.source] || order.source);
   const byTable = groupTotals(nonCancelled, (order) => `Table ${order.table.tableNumber}`);
-  const byDay = groupTotals(nonCancelled, (order) => order.createdAt.toISOString().slice(0, 10));
+  const byDay = dailyRevenueRows(nonCancelled);
 
   return (
     <main className="mx-auto max-w-5xl bg-white p-6 text-black print:max-w-none">
@@ -119,7 +120,7 @@ export default async function MonthlyFinancialPrintPage({ searchParams }: { sear
           </tbody>
         </table>
 
-        <ReportTable title="3. Daily Revenue" rows={byDay} />
+        <DailyRevenueTable title="3. Daily Revenue" rows={byDay} />
         <ReportTable title="4. Table Revenue" rows={byTable} />
         <ReportTable title="5. Revenue by Payment Method" rows={byPayment} />
         <ReportTable title="6. Revenue by Order Source" rows={bySource} />
@@ -204,6 +205,46 @@ function groupTotals<T extends { total: unknown }>(items: T[], key: (item: T) =>
     .sort((a, b) => b.total - a.total);
 }
 
+function dailyRevenueRows(orders: { createdAt: Date; total: unknown }[]) {
+  const map = new Map<string, { date: string; dayName: string; orders: number; total: number }>();
+  for (const order of orders) {
+    const date = reportDate(order.createdAt);
+    const current = map.get(date) || { date, dayName: reportDayName(order.createdAt), orders: 0, total: 0 };
+    current.orders += 1;
+    current.total += Number(order.total);
+    map.set(date, current);
+  }
+  return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
+}
+
+function DailyRevenueTable({ title, rows }: { title: string; rows: { date: string; dayName: string; orders: number; total: number }[] }) {
+  return (
+    <>
+      <h2 className="mt-8 text-xl font-black">{title}</h2>
+      <table className="mt-3 w-full border-collapse text-sm">
+        <thead>
+          <tr>
+            <th className="border p-2 text-left">Date</th>
+            <th className="border p-2 text-left">Day</th>
+            <th className="border p-2 text-right">Orders</th>
+            <th className="border p-2 text-right">Revenue</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.date}>
+              <td className="border p-2">{row.date}</td>
+              <td className="border p-2">{row.dayName}</td>
+              <td className="border p-2 text-right">{row.orders}</td>
+              <td className="border p-2 text-right">{formatCurrency(row.total)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </>
+  );
+}
+
 function ReportTable({ title, rows }: { title: string; rows: { label: string; orders: number; total: number }[] }) {
   return (
     <>
@@ -239,6 +280,23 @@ function positiveInt(value?: string) {
 
 function enumValue<T extends Record<string, string>>(value: string | undefined, values: T) {
   return value && Object.values(values).includes(value) ? value as T[keyof T] : null;
+}
+
+function reportDate(date: Date) {
+  const parts = new Intl.DateTimeFormat("en", {
+    timeZone: reportTimeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value || "0000";
+  const month = parts.find((part) => part.type === "month")?.value || "00";
+  const day = parts.find((part) => part.type === "day")?.value || "00";
+  return `${year}-${month}-${day}`;
+}
+
+function reportDayName(date: Date) {
+  return new Intl.DateTimeFormat("en", { timeZone: reportTimeZone, weekday: "long" }).format(date);
 }
 
 function Stat({ title, value }: { title: string; value: React.ReactNode }) {

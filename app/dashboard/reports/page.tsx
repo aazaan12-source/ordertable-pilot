@@ -26,7 +26,15 @@ type ProductRow = {
   share: number;
 };
 
+type DailyRevenueRow = {
+  date: string;
+  dayName: string;
+  orders: number;
+  total: number;
+};
+
 const dayMs = 24 * 60 * 60 * 1000;
+const reportTimeZone = "Asia/Karachi";
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<ReportQuery> }) {
   const { restaurant } = await getManagerRestaurant();
@@ -90,6 +98,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const topProduct = productRows[0];
   const weakProducts = productRows.slice(-5).reverse();
   const tableRows = buildTableRows(nonCancelled);
+  const dailyRevenueRows = buildDailyRevenueRows(nonCancelled);
   const printParams = new URLSearchParams({
     from,
     to,
@@ -227,6 +236,38 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       </div>
 
       <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Daily Revenue</CardTitle>
+          <p className="text-sm text-muted-foreground">Day name helps identify which weekdays are busiest for the restaurant.</p>
+        </CardHeader>
+        <CardContent>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[520px] text-sm">
+              <thead>
+                <tr className="border-b text-left text-muted-foreground">
+                  <th className="py-2 pr-3">Date</th>
+                  <th className="py-2 pr-3">Day</th>
+                  <th className="py-2 pr-3 text-right">Orders</th>
+                  <th className="py-2 text-right">Revenue</th>
+                </tr>
+              </thead>
+              <tbody>
+                {dailyRevenueRows.map((row) => (
+                  <tr key={row.date} className="border-b last:border-0">
+                    <td className="py-2 pr-3">{row.date}</td>
+                    <td className="py-2 pr-3 font-semibold">{row.dayName}</td>
+                    <td className="py-2 pr-3 text-right">{row.orders}</td>
+                    <td className="py-2 text-right font-semibold">{formatCurrency(row.total)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {dailyRevenueRows.length === 0 ? <p className="rounded-md border bg-white p-6 text-center text-muted-foreground">No daily revenue in this period.</p> : null}
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6">
         <CardHeader><CardTitle>Recent Order History</CardTitle></CardHeader>
         <CardContent>
           <div className="overflow-x-auto">
@@ -301,6 +342,18 @@ function buildTableRows(orders: { table: { tableNumber: number }; total: unknown
     .sort((a, b) => b.total - a.total);
 }
 
+function buildDailyRevenueRows(orders: { createdAt: Date; total: unknown }[]): DailyRevenueRow[] {
+  const map = new Map<string, DailyRevenueRow>();
+  for (const order of orders) {
+    const date = reportDate(order.createdAt);
+    const current = map.get(date) || { date, dayName: reportDayName(order.createdAt), orders: 0, total: 0 };
+    current.orders += 1;
+    current.total += Number(order.total);
+    map.set(date, current);
+  }
+  return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
+}
+
 function safeDateInput(value?: string) {
   if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
   const date = new Date(`${value}T00:00:00`);
@@ -326,6 +379,23 @@ function positiveInt(value?: string) {
 
 function enumValue<T extends Record<string, string>>(value: string | undefined, values: T) {
   return value && Object.values(values).includes(value) ? value as T[keyof T] : null;
+}
+
+function reportDate(date: Date) {
+  const parts = new Intl.DateTimeFormat("en", {
+    timeZone: reportTimeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value || "0000";
+  const month = parts.find((part) => part.type === "month")?.value || "00";
+  const day = parts.find((part) => part.type === "day")?.value || "00";
+  return `${year}-${month}-${day}`;
+}
+
+function reportDayName(date: Date) {
+  return new Intl.DateTimeFormat("en", { timeZone: reportTimeZone, weekday: "long" }).format(date);
 }
 
 function Select({ name, label, value, options }: { name: string; label: string; value: string; options: [string, string][] }) {
