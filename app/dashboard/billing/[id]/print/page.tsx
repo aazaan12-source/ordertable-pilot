@@ -93,7 +93,7 @@ export default async function ManagerInvoicePrintPage({ params }: { params: Prom
                 ))}
               </div>
             ) : (
-              <p className="mt-2 text-sm text-muted-foreground">Payment account is not configured yet. Contact Super Admin.</p>
+              <p className="mt-2 text-sm text-muted-foreground">Payment account is not configured yet. Contact platform support.</p>
             )}
           </div>
           <div>

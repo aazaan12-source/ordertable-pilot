@@ -39,7 +39,7 @@ async function submitPaymentRequest(formData: FormData) {
         userId: user.id,
         restaurantId: restaurant.id,
         action: "BILLING_PAYMENT_REQUESTED",
-        description: `${invoice.billingMonth} invoice marked paid by manager, waiting for super admin confirmation`
+        description: `${invoice.billingMonth} invoice marked paid by manager, waiting for platform billing confirmation`
       }
     });
   });
@@ -80,7 +80,7 @@ export default async function ManagerBillingPage() {
       <Card className="mt-6">
         <CardHeader>
           <CardTitle>Payment Accounts</CardTitle>
-          <p className="text-sm text-muted-foreground">Pay to one of these Super Admin accounts, then submit your payment reference below.</p>
+          <p className="text-sm text-muted-foreground">Pay to one of these platform billing accounts, then submit your payment reference below.</p>
         </CardHeader>
         <CardContent className="grid gap-3 md:grid-cols-2">
           {accounts.map((account) => (
@@ -92,7 +92,7 @@ export default async function ManagerBillingPage() {
               {account.instructions ? <p className="mt-2 text-muted-foreground">{account.instructions}</p> : null}
             </div>
           ))}
-          {accounts.length === 0 ? <p className="rounded-md border bg-muted/30 p-4 text-sm text-muted-foreground">Payment accounts are not configured yet. Please contact Super Admin.</p> : null}
+          {accounts.length === 0 ? <p className="rounded-md border bg-muted/30 p-4 text-sm text-muted-foreground">Payment accounts are not configured yet. Please contact platform support.</p> : null}
         </CardContent>
       </Card>
 
@@ -125,22 +125,22 @@ export default async function ManagerBillingPage() {
 
                 {invoice.status === "PAID" ? (
                   <div className="mt-3 rounded-md border border-green-200 bg-green-50 p-3 text-sm text-green-800">
-                    Paid and confirmed by Super Admin{invoice.paidAt ? ` on ${formatPkDateTime(invoice.paidAt)}` : ""}.
+                    Paid and confirmed by platform billing{invoice.paidAt ? ` on ${formatPkDateTime(invoice.paidAt)}` : ""}.
                   </div>
                 ) : invoice.status === "WAIVED" ? (
                   <div className="mt-3 rounded-md border bg-muted/40 p-3 text-sm text-muted-foreground">
-                    This invoice has been waived by Super Admin. No payment action is required.
+                    This invoice has been waived by platform billing. No payment action is required.
                   </div>
                 ) : pendingConfirmation ? (
                   <div className="mt-3 rounded-md border border-blue-200 bg-white p-3 text-sm text-blue-900">
-                    Payment submitted by manager. Waiting for Super Admin confirmation.
+                    Payment submitted by manager. Waiting for platform billing confirmation.
                     <p className="mt-1 text-muted-foreground">Reference: {invoice.paymentClaimReference || "Not provided"} - Method: {invoice.paymentClaimMethod || "Not provided"}</p>
                   </div>
                 ) : (
                   <>
                   {rejectedPayment ? (
                     <div className="mt-3 rounded-md border border-red-200 bg-white p-3 text-sm text-red-800">
-                      <p className="font-semibold">Super Admin marked the previous payment as not received.</p>
+                      <p className="font-semibold">Platform billing marked the previous payment as not received.</p>
                       <p className="mt-1">{invoice.paymentRejectionNote || "Please verify your transaction and submit payment again."}</p>
                       {invoice.paymentRejectedAt ? <p className="mt-1 text-xs text-muted-foreground">Updated {formatPkDateTime(invoice.paymentRejectedAt)}</p> : null}
                     </div>
@@ -157,7 +157,7 @@ export default async function ManagerBillingPage() {
                     <ConfirmSubmitButton
                       variant="default"
                       size="md"
-                      message="Submit payment request to Super Admin? The invoice will be marked as waiting for confirmation until Super Admin verifies receipt."
+                      message="Submit payment request? The invoice will be marked as waiting for confirmation until platform billing verifies receipt."
                       pendingText="Submitting..."
                     >
                       I Have Paid

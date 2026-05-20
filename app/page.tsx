@@ -48,8 +48,7 @@ export default function PublicHomePage() {
           <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
             <Link href="/" className="text-xl font-black">OrderTable</Link>
             <nav className="flex items-center gap-2">
-              <Link href="/login"><Button variant="outline" className="border-white/40 bg-white/10 text-white hover:bg-white hover:text-black">Manager</Button></Link>
-              <Link href="/super-admin-login"><Button className="bg-white text-black hover:bg-white/90">Super Admin</Button></Link>
+              <Link href="/login"><Button className="bg-white text-black hover:bg-white/90">Sign in</Button></Link>
             </nav>
           </div>
         </header>
@@ -59,12 +58,12 @@ export default function PublicHomePage() {
             <p className="w-fit rounded-full border border-white/30 bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wide">QR ordering for real restaurant pilots</p>
             <h1 className="mt-5 max-w-3xl text-5xl font-black leading-tight md:text-6xl">Let guests order from the table while your team runs the floor faster.</h1>
             <p className="mt-5 max-w-2xl text-lg text-white/85">
-              A practical QR ordering platform with live manager dashboard, waiter call alerts, kitchen slips, customer bills, super-admin onboarding, and 20-table pilot support.
+              A practical QR ordering platform with live manager dashboard, waiter call alerts, kitchen slips, customer bills, restaurant onboarding, and 20-table pilot support.
             </p>
             <div className="mt-7 flex flex-wrap gap-3">
               <div>
                 <Link href="/request-restaurant"><Button size="lg" className="bg-white text-black hover:bg-white/90">Request Restaurant Setup</Button></Link>
-                <p className="mt-1 text-xs text-white/75">Send your details for super-admin onboarding.</p>
+                <p className="mt-1 text-xs text-white/75">Send your details for account setup.</p>
               </div>
               <div>
                 <Link href="/demo/customer"><Button size="lg" variant="outline" className="border-white/40 bg-white/10 text-white hover:bg-white hover:text-black">View Customer Demo <ArrowRight className="h-5 w-5" /></Button></Link>
@@ -80,7 +79,7 @@ export default function PublicHomePage() {
           <Card className="bg-white/95 text-foreground shadow-2xl">
             <CardHeader>
               <CardTitle className="text-2xl">Request a restaurant account</CardTitle>
-              <p className="text-sm text-muted-foreground">Send your table count and contact details to the platform super admin.</p>
+              <p className="text-sm text-muted-foreground">Send your table count and contact details to the platform team.</p>
             </CardHeader>
             <CardContent>
               <form action={submitRestaurantRequest} className="space-y-3">
@@ -129,7 +128,7 @@ export default function PublicHomePage() {
         <VisualPanel
           image={tableImage}
           label="Platform"
-          title="Super admin control for many restaurants"
+          title="Central control for many restaurants"
           points={["Restaurant account creation", "Monthly billing records", "Account recovery tools", "Online restaurant requests"]}
         />
       </section>
@@ -152,7 +151,7 @@ export default function PublicHomePage() {
             </div>
             <div className="flex flex-wrap gap-2">
               <Link href="/demo/customer"><Button>Read-Only Customer Demo</Button></Link>
-              <Link href="/login?demo=manager"><Button variant="outline">Manager Login</Button></Link>
+              <Link href="/demo/dashboard"><Button variant="outline">Read-Only Manager Demo</Button></Link>
             </div>
           </CardContent>
         </Card>

@@ -78,7 +78,7 @@ function LoginForm() {
       <Card className="w-full max-w-md">
         <CardHeader>
           <CardTitle>OrderTable Login</CardTitle>
-          <p className="text-sm text-muted-foreground">Sign in as restaurant manager or platform admin.</p>
+          <p className="text-sm text-muted-foreground">Sign in to continue to your OrderTable workspace.</p>
         </CardHeader>
         <CardContent>
           <form onSubmit={onSubmit} className="space-y-4">
@@ -90,7 +90,7 @@ function LoginForm() {
             </Button>
           </form>
           <p className="mt-5 rounded-md bg-muted p-3 text-xs text-muted-foreground">
-            Use the manager login provided by the platform admin.
+            Use the login details provided for your restaurant or platform account.
           </p>
         </CardContent>
       </Card>
