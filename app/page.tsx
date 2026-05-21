@@ -41,7 +41,7 @@ async function submitRestaurantRequest(formData: FormData) {
 }
 
 export default async function PublicHomePage() {
-  const demoQrCodes = await Promise.all([1, 2, 3, 4, 5].map(async (tableNumber) => {
+  const demoQrCodes = await Promise.all([1, 2, 3, 4, 5, 6].map(async (tableNumber) => {
     const url = `${appBaseUrl()}/demo/simulation/order?table=${tableNumber}&session=public-demo`;
     return { tableNumber, url, dataUrl: await qrDataUrl(url) };
   }));
@@ -138,7 +138,7 @@ export default async function PublicHomePage() {
 
       <section className="border-y bg-white">
         <div className="mx-auto grid max-w-6xl gap-5 px-4 py-10 md:grid-cols-3">
-          <Metric value="5" label="demo tables ready" />
+          <Metric value="6" label="demo tables ready" />
           <Metric value="4s" label="dashboard refresh cycle" />
           <Metric value="3 min" label="default cancellation window" />
         </div>
@@ -150,7 +150,7 @@ export default async function PublicHomePage() {
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-primary">Ready to test</p>
               <h2 className="text-2xl font-black">Open the demo restaurant and place a live order.</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Open the demo dashboard and scan one of the five demo table QR codes.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Open the demo dashboard and scan one of the six demo table QR codes.</p>
             </div>
             <div className="flex flex-wrap gap-2">
               <Link href="#demo-simulation"><Button>Try Demo Simulation</Button></Link>

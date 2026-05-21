@@ -120,7 +120,7 @@ function sanitizeOrder(value: unknown): DemoOrder | null {
   const order = value as Partial<DemoOrder>;
   if (!order || !order.id || !order.orderNumber || !order.items?.length) return null;
   const tableNumber = Number(order.tableNumber);
-  if (!Number.isInteger(tableNumber) || tableNumber < 1 || tableNumber > 5) return null;
+  if (!Number.isInteger(tableNumber) || tableNumber < 1 || tableNumber > 6) return null;
   return {
     id: String(order.id).slice(0, 80),
     orderNumber: String(order.orderNumber).slice(0, 40),
@@ -146,7 +146,7 @@ function sanitizeOrder(value: unknown): DemoOrder | null {
 function sanitizeRequest(value: unknown): DemoRequest | null {
   const request = value as Partial<DemoRequest>;
   const tableNumber = Number(request?.tableNumber);
-  if (!request?.id || !Number.isInteger(tableNumber) || tableNumber < 1 || tableNumber > 5) return null;
+  if (!request?.id || !Number.isInteger(tableNumber) || tableNumber < 1 || tableNumber > 6) return null;
   return {
     id: String(request.id).slice(0, 80),
     tableNumber,

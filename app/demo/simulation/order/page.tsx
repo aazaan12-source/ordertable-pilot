@@ -29,7 +29,7 @@ export default function DemoSimulationOrderPage() {
 
 function DemoSimulationOrderContent() {
   const params = useSearchParams();
-  const tableNumber = Math.max(1, Math.min(5, Number(params.get("table") || 1)));
+  const tableNumber = Math.max(1, Math.min(6, Number(params.get("table") || 1)));
   const session = params.get("session") || "public-demo";
   const [category, setCategory] = useState(demoCategories[0]);
   const [mode, setMode] = useState<"customer" | "waiter">("customer");
