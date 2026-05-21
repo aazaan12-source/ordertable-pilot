@@ -170,10 +170,12 @@ class PdfDocument {
   }
 
   section(title: string) {
-    this.ensure(32);
+    const topGap = this.y < 790 ? 12 : 0;
+    this.ensure(46 + topGap);
+    if (topGap) this.y -= topGap;
     this.text(this.margin, this.y, title, 13, "bold", "0.08 0.22 0.18");
     this.line(this.margin, this.y - 8, this.margin + 523, this.y - 8, "0.75 0.85 0.80");
-    this.y -= 24;
+    this.y -= 28;
   }
 
   summaryGrid(rows: string[][]) {
@@ -197,7 +199,8 @@ class PdfDocument {
   }
 
   table(title: string, headers: string[], rows: string[][], widths: number[], fontSize = 8.5) {
-    this.section(title);
+    const rowHeight = 19;
+    this.tableSection(title, rowHeight * 3);
     if (rows.length === 0) {
       this.ensure(28);
       this.text(this.margin + 8, this.y - 12, "No records in this section.", 9);
@@ -205,13 +208,14 @@ class PdfDocument {
       return;
     }
 
-    const rowHeight = 19;
     this.drawTableHeader(headers, widths, rowHeight, fontSize);
     for (const row of rows) {
-      this.ensure(rowHeight);
+      if (this.ensure(rowHeight)) {
+        this.drawTableHeader(headers, widths, rowHeight, fontSize);
+      }
       this.drawTableRow(row, widths, rowHeight, fontSize);
     }
-    this.y -= 10;
+    this.y -= 18;
   }
 
   note(text: string) {
@@ -261,6 +265,15 @@ class PdfDocument {
     this.drawTableCells(headers, widths, rowHeight, fontSize, true);
   }
 
+  private tableSection(title: string, nextContentHeight: number) {
+    const topGap = this.y < 790 ? 16 : 0;
+    this.ensure(32 + nextContentHeight + topGap);
+    if (topGap) this.y -= topGap;
+    this.text(this.margin, this.y, title, 13, "bold", "0.08 0.22 0.18");
+    this.line(this.margin, this.y - 8, this.margin + 523, this.y - 8, "0.75 0.85 0.80");
+    this.y -= 30;
+  }
+
   private drawTableRow(row: string[], widths: number[], rowHeight: number, fontSize: number) {
     this.drawTableCells(row, widths, rowHeight, fontSize, false);
   }
@@ -280,7 +293,11 @@ class PdfDocument {
   }
 
   private ensure(height: number) {
-    if (this.y - height < this.bottom) this.addPage();
+    if (this.y - height < this.bottom) {
+      this.addPage();
+      return true;
+    }
+    return false;
   }
 
   private addPage() {
