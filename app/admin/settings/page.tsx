@@ -35,7 +35,13 @@ export const dynamic = "force-dynamic";
 
 export default async function AdminSettingsPage() {
   const admin = await requirePlatformAdmin();
-  const billingAlertCount = await db.billingInvoice.count({ where: { paymentClaimedAt: { not: null }, status: { not: "PAID" } } });
+  const billingNotifications = await db.billingInvoice.findMany({
+    where: { paymentClaimedAt: { not: null }, status: { not: "PAID" } },
+    select: { paymentClaimedAt: true, paymentClaimSeenAt: true }
+  });
+  const billingAlertCount = billingNotifications.filter((invoice) => (
+    invoice.paymentClaimedAt && (!invoice.paymentClaimSeenAt || invoice.paymentClaimSeenAt < invoice.paymentClaimedAt)
+  )).length;
   const adminUser = await db.user.findUnique({
     where: { id: admin.id },
     select: { recoveryEmail: true, recoveryPhone: true, email: true }

@@ -9,18 +9,32 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const billingNotifications = await db.billingInvoice.findMany({
     where: {
       restaurantId: restaurant.id,
-      status: { in: ["DUE", "OVERDUE"] },
+      status: { not: "DRAFT" },
       OR: [
-        { paymentClaimedAt: null, paymentReminderAt: { not: null } },
-        { paymentRejectedAt: { not: null } }
+        { status: { in: ["DUE", "OVERDUE", "WAIVED"] } },
+        { paymentReminderAt: { not: null } },
+        { paymentRejectedAt: { not: null } },
+        { paymentConfirmedAt: { not: null } }
       ]
     },
-    select: { paymentReminderAt: true, paymentReminderSeenAt: true, paymentRejectedAt: true, paymentRejectionSeenAt: true }
+    select: {
+      status: true,
+      createdAt: true,
+      invoiceSeenAt: true,
+      paymentReminderAt: true,
+      paymentReminderSeenAt: true,
+      paymentRejectedAt: true,
+      paymentRejectionSeenAt: true,
+      paymentConfirmedAt: true,
+      paymentConfirmationSeenAt: true
+    }
   });
   const billingAlertCount = billingNotifications.filter((invoice) => {
+    const unseenInvoice = (invoice.status === "DUE" || invoice.status === "OVERDUE" || invoice.status === "WAIVED") && (!invoice.invoiceSeenAt || invoice.invoiceSeenAt < invoice.createdAt);
     const unseenReminder = invoice.paymentReminderAt && (!invoice.paymentReminderSeenAt || invoice.paymentReminderSeenAt < invoice.paymentReminderAt);
     const unseenRejection = invoice.paymentRejectedAt && (!invoice.paymentRejectionSeenAt || invoice.paymentRejectionSeenAt < invoice.paymentRejectedAt);
-    return unseenReminder || unseenRejection;
+    const unseenConfirmation = invoice.paymentConfirmedAt && (!invoice.paymentConfirmationSeenAt || invoice.paymentConfirmationSeenAt < invoice.paymentConfirmedAt);
+    return unseenInvoice || unseenReminder || unseenRejection || unseenConfirmation;
   }).length;
   return (
     <div className="lg:flex">

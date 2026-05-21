@@ -70,6 +70,7 @@ async function createInvoice(formData: FormData) {
       amount,
       planName: text(formData, "planName", "Pilot"),
       status: text(formData, "status", "DUE") as InvoiceStatus,
+      invoiceSeenAt: null,
       dueDate: formData.get("dueDate") ? new Date(String(formData.get("dueDate"))) : null,
       notes: text(formData, "notes") || null
     }
@@ -86,15 +87,20 @@ async function updateInvoiceStatus(formData: FormData) {
   const id = text(formData, "id");
   const status = text(formData, "status") as InvoiceStatus;
   const paymentReference = text(formData, "paymentReference") || null;
+  const existingInvoice = await db.billingInvoice.findUnique({ where: { id }, select: { status: true } });
+  const managerStatusNotification = existingInvoice?.status !== status && (status === "DUE" || status === "OVERDUE" || status === "WAIVED");
   const invoice = await db.billingInvoice.update({
     where: { id },
     data: {
       status,
+      invoiceSeenAt: managerStatusNotification ? null : undefined,
       paidAt: status === "PAID" ? new Date() : null,
       paymentConfirmedAt: status === "PAID" ? new Date() : null,
+      paymentConfirmationSeenAt: status === "PAID" ? null : undefined,
       paymentConfirmedById: status === "PAID" ? user.id : null,
       paymentReference,
-      paymentClaimedAt: status === "PAID" ? null : undefined
+      paymentClaimedAt: status === "PAID" ? null : undefined,
+      paymentClaimSeenAt: status === "PAID" ? new Date() : undefined
     }
   });
   await db.activityLog.create({ data: { userId: user.id, restaurantId: invoice.restaurantId, action: "BILLING_INVOICE_UPDATED", description: `${invoice.billingMonth} invoice changed to ${status}` } });
@@ -112,8 +118,10 @@ async function confirmManagerPayment(formData: FormData) {
       status: "PAID",
       paidAt: new Date(),
       paymentConfirmedAt: new Date(),
+      paymentConfirmationSeenAt: null,
       paymentConfirmedById: user.id,
       paymentReference: text(formData, "paymentReference") || text(formData, "claimReference") || null,
+      paymentClaimSeenAt: new Date(),
       paymentClaimedAt: null,
       paymentRejectedAt: null,
       paymentRejectionNote: null
@@ -134,6 +142,7 @@ async function markPaymentNotReceived(formData: FormData) {
     data: {
       status: "DUE",
       paymentClaimedAt: null,
+      paymentClaimSeenAt: new Date(),
       paymentRejectedAt: new Date(),
       paymentRejectionSeenAt: null,
       paymentRejectionNote: note
@@ -192,6 +201,15 @@ export default async function AdminBillingPage() {
     db.billingInvoice.count({ where: { paymentClaimedAt: { not: null }, status: { not: "PAID" } } })
   ]);
   const activeAccounts = accounts.filter((account) => account.isActive);
+  const unseenPaymentClaimIds = invoices
+    .filter((invoice) => invoice.paymentClaimedAt && invoice.status !== "PAID" && (!invoice.paymentClaimSeenAt || invoice.paymentClaimSeenAt < invoice.paymentClaimedAt))
+    .map((invoice) => invoice.id);
+  if (unseenPaymentClaimIds.length > 0) {
+    await db.billingInvoice.updateMany({
+      where: { id: { in: unseenPaymentClaimIds } },
+      data: { paymentClaimSeenAt: new Date() }
+    });
+  }
   const unpaidInvoices = invoices.filter((invoice) => invoice.status !== "PAID");
   const paidInvoices = invoices.filter((invoice) => invoice.status === "PAID");
   const totalPaidCount = paidInvoices.length;

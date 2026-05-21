@@ -334,7 +334,9 @@ model BillingInvoice {
   dueDate       DateTime?
   paidAt        DateTime?
   paymentReference String?
+  invoiceSeenAt DateTime?
   paymentClaimedAt DateTime?
+  paymentClaimSeenAt DateTime?
   paymentClaimMethod String?
   paymentClaimReference String?
   paymentClaimFromAccount String?
@@ -343,6 +345,7 @@ model BillingInvoice {
   paymentRejectionSeenAt DateTime?
   paymentRejectionNote String?
   paymentConfirmedAt DateTime?
+  paymentConfirmationSeenAt DateTime?
   paymentConfirmedById String?
   paymentReminderAt DateTime?
   paymentReminderSeenAt DateTime?
@@ -354,7 +357,10 @@ model BillingInvoice {
 
   @@index([restaurantId, billingMonth])
   @@index([status, dueDate])
+  @@index([invoiceSeenAt])
   @@index([paymentClaimedAt])
+  @@index([paymentClaimSeenAt])
+  @@index([paymentConfirmationSeenAt])
   @@index([paymentReminderAt])
   @@index([paymentReminderSeenAt])
   @@index([paymentRejectionSeenAt])

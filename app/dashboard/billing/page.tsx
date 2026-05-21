@@ -31,7 +31,9 @@ async function submitPaymentRequest(formData: FormData) {
         paymentClaimReference: text(formData, "paymentClaimReference") || null,
         paymentClaimFromAccount: text(formData, "paymentClaimFromAccount") || null,
         paymentClaimNote: text(formData, "paymentClaimNote") || null,
+        paymentClaimSeenAt: null,
         paymentRejectedAt: null,
+        paymentRejectionSeenAt: null,
         paymentRejectionNote: null
       }
     });
@@ -68,17 +70,36 @@ export default async function ManagerBillingPage() {
   const unseenRejectionIds = invoices
     .filter((invoice) => invoice.paymentRejectedAt && (!invoice.paymentRejectionSeenAt || invoice.paymentRejectionSeenAt < invoice.paymentRejectedAt))
     .map((invoice) => invoice.id);
+  const unseenInvoiceIds = invoices
+    .filter((invoice) => (invoice.status === "DUE" || invoice.status === "OVERDUE" || invoice.status === "WAIVED") && (!invoice.invoiceSeenAt || invoice.invoiceSeenAt < invoice.createdAt))
+    .map((invoice) => invoice.id);
+  const unseenConfirmationIds = invoices
+    .filter((invoice) => invoice.paymentConfirmedAt && (!invoice.paymentConfirmationSeenAt || invoice.paymentConfirmationSeenAt < invoice.paymentConfirmedAt))
+    .map((invoice) => invoice.id);
+  const now = new Date();
 
+  if (unseenInvoiceIds.length > 0) {
+    await db.billingInvoice.updateMany({
+      where: { id: { in: unseenInvoiceIds }, restaurantId: restaurant.id },
+      data: { invoiceSeenAt: now }
+    });
+  }
   if (unseenReminderIds.length > 0) {
     await db.billingInvoice.updateMany({
       where: { id: { in: unseenReminderIds }, restaurantId: restaurant.id },
-      data: { paymentReminderSeenAt: new Date() }
+      data: { paymentReminderSeenAt: now }
     });
   }
   if (unseenRejectionIds.length > 0) {
     await db.billingInvoice.updateMany({
       where: { id: { in: unseenRejectionIds }, restaurantId: restaurant.id },
-      data: { paymentRejectionSeenAt: new Date() }
+      data: { paymentRejectionSeenAt: now }
+    });
+  }
+  if (unseenConfirmationIds.length > 0) {
+    await db.billingInvoice.updateMany({
+      where: { id: { in: unseenConfirmationIds }, restaurantId: restaurant.id },
+      data: { paymentConfirmationSeenAt: now }
     });
   }
 
@@ -86,6 +107,7 @@ export default async function ManagerBillingPage() {
   const confirmedInvoices = invoices.filter((invoice) => invoice.status === "PAID");
   const reminderInvoices = invoices.filter((invoice) => invoice.paymentReminderAt && invoice.status !== "PAID");
   const rejectedInvoices = invoices.filter((invoice) => invoice.paymentRejectedAt && invoice.status !== "PAID");
+  const confirmationInvoices = invoices.filter((invoice) => invoice.paymentConfirmedAt && invoice.status === "PAID");
   const pendingPaymentInvoices = invoices.filter((invoice) => Boolean(invoice.paymentClaimedAt && invoice.status !== "PAID"));
   const unpaidInvoices = invoices.filter((invoice) => (invoice.status === "DUE" || invoice.status === "OVERDUE") && !invoice.paymentClaimedAt);
   const otherInvoices = invoices.filter((invoice) => invoice.status !== "PAID" && !unpaidInvoices.some((openInvoice) => openInvoice.id === invoice.id) && !pendingPaymentInvoices.some((pendingInvoice) => pendingInvoice.id === invoice.id));
@@ -129,6 +151,21 @@ export default async function ManagerBillingPage() {
               <p key={invoice.id} className="rounded-md border border-red-200 bg-white p-2">
                 <span className="font-semibold">{invoice.billingMonth}:</span> {invoice.paymentRejectionNote || "Payment was not received yet."}
                 {invoice.paymentRejectedAt ? <span className="block text-xs text-muted-foreground">Updated {formatPkDateTime(invoice.paymentRejectedAt)}</span> : null}
+              </p>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {confirmationInvoices.length > 0 ? (
+        <div className="mt-5 rounded-lg border border-green-300 bg-green-50 p-4 text-sm text-green-950">
+          <p className="font-bold">Payment confirmed by OrderTable billing</p>
+          <p className="mt-1">Your submitted bill payment has been received and confirmed by platform billing.</p>
+          <div className="mt-3 grid gap-2">
+            {confirmationInvoices.slice(0, 3).map((invoice) => (
+              <p key={invoice.id} className="rounded-md border border-green-200 bg-white p-2">
+                <span className="font-semibold">{invoice.billingMonth}:</span> {formatCurrency(invoice.amount.toString())}
+                {invoice.paymentConfirmedAt ? <span className="block text-xs text-muted-foreground">Confirmed {formatPkDateTime(invoice.paymentConfirmedAt)}</span> : null}
               </p>
             ))}
           </div>
