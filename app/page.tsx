@@ -157,6 +157,18 @@ export default async function PublicHomePage() {
             </div>
           </CardContent>
         </Card>
+        <Card className="mt-5 border-primary/20 bg-primary/5">
+          <CardContent className="flex flex-col gap-4 p-5 md:flex-row md:items-center md:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-primary">Restaurant setup</p>
+              <h2 className="text-2xl font-black">Want OrderTable implemented in your restaurant?</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Send us a restaurant setup request, or contact us directly at <strong>aazaan12gmail.com</strong> or <strong>0302 5635926</strong>.
+              </p>
+            </div>
+            <Link href="/request-restaurant"><Button>Request Restaurant Setup</Button></Link>
+          </CardContent>
+        </Card>
         <p className="mt-4 text-xs text-muted-foreground">Photos sourced from free stock libraries: Pexels and Unsplash. Replace with real restaurant photos before final commercial launch.</p>
       </section>
     </main>
