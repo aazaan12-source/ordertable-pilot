@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatPkTime } from "@/lib/utils";
 
+const resolvedEventName = "ordertable-waiter-request-resolved";
+
 type Request = {
   id: string;
   type: string;
@@ -36,8 +38,17 @@ export function WaiterRequestsList({ initialRequests }: { initialRequests: Reque
   }, []);
 
   async function resolve(id: string) {
-    await fetch(`/api/dashboard/waiter-requests/${id}/resolve`, { method: "PATCH" });
-    await loadRequests();
+    const previous = requests;
+    setRequests((current) => current.filter((request) => request.id !== id));
+    try {
+      const response = await fetch(`/api/dashboard/waiter-requests/${id}/resolve`, { method: "PATCH" });
+      if (!response.ok) throw new Error("resolve failed");
+      window.dispatchEvent(new CustomEvent(resolvedEventName, { detail: id }));
+      setWarning("");
+    } catch {
+      setRequests(previous);
+      setWarning("Could not acknowledge this request. Please try again.");
+    }
   }
 
   if (requests.length === 0) {

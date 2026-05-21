@@ -15,6 +15,7 @@ type WaiterRequest = {
 
 const storageKey = "ordertable:manager-alerts-enabled";
 const announcedKey = "ordertable:announced-waiter-request-ids";
+const resolvedEventName = "ordertable-waiter-request-resolved";
 const maxStoredRequestIds = 200;
 
 type WakeLockSentinelLike = {
@@ -26,6 +27,7 @@ export function ManagerAlerts() {
   const [enabled, setEnabled] = useState(true);
   const [requests, setRequests] = useState<WaiterRequest[]>([]);
   const [popup, setPopup] = useState<WaiterRequest | null>(null);
+  const [resolving, setResolving] = useState("");
   const seen = useRef<Set<string>>(new Set());
   const initialized = useRef(false);
   const inFlight = useRef(false);
@@ -50,6 +52,7 @@ export function ManagerAlerts() {
     window.addEventListener("ordertable-network-online", reconnect);
     window.addEventListener("focus", wakeAndRefresh);
     document.addEventListener("visibilitychange", wakeAndRefresh);
+    window.addEventListener(resolvedEventName, onRequestResolved);
     void requestWakeLock();
     return () => {
       window.clearInterval(timer);
@@ -57,9 +60,19 @@ export function ManagerAlerts() {
       window.removeEventListener("ordertable-network-online", reconnect);
       window.removeEventListener("focus", wakeAndRefresh);
       document.removeEventListener("visibilitychange", wakeAndRefresh);
+      window.removeEventListener(resolvedEventName, onRequestResolved);
       void releaseWakeLock();
     };
   }, [enabled]);
+
+  function onRequestResolved(event: Event) {
+    const id = (event as CustomEvent<string>).detail;
+    if (!id) return;
+    markAnnounced(id);
+    setRequests((current) => current.filter((request) => request.id !== id));
+    setPopup((current) => current?.id === id ? null : current);
+    window.speechSynthesis?.cancel();
+  }
 
   async function requestWakeLock() {
     if (!enabled || document.hidden || wakeLock.current) return;
@@ -140,10 +153,26 @@ export function ManagerAlerts() {
     saveAnnouncedIds();
   }
 
-  function acknowledgePopup() {
-    if (popup) markAnnounced(popup.id);
+  async function resolveRequest(request: WaiterRequest) {
+    markAnnounced(request.id);
     window.speechSynthesis?.cancel();
+    setResolving(request.id);
     setPopup(null);
+    setRequests((current) => current.filter((item) => item.id !== request.id));
+    try {
+      const response = await fetch(`/api/dashboard/waiter-requests/${request.id}/resolve`, { method: "PATCH" });
+      if (!response.ok) throw new Error("resolve failed");
+      window.dispatchEvent(new CustomEvent(resolvedEventName, { detail: request.id }));
+    } catch {
+      await loadRequests();
+    } finally {
+      setResolving("");
+    }
+  }
+
+  function acknowledgePopup() {
+    if (!popup) return;
+    void resolveRequest(popup);
   }
 
   function toggleAlerts() {
@@ -229,17 +258,17 @@ export function ManagerAlerts() {
                 {popup.order ? <p className="mt-1 text-sm">Order {popup.order.orderNumber}</p> : null}
               </div>
               <div className="flex gap-1">
-                <button className="rounded-md p-1 text-green-700 hover:bg-green-50" onClick={acknowledgePopup} aria-label="Acknowledge alert">
+                <button className="rounded-md p-1 text-green-700 hover:bg-green-50" onClick={acknowledgePopup} aria-label="Acknowledge alert" disabled={resolving === popup.id}>
                   <Check className="h-4 w-4" />
                 </button>
-                <button className="rounded-md p-1 hover:bg-muted" onClick={acknowledgePopup} aria-label="Close alert">
+                <button className="rounded-md p-1 hover:bg-muted" onClick={acknowledgePopup} aria-label="Close alert" disabled={resolving === popup.id}>
                 <X className="h-4 w-4" />
                 </button>
               </div>
             </div>
-            <button type="button" onClick={acknowledgePopup} className="mt-3 inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold hover:bg-muted">
+            <button type="button" onClick={acknowledgePopup} disabled={resolving === popup.id} className="mt-3 inline-flex items-center gap-2 rounded-md border px-3 py-2 text-sm font-semibold hover:bg-muted disabled:opacity-60">
               <Check className="h-4 w-4" />
-              Acknowledge
+              {resolving === popup.id ? "Acknowledging..." : "Acknowledge"}
             </button>
           </div>
         ) : null}
