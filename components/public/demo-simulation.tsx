@@ -133,8 +133,8 @@ export function DemoSimulation({ qrCodes }: { qrCodes: DemoQr[] }) {
         <div className="border-b bg-[#f8faf7] p-4 sm:p-5">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-primary">Demo table QR codes</p>
-              <h3 className="text-2xl font-black">Scan to order</h3>
+              <p className="text-xl font-black text-primary sm:text-2xl">Demo Table QR Codes</p>
+              <h3 className="mt-1 text-base font-bold text-foreground sm:text-lg">Scan to order</h3>
             </div>
             <div className="rounded-md bg-primary/10 p-3 text-primary">
               <QrCode className="h-6 w-6" />
@@ -174,8 +174,8 @@ export function DemoSimulation({ qrCodes }: { qrCodes: DemoQr[] }) {
           <div className={`rounded-lg border p-3 transition sm:p-4 ${attention || pendingOrders > 0 ? "border-red-300 bg-red-50 shadow-lg shadow-red-100" : "bg-white"}`}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-bold uppercase tracking-wide text-primary">Demo Dashbaord for Simulation Experience</p>
-                <h3 className="text-xl font-black sm:text-2xl">Live Orders</h3>
+                <p className="text-xl font-black text-primary sm:text-2xl">Demo Dashbaord for Simulation Experience</p>
+                <h3 className="mt-1 text-base font-bold text-foreground sm:text-lg">Live Orders</h3>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Badge label="Pending orders" value={pendingOrders} hot={pendingOrders > 0} />
