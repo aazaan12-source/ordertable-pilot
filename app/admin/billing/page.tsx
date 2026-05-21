@@ -153,6 +153,7 @@ async function sendPaymentReminder(formData: FormData) {
     where: { id },
     data: {
       paymentReminderAt: new Date(),
+      paymentReminderSeenAt: null,
       paymentReminderCount: { increment: 1 },
       paymentReminderMessage: reminderMessage,
       status: "OVERDUE"

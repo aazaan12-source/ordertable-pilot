@@ -62,6 +62,17 @@ export default async function ManagerBillingPage() {
     })
   ]);
 
+  const unseenReminderIds = invoices
+    .filter((invoice) => invoice.paymentReminderAt && (!invoice.paymentReminderSeenAt || invoice.paymentReminderSeenAt < invoice.paymentReminderAt))
+    .map((invoice) => invoice.id);
+
+  if (unseenReminderIds.length > 0) {
+    await db.billingInvoice.updateMany({
+      where: { id: { in: unseenReminderIds }, restaurantId: restaurant.id },
+      data: { paymentReminderSeenAt: new Date() }
+    });
+  }
+
   const openInvoices = invoices.filter((invoice) => invoice.status === "DUE" || invoice.status === "OVERDUE");
   const confirmedInvoices = invoices.filter((invoice) => invoice.status === "PAID");
   const reminderInvoices = invoices.filter((invoice) => invoice.paymentReminderAt && invoice.status !== "PAID");

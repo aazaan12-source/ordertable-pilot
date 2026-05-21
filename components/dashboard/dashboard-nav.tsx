@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { ClipboardList, CreditCard, LayoutDashboard, Menu, PlusCircle, QrCode, ReceiptText, Settings, Table2, Bell, Users } from "lucide-react";
 
 const links = [
@@ -17,6 +20,7 @@ const links = [
 ];
 
 export function DashboardNav({ restaurantName, billingAlertCount = 0 }: { restaurantName: string; billingAlertCount?: number }) {
+  const pathname = usePathname();
   return (
     <aside className="no-print border-b bg-white lg:min-h-screen lg:w-64 lg:border-b-0 lg:border-r">
       <div className="p-4">
@@ -30,7 +34,7 @@ export function DashboardNav({ restaurantName, billingAlertCount = 0 }: { restau
             <Link key={link.href} href={link.href} className="flex shrink-0 items-center gap-2 rounded-md px-3 py-2 text-sm font-medium hover:bg-muted">
               <Icon className="h-4 w-4" />
               {link.label}
-              {link.href === "/dashboard/billing" && billingAlertCount > 0 ? (
+              {link.href === "/dashboard/billing" && billingAlertCount > 0 && pathname !== "/dashboard/billing" ? (
                 <span className="ml-auto rounded-full bg-red-600 px-2 py-0.5 text-[10px] font-bold text-white">{billingAlertCount}</span>
               ) : null}
             </Link>

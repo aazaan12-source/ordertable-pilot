@@ -344,6 +344,7 @@ model BillingInvoice {
   paymentConfirmedAt DateTime?
   paymentConfirmedById String?
   paymentReminderAt DateTime?
+  paymentReminderSeenAt DateTime?
   paymentReminderCount Int @default(0)
   paymentReminderMessage String?
   notes         String?
@@ -354,6 +355,7 @@ model BillingInvoice {
   @@index([status, dueDate])
   @@index([paymentClaimedAt])
   @@index([paymentReminderAt])
+  @@index([paymentReminderSeenAt])
 }
 
 model BillingPaymentAccount {

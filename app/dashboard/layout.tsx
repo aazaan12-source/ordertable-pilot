@@ -6,14 +6,19 @@ import { getManagerRestaurant } from "@/lib/permissions";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { restaurant } = await getManagerRestaurant();
-  const billingAlertCount = await db.billingInvoice.count({
+  const remindedInvoices = await db.billingInvoice.findMany({
     where: {
       restaurantId: restaurant.id,
       status: { in: ["DUE", "OVERDUE"] },
       paymentClaimedAt: null,
       paymentReminderAt: { not: null }
-    }
+    },
+    select: { paymentReminderAt: true, paymentReminderSeenAt: true }
   });
+  const billingAlertCount = remindedInvoices.filter((invoice) => {
+    if (!invoice.paymentReminderAt) return false;
+    return !invoice.paymentReminderSeenAt || invoice.paymentReminderSeenAt < invoice.paymentReminderAt;
+  }).length;
   return (
     <div className="lg:flex">
       <DashboardNav restaurantName={restaurant.name} billingAlertCount={billingAlertCount} />
