@@ -5,19 +5,22 @@ import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
+const unattendedOrderMs = 2 * 60 * 1000;
 
 export async function GET(request: NextRequest) {
   const session = cleanDemoSession(request.nextUrl.searchParams.get("session"));
   const state = await loadPersistentDemoState(session) || getDemoState(session);
-  setDemoState(session, state);
-  return NextResponse.json(state, { headers: { "Cache-Control": "no-store" } });
+  const prunedState = pruneUnattendedDemoOrders(state);
+  setDemoState(session, prunedState);
+  if (prunedState.orders.length !== state.orders.length) await savePersistentDemoState(session, prunedState);
+  return NextResponse.json(prunedState, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const session = cleanDemoSession(body.session);
-    const state: DemoState = await loadPersistentDemoState(session) || getDemoState(session);
+    const state: DemoState = pruneUnattendedDemoOrders(await loadPersistentDemoState(session) || getDemoState(session));
 
     if (body.type === "order") {
       const order = sanitizeOrder(body.order);
@@ -156,4 +159,17 @@ function sanitizeRequest(value: unknown): DemoRequest | null {
 function safeStatus(value: unknown): DemoOrderStatus | null {
   const status = String(value || "");
   return ["PENDING", "ACCEPTED", "PREPARING", "READY", "SERVED", "BILL_REQUESTED", "PAID", "CANCELLED"].includes(status) ? status as DemoOrderStatus : null;
+}
+
+function pruneUnattendedDemoOrders(state: DemoState): DemoState {
+  const now = Date.now();
+  return {
+    ...state,
+    orders: state.orders.filter((order) => {
+      if (order.status !== "PENDING") return true;
+      const createdAt = new Date(order.createdAt).getTime();
+      if (Number.isNaN(createdAt)) return true;
+      return now - createdAt <= unattendedOrderMs;
+    })
+  };
 }

@@ -117,6 +117,7 @@ export function DemoSimulation({ qrCodes }: { qrCodes: DemoQr[] }) {
             <h2 className="text-3xl font-black leading-tight">Scan a demo table QR, place an order, and watch it arrive below.</h2>
             <p className="mt-3 text-sm leading-6 text-white/82">
               These five QR codes are real scannable demo links. When a visitor places an order from a phone, this demo dashboard keeps listening and shows it in Pending.
+              Unattended pending demo orders auto-clear after 2 minutes so the simulation stays clean for the next visitor.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
