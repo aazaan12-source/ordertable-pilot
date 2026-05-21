@@ -32,6 +32,7 @@ export function DemoSimulation({ qrCodes }: { qrCodes: DemoQr[] }) {
   const initialized = useRef(false);
   const announcedRequests = useRef<Set<string>>(new Set());
   const clearPaidTimer = useRef<number | null>(null);
+  const clearRequestsTimer = useRef<number | null>(null);
   const [completionMessage, setCompletionMessage] = useState("");
 
   async function loadState() {
@@ -54,6 +55,11 @@ export function DemoSimulation({ qrCodes }: { qrCodes: DemoQr[] }) {
           setAttention(true);
           window.setTimeout(() => setAttention(false), 5000);
           speakDemoRequest(freshRequest);
+          if (clearRequestsTimer.current) window.clearTimeout(clearRequestsTimer.current);
+          clearRequestsTimer.current = window.setTimeout(async () => {
+            const clearedState = await postDemoAction({ type: "clear-requests" });
+            if (clearedState) setState(clearedState);
+          }, 2000);
         }
       }
       const nextPending = nextState.orders.filter((order) => order.status === "PENDING").length;
