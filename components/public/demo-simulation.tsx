@@ -99,7 +99,7 @@ export function DemoSimulation({ qrCodes }: { qrCodes: DemoQr[] }) {
           }
           setCompletionMessage("The order simulation is completed, try again for any order simultion from the main website page.");
           window.setTimeout(() => setCompletionMessage(""), 7000);
-        }, 5000);
+        }, 2000);
       }
     }
   }
