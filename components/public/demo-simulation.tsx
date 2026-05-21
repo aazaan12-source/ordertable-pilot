@@ -1,9 +1,20 @@
 "use client";
 
-import Link from "next/link";
-import { ArrowRight, ClipboardList, QrCode, ScanLine, Smartphone } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { BellRing, CheckCircle2, ClipboardList, Lock, QrCode, ReceiptText, ScanLine, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatCurrency, formatPkDateTime } from "@/lib/utils";
+import {
+  DemoOrder,
+  DemoOrderStatus,
+  DemoRequest,
+  DemoState,
+  demoStatusActions,
+  demoStatusLabels,
+  demoStatuses,
+  emptyDemoState
+} from "@/components/public/demo-simulation-store";
 
 type DemoQr = {
   tableNumber: number;
@@ -11,73 +22,253 @@ type DemoQr = {
   dataUrl: string;
 };
 
+const session = "public-demo";
+
 export function DemoSimulation({ qrCodes }: { qrCodes: DemoQr[] }) {
+  const [state, setState] = useState<DemoState>(emptyDemoState);
+  const [active, setActive] = useState<DemoOrderStatus>("PENDING");
+  const [attention, setAttention] = useState(false);
+  const knownPending = useRef(0);
+
+  async function loadState() {
+    try {
+      const response = await fetch(`/api/demo-simulation/state?session=${session}`, { cache: "no-store" });
+      if (!response.ok) return;
+      const nextState = await response.json() as DemoState;
+      const nextPending = nextState.orders.filter((order) => order.status === "PENDING").length;
+      if (nextPending > knownPending.current) {
+        setActive("PENDING");
+        setAttention(true);
+        window.setTimeout(() => setAttention(false), 5000);
+      }
+      knownPending.current = nextPending;
+      setState(nextState);
+    } catch {
+      // Public demo polling should fail quietly if the visitor is offline.
+    }
+  }
+
+  useEffect(() => {
+    loadState();
+    const timer = window.setInterval(loadState, 1800);
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const pendingOrders = state.orders.filter((order) => order.status === "PENDING").length;
+  const pendingRequests = state.requests.filter((request) => request.status === "PENDING").length;
+  const paidOrders = state.orders.filter((order) => order.status === "PAID");
+  const revenue = paidOrders.reduce((sum, order) => sum + order.total, 0);
+  const activeOrders = useMemo(() => state.orders.filter((order) => order.status === active), [active, state.orders]);
+
+  async function updateStatus(orderId: string, status: DemoOrderStatus) {
+    const remainingInTab = state.orders.filter((order) => order.status === active && order.id !== orderId).length;
+    const nextState = await postDemoAction({ type: "status", orderId, status });
+    if (nextState) {
+      setState(nextState);
+      setActive(remainingInTab === 0 ? status : active);
+      knownPending.current = nextState.orders.filter((order) => order.status === "PENDING").length;
+    }
+  }
+
+  async function resolveRequest(requestId: string) {
+    const nextState = await postDemoAction({ type: "resolve-request", requestId });
+    if (nextState) setState(nextState);
+  }
+
   return (
     <section id="demo-simulation" className="overflow-hidden rounded-lg border bg-white shadow-sm">
-      <div className="grid gap-0 lg:grid-cols-[0.95fr_1.05fr]">
-        <div className="bg-[#103a31] p-5 text-white md:p-7">
-          <p className="w-fit rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wide">Hands-on demo simulation</p>
-          <h2 className="mt-4 text-3xl font-black leading-tight">Try the QR ordering flow like a real restaurant.</h2>
-          <p className="mt-3 text-sm leading-6 text-white/82">
-            Open the demo dashboard, scan one of the five table QR codes, place a test order, then move that order through the same live-order actions a manager uses.
-          </p>
-
-          <div className="mt-6 grid gap-3">
-            <DemoStep icon={ClipboardList} title="1. Open demo dashboard" body="Keep the live-order screen open as the receiver side." />
-            <DemoStep icon={ScanLine} title="2. Scan or open a table QR" body="Use any of the 5 demo tables to open a customer order page." />
-            <DemoStep icon={Smartphone} title="3. Place order and act on it" body="Accept, prepare, serve, request bill, and mark paid in the demo dashboard." />
+      <div className="bg-[#103a31] p-5 text-white md:p-7">
+        <p className="w-fit rounded-full border border-white/25 bg-white/10 px-3 py-1 text-xs font-bold uppercase tracking-wide">Hands-on demo simulation</p>
+        <div className="mt-4 grid gap-5 lg:grid-cols-[0.9fr_1.1fr]">
+          <div>
+            <h2 className="text-3xl font-black leading-tight">Scan a demo table QR, place an order, and watch it arrive below.</h2>
+            <p className="mt-3 text-sm leading-6 text-white/82">
+              These five QR codes are real scannable demo links. When a visitor places an order from a phone, this demo dashboard keeps listening and shows it in Pending.
+            </p>
           </div>
-
-          <div className="mt-6 flex flex-wrap gap-3">
-            <Link href="/demo/simulation/dashboard?session=public-demo" target="_blank">
-              <Button size="lg" className="bg-white text-[#103a31] hover:bg-white/90">
-                Open Demo Dashboard <ArrowRight className="h-4 w-4" />
-              </Button>
-            </Link>
-            <Link href="/demo/simulation/order?table=1&session=public-demo" target="_blank">
-              <Button size="lg" variant="outline" className="border-white/35 bg-white/10 text-white hover:bg-white hover:text-[#103a31]">
-                Open Table 1 Order Page
-              </Button>
-            </Link>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <DemoStep icon={ScanLine} title="1. Scan QR" body="Use phone camera or Google Lens on any table QR." />
+            <DemoStep icon={Smartphone} title="2. Place order" body="Add demo food, call waiter, or ask for bill." />
+            <DemoStep icon={ClipboardList} title="3. Manage live" body="Use the dashboard actions until the order is paid." />
           </div>
-          <p className="mt-4 rounded-md border border-white/20 bg-white/10 p-3 text-xs leading-5 text-white/78">
-            This demo is safe: it runs in the visitor browser, does not edit real restaurant records, and keeps manager-only features read-only.
-          </p>
         </div>
+      </div>
 
-        <div className="p-5 md:p-7">
+      <div className="grid gap-0 xl:grid-cols-[360px_1fr]">
+        <div className="border-b bg-[#f8faf7] p-5 xl:border-b-0 xl:border-r">
           <div className="flex items-center justify-between gap-3">
             <div>
-              <p className="text-xs font-bold uppercase tracking-wide text-primary">Demo tables</p>
-              <h3 className="text-2xl font-black">Scan a QR or open directly</h3>
+              <p className="text-xs font-bold uppercase tracking-wide text-primary">Demo table QR codes</p>
+              <h3 className="text-2xl font-black">Scan to order</h3>
             </div>
             <div className="rounded-md bg-primary/10 p-3 text-primary">
               <QrCode className="h-6 w-6" />
             </div>
           </div>
-          <div className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
+
+          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-2">
             {qrCodes.map((qr) => (
               <Card key={qr.tableNumber} className="overflow-hidden">
-                <CardHeader className="p-3 pb-2">
+                <CardHeader className="p-3 pb-1">
                   <CardTitle className="text-base">Table {qr.tableNumber}</CardTitle>
                 </CardHeader>
                 <CardContent className="p-3 pt-0">
                   <div className="rounded-md border bg-white p-2">
                     <img src={qr.dataUrl} alt={`Demo table ${qr.tableNumber} QR code`} className="mx-auto aspect-square w-full max-w-[132px]" />
                   </div>
-                  <Link href={qr.url} target="_blank">
-                    <Button className="mt-3 w-full" variant="outline" size="sm">Open</Button>
-                  </Link>
                 </CardContent>
               </Card>
             ))}
           </div>
-          <div className="mt-4 rounded-md bg-muted p-3 text-xs leading-5 text-muted-foreground">
-            Tip: for the clearest public test, open the demo dashboard in one tab and open a table order page in another tab on the same device. Same-browser tabs update instantly through demo sync.
+
+          <div className="mt-4 rounded-md bg-white p-3 text-xs leading-5 text-muted-foreground shadow-sm">
+            Keep this page open. Scan any QR with a phone and send a demo order. The live dashboard on the right will show the pending order automatically.
+          </div>
+        </div>
+
+        <div className="p-5">
+          <div className={`rounded-lg border p-4 transition ${attention || pendingOrders > 0 ? "border-red-300 bg-red-50 shadow-lg shadow-red-100" : "bg-white"}`}>
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wide text-primary">Always-open demo dashboard</p>
+                <h3 className="text-2xl font-black">Live Orders</h3>
+                <p className="text-sm text-muted-foreground">Only the live-order workflow is active. Other real dashboard features stay read-only here.</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge label="Pending orders" value={pendingOrders} hot={pendingOrders > 0} />
+                <Badge label="Requests" value={pendingRequests} hot={pendingRequests > 0} />
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 grid gap-3 md:grid-cols-4">
+            <Stat title="Live orders" value={state.orders.filter((order) => order.status !== "PAID" && order.status !== "CANCELLED").length} />
+            <Stat title="Pending" value={pendingOrders} hot={pendingOrders > 0} />
+            <Stat title="Paid orders" value={paidOrders.length} />
+            <Stat title="Demo revenue" value={formatCurrency(revenue)} />
+          </div>
+
+          <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
+            {demoStatuses.map((status) => {
+              const count = state.orders.filter((order) => order.status === status).length;
+              return (
+                <button
+                  key={status}
+                  onClick={() => setActive(status)}
+                  className={`shrink-0 rounded-md border px-3 py-2 text-sm font-bold ${active === status ? "border-primary bg-primary text-white" : status === "PENDING" && count > 0 ? "border-red-300 bg-red-50 text-red-700" : "bg-white hover:bg-muted"}`}
+                >
+                  {demoStatusLabels[status]} <span className="ml-1 rounded bg-black/10 px-1.5 py-0.5 text-xs">{count}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_280px]">
+            <div className="space-y-3">
+              {activeOrders.length === 0 ? (
+                <div className="rounded-lg border border-dashed bg-white p-8 text-center text-muted-foreground">
+                  No demo orders in {demoStatusLabels[active]}.
+                </div>
+              ) : activeOrders.map((order) => (
+                <OrderCard key={order.id} order={order} onUpdate={updateStatus} />
+              ))}
+            </div>
+
+            <aside className="space-y-3">
+              <Card>
+                <CardHeader className="p-4">
+                  <CardTitle className="flex items-center gap-2 text-base"><BellRing className="h-4 w-4 text-primary" />Requests</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2 p-4 pt-0">
+                  {state.requests.filter((request) => request.status === "PENDING").length === 0 ? (
+                    <p className="rounded-md bg-muted p-3 text-sm text-muted-foreground">No pending requests.</p>
+                  ) : state.requests.filter((request) => request.status === "PENDING").map((request) => (
+                    <RequestRow key={request.id} request={request} onResolve={resolveRequest} />
+                  ))}
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="p-4"><CardTitle className="text-base">Read-only preview</CardTitle></CardHeader>
+                <CardContent className="grid gap-2 p-4 pt-0 text-sm">
+                  {["Menu", "QR Codes", "Reports", "Settings"].map((item) => (
+                    <div key={item} className="flex items-center justify-between rounded-md border bg-muted px-3 py-2 text-muted-foreground">
+                      <span>{item}</span>
+                      <Lock className="h-4 w-4" />
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            </aside>
           </div>
         </div>
       </div>
     </section>
+  );
+}
+
+async function postDemoAction(body: Record<string, unknown>) {
+  try {
+    const response = await fetch("/api/demo-simulation/state", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session, ...body })
+    });
+    if (!response.ok) return null;
+    return await response.json() as DemoState;
+  } catch {
+    return null;
+  }
+}
+
+function OrderCard({ order, onUpdate }: { order: DemoOrder; onUpdate: (orderId: string, status: DemoOrderStatus) => void }) {
+  const actions = demoStatusActions[order.status] || [];
+  return (
+    <Card className="border-l-4 border-l-primary">
+      <CardContent className="p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h4 className="text-lg font-black">{order.orderNumber} - Table {order.tableNumber}</h4>
+            <p className="text-sm text-muted-foreground">{order.source}{order.waiterName ? ` | Waiter: ${order.waiterName}` : ""}{order.customerName ? ` | Customer: ${order.customerName}` : ""}</p>
+            <p className="text-xs text-muted-foreground">{formatPkDateTime(new Date(order.createdAt))}</p>
+          </div>
+          <span className="rounded-md bg-primary/10 px-3 py-1 text-sm font-bold text-primary">{demoStatusLabels[order.status]}</span>
+        </div>
+        <div className="mt-4 grid gap-2">
+          {order.items.map((item) => (
+            <div key={item.id} className="flex items-center justify-between gap-3 rounded-md bg-muted px-3 py-2 text-sm">
+              <span className="font-semibold">{item.quantity} x {item.name}</span>
+              <span>{formatCurrency(item.price * item.quantity)}</span>
+            </div>
+          ))}
+        </div>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xl font-black">{formatCurrency(order.total)}</p>
+          <div className="flex flex-wrap gap-2">
+            {actions.map((action) => (
+              <Button key={action.next} onClick={() => onUpdate(order.id, action.next)} variant={action.tone === "danger" ? "destructive" : action.tone === "success" ? "default" : "outline"}>
+                {action.label}
+              </Button>
+            ))}
+            {order.status === "PAID" ? <span className="flex items-center gap-1 rounded-md bg-primary/10 px-3 py-2 text-sm font-bold text-primary"><CheckCircle2 className="h-4 w-4" />Paid</span> : null}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function RequestRow({ request, onResolve }: { request: DemoRequest; onResolve: (id: string) => void }) {
+  const label = request.type === "CALL_WAITER" ? "Call Waiter" : "Ask for Bill";
+  const Icon = request.type === "CALL_WAITER" ? BellRing : ReceiptText;
+  return (
+    <div className="rounded-md border bg-white p-3">
+      <p className="flex items-center gap-2 font-bold"><Icon className="h-4 w-4 text-primary" />{label}</p>
+      <div className="mt-2 flex items-center justify-between gap-2">
+        <p className="text-sm text-muted-foreground">Table {request.tableNumber}</p>
+        <Button size="sm" onClick={() => onResolve(request.id)}>Acknowledge</Button>
+      </div>
+    </div>
   );
 }
 
@@ -89,6 +280,23 @@ function DemoStep({ icon: Icon, title, body }: { icon: typeof ClipboardList; tit
         <p className="font-bold">{title}</p>
         <p className="mt-1 text-xs leading-5 text-white/75">{body}</p>
       </div>
+    </div>
+  );
+}
+
+function Stat({ title, value, hot = false }: { title: string; value: React.ReactNode; hot?: boolean }) {
+  return (
+    <Card className={hot ? "border-red-300 bg-red-50" : ""}>
+      <CardHeader className="p-3 pb-1"><CardTitle className="text-xs text-muted-foreground">{title}</CardTitle></CardHeader>
+      <CardContent className="p-3 pt-0"><p className={`text-xl font-black ${hot ? "text-red-700" : ""}`}>{value}</p></CardContent>
+    </Card>
+  );
+}
+
+function Badge({ label, value, hot = false }: { label: string; value: number; hot?: boolean }) {
+  return (
+    <div className={`rounded-md px-3 py-2 text-sm font-black ${hot ? "animate-pulse bg-red-600 text-white" : "bg-primary/10 text-primary"}`}>
+      {label}: {value}
     </div>
   );
 }

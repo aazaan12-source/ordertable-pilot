@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Bell, CheckCircle2, Minus, Plus, ReceiptText, ShoppingCart, UserRound } from "lucide-react";
@@ -60,7 +59,7 @@ function DemoSimulationOrderContent() {
       .filter((item) => item.quantity > 0));
   }
 
-  function placeOrder() {
+  async function placeOrder() {
     const cleanName = name.trim();
     if (mode === "waiter" && !cleanName) {
       setMessage("Please enter waiter name before sending the demo order.");
@@ -72,9 +71,11 @@ function DemoSimulationOrderContent() {
     }
     if (mode === "waiter") window.localStorage.setItem("ordertable_demo_waiter_name", cleanName);
     const state = loadDemoState(session);
+    const serverState = await loadServerState(session);
+    const orderCount = serverState?.orders.length ?? state.orders.length;
     const order = {
       id: crypto.randomUUID(),
-      orderNumber: demoOrderNumber(tableNumber, state.orders.length),
+      orderNumber: demoOrderNumber(tableNumber, orderCount),
       tableNumber,
       source: mode === "waiter" ? "Waiter Assisted" as const : "Customer QR" as const,
       customerName: mode === "customer" && cleanName ? cleanName : undefined,
@@ -86,25 +87,22 @@ function DemoSimulationOrderContent() {
       createdAt: new Date().toISOString()
     };
     saveDemoState(session, { ...state, orders: [order, ...state.orders] });
+    await postDemoAction(session, { type: "order", order });
     setCart([]);
     setMessage(`${order.orderNumber} sent to the demo dashboard.`);
   }
 
-  function sendRequest(type: "CALL_WAITER" | "BILL_REQUEST") {
+  async function sendRequest(type: "CALL_WAITER" | "BILL_REQUEST") {
     const state = loadDemoState(session);
-    saveDemoState(session, {
-      ...state,
-      requests: [
-        {
-          id: crypto.randomUUID(),
-          tableNumber,
-          type,
-          status: "PENDING",
-          createdAt: new Date().toISOString()
-        },
-        ...state.requests
-      ]
-    });
+    const request = {
+      id: crypto.randomUUID(),
+      tableNumber,
+      type,
+      status: "PENDING" as const,
+      createdAt: new Date().toISOString()
+    };
+    saveDemoState(session, { ...state, requests: [request, ...state.requests] });
+    await postDemoAction(session, { type: "request", request });
     setMessage(type === "CALL_WAITER" ? "Call waiter request sent to demo dashboard." : "Bill request sent to demo dashboard.");
   }
 
@@ -116,9 +114,7 @@ function DemoSimulationOrderContent() {
             <p className="text-xs font-bold uppercase tracking-wide text-primary">Demo Restaurant</p>
             <h1 className="text-xl font-black">Table {tableNumber}</h1>
           </div>
-          <Link href={`/demo/simulation/dashboard?session=${encodeURIComponent(session)}`} target="_blank">
-            <Button variant="outline" size="sm">Open Dashboard</Button>
-          </Link>
+          <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">Demo QR Order</span>
         </div>
       </div>
 
@@ -225,4 +221,26 @@ function DemoSimulationOrderContent() {
       </div>
     </main>
   );
+}
+
+async function loadServerState(session: string) {
+  try {
+    const response = await fetch(`/api/demo-simulation/state?session=${encodeURIComponent(session)}`, { cache: "no-store" });
+    if (!response.ok) return null;
+    return await response.json() as { orders: unknown[] };
+  } catch {
+    return null;
+  }
+}
+
+async function postDemoAction(session: string, body: Record<string, unknown>) {
+  try {
+    await fetch("/api/demo-simulation/state", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session, ...body })
+    });
+  } catch {
+    // Demo order page keeps local success message even if the visitor is briefly offline.
+  }
 }

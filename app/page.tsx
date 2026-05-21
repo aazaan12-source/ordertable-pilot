@@ -76,10 +76,6 @@ export default async function PublicHomePage() {
                 <Link href="#demo-simulation"><Button size="lg" variant="outline" className="border-white/40 bg-white/10 text-white hover:bg-white hover:text-black">Try Live Demo <ArrowRight className="h-5 w-5" /></Button></Link>
                 <p className="mt-1 text-xs text-white/75">Place a demo order and manage it live.</p>
               </div>
-              <div>
-                <Link href="/demo/simulation/dashboard?session=public-demo" target="_blank"><Button size="lg" variant="outline" className="border-white/40 bg-white/10 text-white hover:bg-white hover:text-black">Open Demo Dashboard</Button></Link>
-                <p className="mt-1 text-xs text-white/75">Live-order tab simulation for visitors.</p>
-              </div>
             </div>
           </div>
 
@@ -158,7 +154,6 @@ export default async function PublicHomePage() {
             </div>
             <div className="flex flex-wrap gap-2">
               <Link href="#demo-simulation"><Button>Try Demo Simulation</Button></Link>
-              <Link href="/demo/simulation/dashboard?session=public-demo" target="_blank"><Button variant="outline">Open Demo Dashboard</Button></Link>
             </div>
           </CardContent>
         </Card>
