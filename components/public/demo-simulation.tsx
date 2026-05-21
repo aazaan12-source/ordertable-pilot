@@ -172,7 +172,7 @@ export function DemoSimulation({ qrCodes }: { qrCodes: DemoQr[] }) {
           <div className={`rounded-lg border p-3 transition sm:p-4 ${attention || pendingOrders > 0 ? "border-red-300 bg-red-50 shadow-lg shadow-red-100" : "bg-white"}`}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <p className="text-xs font-bold uppercase tracking-wide text-primary">Always-open demo dashboard</p>
+                <p className="text-xs font-bold uppercase tracking-wide text-primary">Demo Dashbaord for Simulation Experience</p>
                 <h3 className="text-xl font-black sm:text-2xl">Live Orders</h3>
               </div>
               <div className="flex flex-wrap gap-2">
