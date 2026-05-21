@@ -6,7 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { InteractiveDemo } from "@/components/public/interactive-demo";
+import { DemoSimulation } from "@/components/public/demo-simulation";
+import { appBaseUrl } from "@/lib/site-url";
+import { qrDataUrl } from "@/lib/qr";
 
 export const dynamic = "force-dynamic";
 
@@ -38,7 +40,12 @@ async function submitRestaurantRequest(formData: FormData) {
   revalidatePath("/");
 }
 
-export default function PublicHomePage() {
+export default async function PublicHomePage() {
+  const demoQrCodes = await Promise.all([1, 2, 3, 4, 5].map(async (tableNumber) => {
+    const url = `${appBaseUrl()}/demo/simulation/order?table=${tableNumber}&session=public-demo`;
+    return { tableNumber, url, dataUrl: await qrDataUrl(url) };
+  }));
+
   return (
     <main className="min-h-screen bg-background">
       <section className="relative min-h-[92vh] overflow-hidden bg-black text-white">
@@ -66,12 +73,12 @@ export default function PublicHomePage() {
                 <p className="mt-1 text-xs text-white/75">Send your details for account setup.</p>
               </div>
               <div>
-                <Link href="/demo/customer"><Button size="lg" variant="outline" className="border-white/40 bg-white/10 text-white hover:bg-white hover:text-black">View Customer Demo <ArrowRight className="h-5 w-5" /></Button></Link>
-                <p className="mt-1 text-xs text-white/75">Read-only training view. No real order is placed.</p>
+                <Link href="#demo-simulation"><Button size="lg" variant="outline" className="border-white/40 bg-white/10 text-white hover:bg-white hover:text-black">Try Live Demo <ArrowRight className="h-5 w-5" /></Button></Link>
+                <p className="mt-1 text-xs text-white/75">Place a demo order and manage it live.</p>
               </div>
               <div>
-                <Link href="/demo/dashboard"><Button size="lg" variant="outline" className="border-white/40 bg-white/10 text-white hover:bg-white hover:text-black">View Manager Demo</Button></Link>
-                <p className="mt-1 text-xs text-white/75">Read-only dashboard preview. No restaurant data is edited.</p>
+                <Link href="/demo/simulation/dashboard?session=public-demo" target="_blank"><Button size="lg" variant="outline" className="border-white/40 bg-white/10 text-white hover:bg-white hover:text-black">Open Demo Dashboard</Button></Link>
+                <p className="mt-1 text-xs text-white/75">Live-order tab simulation for visitors.</p>
               </div>
             </div>
           </div>
@@ -108,7 +115,7 @@ export default function PublicHomePage() {
       </section>
 
       <section className="mx-auto max-w-6xl px-4 py-10">
-        <InteractiveDemo />
+        <DemoSimulation qrCodes={demoQrCodes} />
       </section>
 
       <section className="mx-auto grid max-w-6xl gap-5 px-4 py-8 md:grid-cols-4">
@@ -135,7 +142,7 @@ export default function PublicHomePage() {
 
       <section className="border-y bg-white">
         <div className="mx-auto grid max-w-6xl gap-5 px-4 py-10 md:grid-cols-3">
-          <Metric value="20" label="demo tables ready" />
+          <Metric value="5" label="demo tables ready" />
           <Metric value="4s" label="dashboard refresh cycle" />
           <Metric value="3 min" label="default cancellation window" />
         </div>
@@ -147,11 +154,11 @@ export default function PublicHomePage() {
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-primary">Ready to test</p>
               <h2 className="text-2xl font-black">Open the demo restaurant and place a live order.</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Use table 1 from your browser or scan table QR codes from the manager dashboard.</p>
+              <p className="mt-1 text-sm text-muted-foreground">Open the demo dashboard and scan one of the five demo table QR codes.</p>
             </div>
             <div className="flex flex-wrap gap-2">
-              <Link href="/demo/customer"><Button>Read-Only Customer Demo</Button></Link>
-              <Link href="/demo/dashboard"><Button variant="outline">Read-Only Manager Demo</Button></Link>
+              <Link href="#demo-simulation"><Button>Try Demo Simulation</Button></Link>
+              <Link href="/demo/simulation/dashboard?session=public-demo" target="_blank"><Button variant="outline">Open Demo Dashboard</Button></Link>
             </div>
           </CardContent>
         </Card>
