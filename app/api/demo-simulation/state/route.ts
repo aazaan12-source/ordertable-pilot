@@ -1,14 +1,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { DemoOrder, DemoOrderStatus, DemoRequest, DemoState } from "@/components/public/demo-simulation-store";
+import {
+  demoIncompleteSimulationMs,
+  expireStaleDemoSimulationRuns,
+  recordDemoSimulationOrder,
+  recordDemoSimulationPartial,
+  recordDemoSimulationStatus
+} from "@/lib/demo-simulation-analytics";
 import { cleanDemoSession, getDemoState, setDemoState } from "@/lib/demo-simulation-state";
 import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-const unattendedOrderMs = 2 * 60 * 1000;
 
 export async function GET(request: NextRequest) {
   const session = cleanDemoSession(request.nextUrl.searchParams.get("session"));
+  await expireStaleDemoSimulationRuns();
   const state = await loadPersistentDemoState(session) || getDemoState(session);
   const prunedState = pruneUnattendedDemoOrders(state);
   setDemoState(session, prunedState);
@@ -20,6 +27,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const session = cleanDemoSession(body.session);
+    await expireStaleDemoSimulationRuns();
     const state: DemoState = pruneUnattendedDemoOrders(await loadPersistentDemoState(session) || getDemoState(session));
 
     if (body.type === "order") {
@@ -27,6 +35,7 @@ export async function POST(request: NextRequest) {
       if (!order) return NextResponse.json({ error: "Invalid demo order." }, { status: 400 });
       const nextState = setDemoState(session, { ...state, orders: [order, ...state.orders] });
       await savePersistentDemoState(session, nextState);
+      await recordDemoSimulationOrder(session, order);
       return NextResponse.json(nextState, { headers: { "Cache-Control": "no-store" } });
     }
 
@@ -42,11 +51,18 @@ export async function POST(request: NextRequest) {
       const orderId = String(body.orderId || "");
       const status = safeStatus(body.status);
       if (!orderId || !status) return NextResponse.json({ error: "Invalid demo status." }, { status: 400 });
+      const nowIso = new Date().toISOString();
+      let changedOrder: DemoOrder | null = null;
       const nextState = setDemoState(session, {
         ...state,
-        orders: state.orders.map((order) => order.id === orderId ? { ...order, status, paymentStatus: status === "PAID" ? "PAID" : order.paymentStatus } : order)
+        orders: state.orders.map((order) => {
+          if (order.id !== orderId) return order;
+          changedOrder = { ...order, status, paymentStatus: status === "PAID" ? "PAID" : order.paymentStatus, updatedAt: nowIso };
+          return changedOrder;
+        })
       });
       await savePersistentDemoState(session, nextState);
+      if (changedOrder) await recordDemoSimulationStatus(session, changedOrder, status);
       return NextResponse.json(nextState, { headers: { "Cache-Control": "no-store" } });
     }
 
@@ -61,6 +77,9 @@ export async function POST(request: NextRequest) {
     }
 
     if (body.type === "reset") {
+      await Promise.all(state.orders
+        .filter((order) => order.status !== "PAID" && order.status !== "CANCELLED")
+        .map((order) => recordDemoSimulationPartial(session, order)));
       const nextState = setDemoState(session, { orders: [], requests: [] });
       await savePersistentDemoState(session, nextState);
       return NextResponse.json(nextState, { headers: { "Cache-Control": "no-store" } });
@@ -138,6 +157,7 @@ function sanitizeOrder(value: unknown): DemoOrder | null {
     paymentStatus: order.paymentStatus === "PAID" ? "PAID" : "UNPAID",
     total: Math.max(0, Number(order.total) || 0),
     createdAt: order.createdAt ? String(order.createdAt) : new Date().toISOString(),
+    updatedAt: order.updatedAt ? String(order.updatedAt) : undefined,
     items: order.items.slice(0, 20).map((item) => ({
       id: String(item.id).slice(0, 80),
       name: String(item.name).slice(0, 100),
@@ -172,10 +192,10 @@ function pruneUnattendedDemoOrders(state: DemoState): DemoState {
   return {
     ...state,
     orders: state.orders.filter((order) => {
-      if (order.status !== "PENDING") return true;
-      const createdAt = new Date(order.createdAt).getTime();
-      if (Number.isNaN(createdAt)) return true;
-      return now - createdAt <= unattendedOrderMs;
+      if (order.status === "PAID" || order.status === "CANCELLED") return true;
+      const touchedAt = new Date(order.updatedAt || order.createdAt).getTime();
+      if (Number.isNaN(touchedAt)) return true;
+      return now - touchedAt <= demoIncompleteSimulationMs;
     })
   };
 }

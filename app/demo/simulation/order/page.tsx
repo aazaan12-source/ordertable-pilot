@@ -103,7 +103,8 @@ function DemoSimulationOrderContent() {
       paymentStatus: "UNPAID" as const,
       items: cart,
       total,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     };
     saveDemoState(session, { ...state, orders: [order, ...state.orders] });
     await postDemoAction(session, { type: "order", order });

@@ -36,8 +36,9 @@ function DemoSimulationDashboardContent() {
   const announcedRequests = useRef<Set<string>>(new Set());
   const initialized = useRef(false);
 
-  function refresh() {
-    const nextState = loadDemoState(session);
+  async function refresh() {
+    const serverState = await loadServerState(session);
+    const nextState = serverState || loadDemoState(session);
     if (!initialized.current) {
       initialized.current = true;
       const nextRequests = nextState.requests.map((request) => request.status === "PENDING" ? { ...request, status: "RESOLVED" as const } : request);
@@ -51,8 +52,8 @@ function DemoSimulationDashboardContent() {
   }
 
   useEffect(() => {
-    refresh();
-    return listenDemoState(session, refresh);
+    void refresh();
+    return listenDemoState(session, () => { void refresh(); });
   }, [session]);
 
   useEffect(() => {
@@ -71,13 +72,14 @@ function DemoSimulationDashboardContent() {
   const paidCount = state.orders.filter((order) => order.status === "PAID").length;
   const totalRevenue = state.orders.filter((order) => order.status === "PAID").reduce((sum, order) => sum + order.total, 0);
 
-  function updateStatus(orderId: string, status: DemoOrderStatus) {
+  async function updateStatus(orderId: string, status: DemoOrderStatus) {
     const previousActive = active;
     const remainingInCurrentTab = state.orders.filter((order) => order.status === previousActive && order.id !== orderId).length;
-    const nextState = {
+    const serverState = await postDemoAction(session, { type: "status", orderId, status });
+    const nextState = serverState || {
       ...state,
       orders: state.orders.map((order) => order.id === orderId
-        ? { ...order, status, paymentStatus: status === "PAID" ? "PAID" as const : order.paymentStatus }
+        ? { ...order, status, paymentStatus: status === "PAID" ? "PAID" as const : order.paymentStatus, updatedAt: new Date().toISOString() }
         : order)
     };
     saveDemoState(session, nextState);
@@ -85,8 +87,9 @@ function DemoSimulationDashboardContent() {
     setActive(remainingInCurrentTab === 0 ? status : previousActive);
   }
 
-  function resolveRequest(requestId: string) {
-    const nextState = {
+  async function resolveRequest(requestId: string) {
+    const serverState = await postDemoAction(session, { type: "resolve-request", requestId });
+    const nextState = serverState || {
       ...state,
       requests: state.requests.map((request) => request.id === requestId ? { ...request, status: "RESOLVED" as const } : request)
     };
@@ -94,8 +97,8 @@ function DemoSimulationDashboardContent() {
     setState(nextState);
   }
 
-  function resetDemo() {
-    const nextState = emptyDemoState();
+  async function resetDemo() {
+    const nextState = await postDemoAction(session, { type: "reset" }) || emptyDemoState();
     saveDemoState(session, nextState);
     setState(nextState);
     setActive("PENDING");
@@ -240,6 +243,30 @@ function OrderCard({ order, onUpdate }: { order: DemoOrder; onUpdate: (orderId: 
       </CardContent>
     </Card>
   );
+}
+
+async function loadServerState(session: string) {
+  try {
+    const response = await fetch(`/api/demo-simulation/state?session=${encodeURIComponent(session)}`, { cache: "no-store" });
+    if (!response.ok) return null;
+    return await response.json() as { orders: DemoOrder[]; requests: DemoRequest[] };
+  } catch {
+    return null;
+  }
+}
+
+async function postDemoAction(session: string, body: Record<string, unknown>) {
+  try {
+    const response = await fetch("/api/demo-simulation/state", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ session, ...body })
+    });
+    if (!response.ok) return null;
+    return await response.json() as { orders: DemoOrder[]; requests: DemoRequest[] };
+  } catch {
+    return null;
+  }
 }
 
 function RequestRow({ request, onResolve }: { request: DemoRequest; onResolve: (id: string) => void }) {

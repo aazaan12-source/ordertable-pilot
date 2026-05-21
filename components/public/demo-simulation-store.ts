@@ -21,6 +21,7 @@ export type DemoOrder = {
   items: DemoOrderItem[];
   total: number;
   createdAt: string;
+  updatedAt?: string;
 };
 
 export type DemoRequest = {
