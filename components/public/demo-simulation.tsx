@@ -151,8 +151,8 @@ export function DemoSimulation({ qrCodes }: { qrCodes: DemoQr[] }) {
                   <div className="rounded-md border bg-white p-2">
                     <img src={qr.dataUrl} alt={`Demo table ${qr.tableNumber} QR code`} className="mx-auto aspect-square w-full max-w-[84px] sm:max-w-[132px]" />
                   </div>
-                  <a href={qr.url} target="_blank" rel="noreferrer" className="mt-2 inline-flex h-8 w-full items-center justify-center rounded-md border bg-white px-2 text-xs font-semibold hover:bg-muted sm:h-9 sm:text-sm">
-                    Open
+                  <a href={qr.url} target="_blank" rel="noreferrer" className="mt-2 inline-flex h-8 w-full items-center justify-center rounded-md border bg-white px-1.5 text-[10px] font-bold tracking-wide hover:bg-muted sm:h-9 sm:px-2 sm:text-xs">
+                    OPEN QR URL
                   </a>
                 </CardContent>
               </Card>
