@@ -89,7 +89,7 @@ export function DemoSimulation({ qrCodes }: { qrCodes: DemoQr[] }) {
       setActive(remainingInTab === 0 ? status : active);
       knownPending.current = nextState.orders.filter((order) => order.status === "PENDING").length;
       if (status === "PAID") {
-        setCompletionMessage("Simulation completed. Paid order will clear now.");
+        setCompletionMessage("");
         if (clearPaidTimer.current) window.clearTimeout(clearPaidTimer.current);
         clearPaidTimer.current = window.setTimeout(async () => {
           const clearedState = await postDemoAction({ type: "clear-paid" });
@@ -97,7 +97,8 @@ export function DemoSimulation({ qrCodes }: { qrCodes: DemoQr[] }) {
             setState(clearedState);
             setActive("PENDING");
           }
-          setCompletionMessage("");
+          setCompletionMessage("The order simulation is completed, try again for any order simultion from the main website page.");
+          window.setTimeout(() => setCompletionMessage(""), 6000);
         }, 5000);
       }
     }
@@ -165,7 +166,7 @@ export function DemoSimulation({ qrCodes }: { qrCodes: DemoQr[] }) {
 
         <div className="p-4 sm:p-5">
           {completionMessage ? (
-            <div className="fixed bottom-4 left-1/2 z-50 w-[min(92vw,360px)] -translate-x-1/2 rounded-lg border border-primary/30 bg-white/95 p-3 text-center text-sm font-bold text-primary shadow-2xl backdrop-blur">
+            <div className="fixed bottom-4 left-1/2 z-50 w-[min(92vw,420px)] -translate-x-1/2 rounded-lg border border-primary/25 bg-white/80 p-3 text-center text-sm font-bold text-primary shadow-2xl backdrop-blur">
               {completionMessage}
             </div>
           ) : null}
