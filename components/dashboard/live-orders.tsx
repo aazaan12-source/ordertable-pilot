@@ -67,7 +67,7 @@ type WakeLockSentinelLike = {
 export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Order[]; restaurantName: string; initialStatus?: string }) {
   const [orders, setOrders] = useState(initialOrders);
   const [active, setActive] = useState(statuses.includes(initialStatus || "") ? initialStatus! : "PENDING");
-  const [viewMode, setViewMode] = useState<"cards" | "list">("cards");
+  const [viewMode, setViewMode] = useState<"cards" | "list">("list");
   const [newPending, setNewPending] = useState(false);
   const [warning, setWarning] = useState("");
   const [updating, setUpdating] = useState("");
