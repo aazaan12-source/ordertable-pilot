@@ -215,10 +215,13 @@ export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Or
 
   async function updateStatus(orderId: string, status: string) {
     const previousActive = active;
-    setUpdating(`${orderId}:${status}`);
-    setActive(status);
-    optimisticStatusRef.current.set(orderId, status);
     const previousOrders = ordersRef.current;
+    const currentOrder = previousOrders.find((order) => order.id === orderId);
+    const remainingInCurrentTab = previousOrders.filter((order) => order.status === previousActive && order.id !== orderId).length;
+    const shouldMoveToNextTab = currentOrder?.status !== previousActive || remainingInCurrentTab === 0;
+    setUpdating(`${orderId}:${status}`);
+    setActive(shouldMoveToNextTab ? status : previousActive);
+    optimisticStatusRef.current.set(orderId, status);
     const paymentMethod = status === "PAID" ? "CASH" : undefined;
     setOrders((current) =>
       current.map((order) =>
