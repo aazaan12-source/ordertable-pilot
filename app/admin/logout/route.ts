@@ -1,7 +1,28 @@
-import { redirect } from "next/navigation";
+import { NextRequest, NextResponse } from "next/server";
 import { clearSuperAdminSession } from "@/lib/super-admin-auth";
 
-export async function GET() {
+const authCookies = [
+  "ordertable_super_admin"
+];
+
+export async function GET(request: NextRequest) {
   await clearSuperAdminSession();
-  redirect("/super-admin-login");
+  const response = NextResponse.redirect(new URL("/login", request.url));
+  for (const name of authCookies) {
+    response.cookies.set(name, "", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 0
+    });
+    response.cookies.set(name, "", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/admin",
+      maxAge: 0
+    });
+  }
+  return response;
 }

@@ -3,13 +3,6 @@ import { getToken } from "next-auth/jwt";
 
 const superAdminCookieName = "ordertable_super_admin";
 
-function redirectTo(request: NextRequest, pathname: string) {
-  const url = request.nextUrl.clone();
-  url.pathname = pathname;
-  url.search = "";
-  return NextResponse.redirect(url);
-}
-
 function withCallback(request: NextRequest, pathname: string) {
   const url = request.nextUrl.clone();
   url.pathname = pathname;
@@ -61,9 +54,8 @@ export default async function middleware(request: NextRequest) {
 
   if (pathname.startsWith("/admin")) {
     const hasSuperAdminCookie = await verifySuperAdminCookie(request.cookies.get(superAdminCookieName)?.value);
-    if (hasSuperAdminCookie || (role === "PLATFORM_ADMIN" && isActive)) return NextResponse.next();
-    if (role === "RESTAURANT_MANAGER") return redirectTo(request, "/dashboard");
-    return withCallback(request, "/super-admin-login");
+    if (hasSuperAdminCookie) return NextResponse.next();
+    return withCallback(request, "/login");
   }
 
   if (pathname.startsWith("/dashboard")) {

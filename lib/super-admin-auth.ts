@@ -98,16 +98,10 @@ export async function getSuperAdminUser() {
     });
   }
 
-  const session = await getServerSession(authOptions);
-  if (session?.user?.role === UserRole.PLATFORM_ADMIN && session.user.isActive !== false) {
-    const user = await db.user.findUnique({ where: { id: session.user.id } });
-    if (user?.role === UserRole.PLATFORM_ADMIN && user.isActive) return user;
-  }
-
   debugAdminAuth("no valid platform admin session", {
     hasSuperAdminCookie: tokens.length > 0,
-    sessionRole: session?.user?.role,
-    sessionUserId: session?.user?.id
+    sessionRole: null,
+    sessionUserId: null
   });
   return null;
 }
@@ -118,9 +112,8 @@ export async function requireSuperAdmin() {
 
   const session = await getServerSession(authOptions);
   if (session?.user?.role === UserRole.RESTAURANT_MANAGER) {
-    debugAdminAuth("restaurant manager attempted admin route", { userId: session.user.id });
-    redirect("/dashboard");
+    debugAdminAuth("restaurant manager needs separate admin login", { userId: session.user.id });
   }
 
-  redirect("/super-admin-login?callbackUrl=/admin");
+  redirect("/login?callbackUrl=/admin");
 }

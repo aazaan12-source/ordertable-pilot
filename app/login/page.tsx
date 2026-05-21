@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useState } from "react";
 import { getSession, signIn } from "next-auth/react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -37,26 +37,31 @@ function LoginForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    getSession().then((session) => {
-      if (cancelled || !session?.user) return;
-      const callbackUrl = search.get("callbackUrl");
-      if (session.user.role === "PLATFORM_ADMIN") {
-        router.replace(callbackUrl?.startsWith("/admin") ? callbackUrl : "/admin");
-      } else {
-        router.replace(callbackUrl || "/dashboard");
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [router, search]);
-
   async function onSubmit(event: React.FormEvent) {
     event.preventDefault();
     setLoading(true);
     setError("");
+    const callbackUrl = search.get("callbackUrl");
+    const platformResult = await fetch("/api/auth/platform-login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, callbackUrl })
+    }).then(async (response) => {
+      const payload = await response.json().catch(() => ({}));
+      return { ok: response.ok, payload };
+    }).catch(() => ({ ok: false, payload: { handled: false } }));
+
+    if (platformResult.payload?.handled) {
+      setLoading(false);
+      if (!platformResult.ok) {
+        setError("Invalid email or password.");
+        return;
+      }
+      router.push(platformResult.payload.redirectTo || "/admin");
+      router.refresh();
+      return;
+    }
+
     const result = await signIn("credentials", { email, password, redirect: false });
     setLoading(false);
     if (result?.error) {
@@ -64,11 +69,10 @@ function LoginForm() {
       return;
     }
     const session = await getSession();
-    const callbackUrl = search.get("callbackUrl");
     if (session?.user?.role === "PLATFORM_ADMIN") {
       router.push(callbackUrl?.startsWith("/admin") ? callbackUrl : "/admin");
     } else {
-      router.push(callbackUrl || "/dashboard");
+      router.push(callbackUrl?.startsWith("/dashboard") ? callbackUrl : "/dashboard");
     }
     router.refresh();
   }

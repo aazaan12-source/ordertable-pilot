@@ -32,7 +32,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         const user = await db.user.findUnique({ where: { email } });
-        if (!user || !user.isActive || ![UserRole.RESTAURANT_MANAGER, UserRole.PLATFORM_ADMIN].includes(user.role)) {
+        if (!user || !user.isActive || user.role !== UserRole.RESTAURANT_MANAGER) {
           await recordLoginAttempt({ email, ipAddress, success: false });
           return null;
         }
