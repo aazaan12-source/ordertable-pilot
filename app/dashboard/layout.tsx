@@ -10,7 +10,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
     where: {
       restaurantId: restaurant.id,
       status: { in: ["DUE", "OVERDUE"] },
-      paymentClaimedAt: null
+      paymentClaimedAt: null,
+      paymentReminderAt: { not: null }
     }
   });
   return (

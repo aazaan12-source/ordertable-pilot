@@ -143,6 +143,42 @@ async function markPaymentNotReceived(formData: FormData) {
   revalidatePath("/dashboard/billing");
 }
 
+async function sendPaymentReminder(formData: FormData) {
+  "use server";
+  const user = await requirePlatformAdmin();
+  const id = text(formData, "id");
+  const fallbackMessage = "Reminder from OrderTable billing: this invoice is still unpaid. Please complete payment before the due date or submit the transaction reference from your manager billing dashboard.";
+  const reminderMessage = text(formData, "reminderMessage", fallbackMessage);
+  const invoice = await db.billingInvoice.update({
+    where: { id },
+    data: {
+      paymentReminderAt: new Date(),
+      paymentReminderCount: { increment: 1 },
+      paymentReminderMessage: reminderMessage,
+      status: "OVERDUE"
+    }
+  });
+  await db.activityLog.create({
+    data: {
+      userId: user.id,
+      restaurantId: invoice.restaurantId,
+      action: "BILLING_PAYMENT_REMINDER_SENT",
+      description: `${invoice.billingMonth} payment reminder sent to manager dashboard`
+    }
+  });
+  revalidatePath("/admin/billing");
+  revalidatePath("/dashboard");
+  revalidatePath("/dashboard/billing");
+}
+
+function invoiceStatusClass(status: InvoiceStatus) {
+  if (status === "PAID") return "border-green-200 bg-green-50 text-green-800";
+  if (status === "OVERDUE") return "border-red-200 bg-red-50 text-red-800";
+  if (status === "DUE") return "border-amber-200 bg-amber-50 text-amber-800";
+  if (status === "WAIVED") return "border-slate-200 bg-slate-50 text-slate-700";
+  return "border-slate-200 bg-white text-slate-700";
+}
+
 export default async function AdminBillingPage() {
   await requirePlatformAdmin();
   const [restaurants, invoices, paid, open, accounts, pendingClaims] = await Promise.all([
@@ -154,6 +190,10 @@ export default async function AdminBillingPage() {
     db.billingInvoice.count({ where: { paymentClaimedAt: { not: null }, status: { not: "PAID" } } })
   ]);
   const activeAccounts = accounts.filter((account) => account.isActive);
+  const unpaidInvoices = invoices.filter((invoice) => invoice.status !== "PAID");
+  const paidInvoices = invoices.filter((invoice) => invoice.status === "PAID");
+  const totalPaidCount = paidInvoices.length;
+  const totalUnpaidCount = unpaidInvoices.length;
 
   return (
     <main className="mx-auto max-w-7xl p-4 lg:p-6">
@@ -166,11 +206,17 @@ export default async function AdminBillingPage() {
       <div className="grid gap-4 md:grid-cols-3">
         <Card>
           <CardHeader><CardTitle>Paid invoices</CardTitle></CardHeader>
-          <CardContent><p className="text-3xl font-bold">{formatCurrency(paid._sum.amount?.toString() || 0)}</p></CardContent>
+          <CardContent>
+            <p className="text-3xl font-bold">{formatCurrency(paid._sum.amount?.toString() || 0)}</p>
+            <p className="text-xs text-muted-foreground">{totalPaidCount} confirmed paid bills</p>
+          </CardContent>
         </Card>
         <Card>
           <CardHeader><CardTitle>Due / overdue</CardTitle></CardHeader>
-          <CardContent><p className="text-3xl font-bold">{formatCurrency(open._sum.amount?.toString() || 0)}</p></CardContent>
+          <CardContent>
+            <p className="text-3xl font-bold">{formatCurrency(open._sum.amount?.toString() || 0)}</p>
+            <p className="text-xs text-muted-foreground">{totalUnpaidCount} unpaid bills</p>
+          </CardContent>
         </Card>
         <Card>
           <CardHeader><CardTitle>Payment requests</CardTitle></CardHeader>
@@ -262,76 +308,146 @@ export default async function AdminBillingPage() {
         </Card>
       </div>
 
-      <div className="mt-6 grid gap-4">
-        {invoices.map((invoice) => {
-          const hasPaymentRequest = Boolean(invoice.paymentClaimedAt && invoice.status !== "PAID");
-          return (
-            <Card key={invoice.id} className={hasPaymentRequest ? "border-blue-300 bg-blue-50/40" : ""}>
-              <CardContent className="p-4">
-                <div className="flex flex-wrap items-start justify-between gap-3">
-                  <div>
-                    <p className="font-bold">{invoice.restaurant.name} - {invoice.billingMonth}</p>
-                    <p className="text-sm text-muted-foreground">{invoice.planName} - {formatCurrency(invoice.amount.toString())} - {invoice.status}</p>
-                    <p className="text-xs text-muted-foreground">Created {formatPkDateTime(invoice.createdAt)}{invoice.dueDate ? ` - Due ${formatPkDateTime(invoice.dueDate)}` : ""}</p>
-                    {invoice.paymentAccount ? <p className="mt-1 text-xs text-muted-foreground">Payment account: {invoice.paymentAccount.label}</p> : null}
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    <Link href={`/admin/billing/invoices/${invoice.id}/print`}><Button variant="outline">PDF / Print</Button></Link>
-                    <Link href={`/admin/restaurants/${invoice.restaurantId}`}><Button variant="outline">Restaurant</Button></Link>
-                  </div>
-                </div>
+      <div className="mt-6 grid gap-5 xl:grid-cols-[1.05fr_0.95fr]">
+        <section className="space-y-3">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h2 className="text-xl font-bold">Unpaid invoices</h2>
+              <p className="text-sm text-muted-foreground">Invoices sent to managers, pending payment, overdue, or waiting for payment verification.</p>
+            </div>
+            <span className="rounded-full border bg-white px-3 py-1 text-xs font-bold">{unpaidInvoices.length} open</span>
+          </div>
+          {unpaidInvoices.map((invoice) => <AdminInvoiceRow key={invoice.id} invoice={invoice} mode="unpaid" />)}
+          {unpaidInvoices.length === 0 ? <p className="rounded-lg border bg-white p-6 text-center text-muted-foreground">No unpaid invoices.</p> : null}
+        </section>
 
-                {hasPaymentRequest ? (
-                  <div className="mt-3 rounded-md border border-blue-200 bg-white p-3 text-sm">
-                    <p className="font-semibold text-blue-950">Manager marked this invoice as paid. Confirm only after money is received.</p>
-                    <p className="mt-1 text-muted-foreground">Method: {invoice.paymentClaimMethod || "Not provided"} - Reference: {invoice.paymentClaimReference || "Not provided"}</p>
-                    {invoice.paymentClaimNote ? <p className="mt-1 text-muted-foreground">Note: {invoice.paymentClaimNote}</p> : null}
-                    <form action={confirmManagerPayment} className="mt-3 flex flex-wrap gap-2">
-                      <input type="hidden" name="id" value={invoice.id} />
-                      <input type="hidden" name="claimReference" value={invoice.paymentClaimReference || ""} />
-                      <Input name="paymentReference" placeholder="Final received reference optional" defaultValue={invoice.paymentClaimReference || ""} />
-                      <ConfirmSubmitButton
-                        variant="default"
-                        size="md"
-                        message="Confirm payment received? This will mark the manager invoice as PAID."
-                        pendingText="Confirming..."
-                      >
-                        Confirm Payment Received
-                      </ConfirmSubmitButton>
-                    </form>
-                    <form action={markPaymentNotReceived} className="mt-3 grid gap-2 md:grid-cols-[1fr_auto]">
-                      <input type="hidden" name="id" value={invoice.id} />
-                      <Input name="paymentRejectionNote" placeholder="Message to manager, e.g. payment not received in account" defaultValue="Payment was not received yet. Please verify the transaction and submit again." />
-                      <ConfirmSubmitButton
-                        variant="destructive"
-                        size="md"
-                        message="Mark this payment as not received and notify the manager dashboard?"
-                        pendingText="Notifying..."
-                      >
-                        Not Received
-                      </ConfirmSubmitButton>
-                    </form>
-                  </div>
-                ) : null}
-
-                <form action={updateInvoiceStatus} className="mt-3 flex flex-wrap gap-2">
-                  <input type="hidden" name="id" value={invoice.id} />
-                  <select name="status" defaultValue={invoice.status} className="h-10 rounded-md border bg-white px-3 text-sm">
-                    <option value="DRAFT">Draft</option>
-                    <option value="DUE">Due</option>
-                    <option value="PAID">Paid / confirmed</option>
-                    <option value="OVERDUE">Overdue</option>
-                    <option value="WAIVED">Waived</option>
-                  </select>
-                  <Input name="paymentReference" placeholder="Payment reference" defaultValue={invoice.paymentReference || ""} />
-                  <SubmitButton pendingText="Saving...">Save Status</SubmitButton>
-                </form>
-              </CardContent>
-            </Card>
-          );
-        })}
-        {invoices.length === 0 ? <p className="rounded-lg border bg-white p-6 text-center text-muted-foreground">No billing invoices created yet.</p> : null}
+        <section className="space-y-3">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h2 className="text-xl font-bold">Paid bills</h2>
+              <p className="text-sm text-muted-foreground">Confirmed transaction history with manager source account and platform receiving account.</p>
+            </div>
+            <span className="rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-bold text-green-800">{paidInvoices.length} paid</span>
+          </div>
+          {paidInvoices.map((invoice) => <AdminInvoiceRow key={invoice.id} invoice={invoice} mode="paid" />)}
+          {paidInvoices.length === 0 ? <p className="rounded-lg border bg-white p-6 text-center text-muted-foreground">No paid bills confirmed yet.</p> : null}
+        </section>
       </div>
     </main>
+  );
+}
+
+function AdminInvoiceRow({ invoice, mode }: { invoice: any; mode: "paid" | "unpaid" }) {
+  const hasPaymentRequest = Boolean(invoice.paymentClaimedAt && invoice.status !== "PAID");
+  const isPaid = invoice.status === "PAID";
+  const sentAt = formatPkDateTime(invoice.createdAt);
+  const dueAt = invoice.dueDate ? formatPkDateTime(invoice.dueDate) : "No due date";
+  const paidAt = invoice.paidAt ? formatPkDateTime(invoice.paidAt) : "Not confirmed";
+  const receivingAccount = invoice.paymentAccount
+    ? `${invoice.paymentAccount.label} (${invoice.paymentAccount.method}) - ${invoice.paymentAccount.accountTitle} / ${invoice.paymentAccount.accountNumber}`
+    : "Any active platform billing account";
+
+  return (
+    <Card className={hasPaymentRequest ? "border-blue-300 bg-blue-50/40" : isPaid ? "border-green-200 bg-green-50/40" : ""}>
+      <CardContent className="p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <div className="flex flex-wrap items-center gap-2">
+              <p className="font-bold">{invoice.restaurant.name} - {invoice.billingMonth}</p>
+              <span className={`rounded-full border px-2 py-0.5 text-[11px] font-bold ${invoiceStatusClass(invoice.status)}`}>{invoice.status}</span>
+            </div>
+            <p className="text-sm text-muted-foreground">{invoice.planName} - {formatCurrency(invoice.amount.toString())}</p>
+            <dl className="mt-2 grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
+              <div><dt className="font-semibold text-foreground">Invoice sent</dt><dd>{sentAt}</dd></div>
+              <div><dt className="font-semibold text-foreground">Due date</dt><dd>{dueAt}</dd></div>
+              <div><dt className="font-semibold text-foreground">Paid / confirmed</dt><dd>{paidAt}</dd></div>
+              <div><dt className="font-semibold text-foreground">Invoice ID</dt><dd className="break-all">{invoice.id}</dd></div>
+            </dl>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Link href={`/admin/billing/invoices/${invoice.id}/print`}><Button variant="outline">PDF / Print</Button></Link>
+            <Link href={`/admin/restaurants/${invoice.restaurantId}`}><Button variant="outline">Restaurant</Button></Link>
+          </div>
+        </div>
+
+        <div className="mt-3 grid gap-2 rounded-md border bg-white p-3 text-sm md:grid-cols-2">
+          <p><span className="font-semibold">From manager account:</span> {invoice.paymentClaimFromAccount || invoice.paymentClaimMethod || "Not submitted yet"}</p>
+          <p><span className="font-semibold">To platform account:</span> {receivingAccount}</p>
+          <p><span className="font-semibold">Transaction reference:</span> {invoice.paymentReference || invoice.paymentClaimReference || "Not provided"}</p>
+          <p><span className="font-semibold">Manager claim time:</span> {invoice.paymentClaimedAt ? formatPkDateTime(invoice.paymentClaimedAt) : "No payment claim"}</p>
+        </div>
+
+        {invoice.paymentReminderAt && !isPaid ? (
+          <div className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            Reminder sent {formatPkDateTime(invoice.paymentReminderAt)} ({invoice.paymentReminderCount || 1} total). {invoice.paymentReminderMessage}
+          </div>
+        ) : null}
+
+        {hasPaymentRequest ? (
+          <div className="mt-3 rounded-md border border-blue-200 bg-white p-3 text-sm">
+            <p className="font-semibold text-blue-950">Manager marked this invoice as paid. Confirm only after money is received.</p>
+            <p className="mt-1 text-muted-foreground">Method: {invoice.paymentClaimMethod || "Not provided"} - Reference: {invoice.paymentClaimReference || "Not provided"}</p>
+            {invoice.paymentClaimFromAccount ? <p className="mt-1 text-muted-foreground">Paid from: {invoice.paymentClaimFromAccount}</p> : null}
+            {invoice.paymentClaimNote ? <p className="mt-1 text-muted-foreground">Note: {invoice.paymentClaimNote}</p> : null}
+            <form action={confirmManagerPayment} className="mt-3 flex flex-wrap gap-2">
+              <input type="hidden" name="id" value={invoice.id} />
+              <input type="hidden" name="claimReference" value={invoice.paymentClaimReference || ""} />
+              <Input name="paymentReference" placeholder="Final received reference optional" defaultValue={invoice.paymentClaimReference || ""} />
+              <ConfirmSubmitButton
+                variant="default"
+                size="md"
+                message="Confirm payment received? This will mark the manager invoice as PAID."
+                pendingText="Confirming..."
+              >
+                Confirm Payment Received
+              </ConfirmSubmitButton>
+            </form>
+            <form action={markPaymentNotReceived} className="mt-3 grid gap-2 md:grid-cols-[1fr_auto]">
+              <input type="hidden" name="id" value={invoice.id} />
+              <Input name="paymentRejectionNote" placeholder="Message to manager, e.g. payment not received in account" defaultValue="Payment was not received yet. Please verify the transaction and submit again." />
+              <ConfirmSubmitButton
+                variant="destructive"
+                size="md"
+                message="Mark this payment as not received and notify the manager dashboard?"
+                pendingText="Notifying..."
+              >
+                Not Received
+              </ConfirmSubmitButton>
+            </form>
+          </div>
+        ) : null}
+
+        {mode === "unpaid" && !hasPaymentRequest && (invoice.status === "DUE" || invoice.status === "OVERDUE") ? (
+          <form action={sendPaymentReminder} className="mt-3 grid gap-2 md:grid-cols-[1fr_auto]">
+            <input type="hidden" name="id" value={invoice.id} />
+            <Input
+              name="reminderMessage"
+              defaultValue="Reminder from OrderTable billing: this invoice is still unpaid. Please pay the due bill or submit the payment transaction reference from your manager billing dashboard."
+            />
+            <ConfirmSubmitButton
+              variant="outline"
+              size="md"
+              message="Send this payment reminder to the manager dashboard?"
+              pendingText="Sending..."
+            >
+              Send Reminder
+            </ConfirmSubmitButton>
+          </form>
+        ) : null}
+
+        <form action={updateInvoiceStatus} className="mt-3 flex flex-wrap gap-2">
+          <input type="hidden" name="id" value={invoice.id} />
+          <select name="status" defaultValue={invoice.status} className="h-10 rounded-md border bg-white px-3 text-sm">
+            <option value="DRAFT">Draft</option>
+            <option value="DUE">Due</option>
+            <option value="PAID">Paid / confirmed</option>
+            <option value="OVERDUE">Overdue</option>
+            <option value="WAIVED">Waived</option>
+          </select>
+          <Input name="paymentReference" placeholder="Payment reference" defaultValue={invoice.paymentReference || invoice.paymentClaimReference || ""} />
+          <SubmitButton pendingText="Saving...">Save Status</SubmitButton>
+        </form>
+      </CardContent>
+    </Card>
   );
 }
