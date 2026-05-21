@@ -31,6 +31,8 @@ export function DemoSimulation({ qrCodes }: { qrCodes: DemoQr[] }) {
   const knownPending = useRef(0);
   const initialized = useRef(false);
   const announcedRequests = useRef<Set<string>>(new Set());
+  const statusRefs = useRef<Partial<Record<DemoOrderStatus, HTMLButtonElement | null>>>({});
+  const activeScrollReady = useRef(false);
 
   async function loadState() {
     try {
@@ -73,6 +75,14 @@ export function DemoSimulation({ qrCodes }: { qrCodes: DemoQr[] }) {
     return () => window.clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    if (!activeScrollReady.current) {
+      activeScrollReady.current = true;
+      return;
+    }
+    statusRefs.current[active]?.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
+  }, [active]);
+
   const pendingOrders = state.orders.filter((order) => order.status === "PENDING").length;
   const pendingRequests = state.requests.filter((request) => request.status === "PENDING").length;
   const paidOrders = state.orders.filter((order) => order.status === "PAID");
@@ -113,8 +123,8 @@ export function DemoSimulation({ qrCodes }: { qrCodes: DemoQr[] }) {
         </div>
       </div>
 
-      <div className="grid gap-0 xl:grid-cols-[360px_1fr]">
-        <div className="border-b bg-[#f8faf7] p-5 xl:border-b-0 xl:border-r">
+      <div className="grid gap-0">
+        <div className="border-b bg-[#f8faf7] p-4 sm:p-5">
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-xs font-bold uppercase tracking-wide text-primary">Demo table QR codes</p>
@@ -125,27 +135,30 @@ export function DemoSimulation({ qrCodes }: { qrCodes: DemoQr[] }) {
             </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-2">
+          <div className="mt-5 grid grid-cols-3 gap-2 sm:gap-3 lg:grid-cols-5">
             {qrCodes.map((qr) => (
               <Card key={qr.tableNumber} className="overflow-hidden">
-                <CardHeader className="p-3 pb-1">
-                  <CardTitle className="text-base">Table {qr.tableNumber}</CardTitle>
+                <CardHeader className="p-2 pb-1 sm:p-3 sm:pb-1">
+                  <CardTitle className="text-center text-xs sm:text-base">Table {qr.tableNumber}</CardTitle>
                 </CardHeader>
-                <CardContent className="p-3 pt-0">
+                <CardContent className="p-2 pt-0 sm:p-3 sm:pt-0">
                   <div className="rounded-md border bg-white p-2">
-                    <img src={qr.dataUrl} alt={`Demo table ${qr.tableNumber} QR code`} className="mx-auto aspect-square w-full max-w-[132px]" />
+                    <img src={qr.dataUrl} alt={`Demo table ${qr.tableNumber} QR code`} className="mx-auto aspect-square w-full max-w-[84px] sm:max-w-[132px]" />
                   </div>
+                  <a href={qr.url} target="_blank" rel="noreferrer" className="mt-2 inline-flex h-8 w-full items-center justify-center rounded-md border bg-white px-2 text-xs font-semibold hover:bg-muted sm:h-9 sm:text-sm">
+                    Open
+                  </a>
                 </CardContent>
               </Card>
             ))}
           </div>
 
           <div className="mt-4 rounded-md bg-white p-3 text-xs leading-5 text-muted-foreground shadow-sm">
-            Keep this page open. Scan any QR with a phone and send a demo order. The live dashboard on the right will show the pending order automatically.
+            Scan a QR with another phone, or press Open to use that table link directly. Place a demo order online and the dashboard below will receive it.
           </div>
         </div>
 
-        <div className="p-5">
+        <div className="p-4 sm:p-5">
           <div className={`rounded-lg border p-4 transition ${attention || pendingOrders > 0 ? "border-red-300 bg-red-50 shadow-lg shadow-red-100" : "bg-white"}`}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
@@ -167,14 +180,17 @@ export function DemoSimulation({ qrCodes }: { qrCodes: DemoQr[] }) {
             <Stat title="Demo revenue" value={formatCurrency(revenue)} />
           </div>
 
-          <div className="mt-4 flex gap-2 overflow-x-auto pb-2">
+          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
             {demoStatuses.map((status) => {
               const count = state.orders.filter((order) => order.status === status).length;
               return (
                 <button
                   key={status}
+                  ref={(node) => {
+                    statusRefs.current[status] = node;
+                  }}
                   onClick={() => setActive(status)}
-                  className={`shrink-0 rounded-md border px-3 py-2 text-sm font-bold ${active === status ? "border-primary bg-primary text-white" : status === "PENDING" && count > 0 ? "border-red-300 bg-red-50 text-red-700" : "bg-white hover:bg-muted"}`}
+                  className={`min-h-12 rounded-md border px-2 py-2 text-center text-xs font-bold leading-tight sm:text-sm ${active === status ? "border-primary bg-primary text-white" : status === "PENDING" && count > 0 ? "border-red-300 bg-red-50 text-red-700" : "bg-white hover:bg-muted"}`}
                 >
                   {demoStatusLabels[status]} <span className="ml-1 rounded bg-black/10 px-1.5 py-0.5 text-xs">{count}</span>
                 </button>
@@ -270,11 +286,11 @@ function OrderCard({ order, onUpdate }: { order: DemoOrder; onUpdate: (orderId: 
             </div>
           ))}
         </div>
-        <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="mt-4 grid gap-3 sm:flex sm:flex-wrap sm:items-center sm:justify-between">
           <p className="text-xl font-black">{formatCurrency(order.total)}</p>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid w-full grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:w-auto sm:flex sm:flex-wrap">
             {actions.map((action) => (
-              <Button key={action.next} onClick={() => onUpdate(order.id, action.next)} variant={action.tone === "danger" ? "destructive" : action.tone === "success" ? "default" : "outline"}>
+              <Button key={action.next} className="w-full sm:w-auto" onClick={() => onUpdate(order.id, action.next)} variant={action.tone === "danger" ? "destructive" : action.tone === "success" ? "default" : "outline"}>
                 {action.label}
               </Button>
             ))}
