@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { BellRing, CheckCircle2, ClipboardList, Lock, QrCode, ReceiptText, ScanLine, Smartphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatCurrency, formatPkDateTime } from "@/lib/utils";
+import { formatCurrency } from "@/lib/utils";
 import {
   DemoOrder,
   DemoOrderStatus,
@@ -31,8 +31,8 @@ export function DemoSimulation({ qrCodes }: { qrCodes: DemoQr[] }) {
   const knownPending = useRef(0);
   const initialized = useRef(false);
   const announcedRequests = useRef<Set<string>>(new Set());
-  const statusRefs = useRef<Partial<Record<DemoOrderStatus, HTMLButtonElement | null>>>({});
-  const activeScrollReady = useRef(false);
+  const clearPaidTimer = useRef<number | null>(null);
+  const [completionMessage, setCompletionMessage] = useState("");
 
   async function loadState() {
     try {
@@ -75,14 +75,6 @@ export function DemoSimulation({ qrCodes }: { qrCodes: DemoQr[] }) {
     return () => window.clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    if (!activeScrollReady.current) {
-      activeScrollReady.current = true;
-      return;
-    }
-    statusRefs.current[active]?.scrollIntoView({ behavior: "smooth", block: "center", inline: "center" });
-  }, [active]);
-
   const pendingOrders = state.orders.filter((order) => order.status === "PENDING").length;
   const pendingRequests = state.requests.filter((request) => request.status === "PENDING").length;
   const paidOrders = state.orders.filter((order) => order.status === "PAID");
@@ -96,6 +88,18 @@ export function DemoSimulation({ qrCodes }: { qrCodes: DemoQr[] }) {
       setState(nextState);
       setActive(remainingInTab === 0 ? status : active);
       knownPending.current = nextState.orders.filter((order) => order.status === "PENDING").length;
+      if (status === "PAID") {
+        setCompletionMessage("Simulation completed. Paid order will clear now.");
+        if (clearPaidTimer.current) window.clearTimeout(clearPaidTimer.current);
+        clearPaidTimer.current = window.setTimeout(async () => {
+          const clearedState = await postDemoAction({ type: "clear-paid" });
+          if (clearedState) {
+            setState(clearedState);
+            setActive("PENDING");
+          }
+          setCompletionMessage("");
+        }, 5000);
+      }
     }
   }
 
@@ -159,12 +163,17 @@ export function DemoSimulation({ qrCodes }: { qrCodes: DemoQr[] }) {
         </div>
 
         <div className="p-4 sm:p-5">
-          <div className={`rounded-lg border p-4 transition ${attention || pendingOrders > 0 ? "border-red-300 bg-red-50 shadow-lg shadow-red-100" : "bg-white"}`}>
+          {completionMessage ? (
+            <div className="fixed bottom-4 left-1/2 z-50 w-[min(92vw,360px)] -translate-x-1/2 rounded-lg border border-primary/30 bg-white/95 p-3 text-center text-sm font-bold text-primary shadow-2xl backdrop-blur">
+              {completionMessage}
+            </div>
+          ) : null}
+
+          <div className={`rounded-lg border p-3 transition sm:p-4 ${attention || pendingOrders > 0 ? "border-red-300 bg-red-50 shadow-lg shadow-red-100" : "bg-white"}`}>
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <p className="text-xs font-bold uppercase tracking-wide text-primary">Always-open demo dashboard</p>
-                <h3 className="text-2xl font-black">Live Orders</h3>
-                <p className="text-sm text-muted-foreground">Only the live-order workflow is active. Other real dashboard features stay read-only here.</p>
+                <h3 className="text-xl font-black sm:text-2xl">Live Orders</h3>
               </div>
               <div className="flex flex-wrap gap-2">
                 <Badge label="Pending orders" value={pendingOrders} hot={pendingOrders > 0} />
@@ -173,24 +182,21 @@ export function DemoSimulation({ qrCodes }: { qrCodes: DemoQr[] }) {
             </div>
           </div>
 
-          <div className="mt-4 grid gap-3 md:grid-cols-4">
+          <div className="mt-3 grid grid-cols-2 gap-2 md:grid-cols-4">
             <Stat title="Live orders" value={state.orders.filter((order) => order.status !== "PAID" && order.status !== "CANCELLED").length} />
             <Stat title="Pending" value={pendingOrders} hot={pendingOrders > 0} />
             <Stat title="Paid orders" value={paidOrders.length} />
             <Stat title="Demo revenue" value={formatCurrency(revenue)} />
           </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4 xl:grid-cols-8">
+          <div className="mt-3 grid grid-cols-2 gap-1.5 sm:grid-cols-4 xl:grid-cols-8">
             {demoStatuses.map((status) => {
               const count = state.orders.filter((order) => order.status === status).length;
               return (
                 <button
                   key={status}
-                  ref={(node) => {
-                    statusRefs.current[status] = node;
-                  }}
                   onClick={() => setActive(status)}
-                  className={`min-h-12 rounded-md border px-2 py-2 text-center text-xs font-bold leading-tight sm:text-sm ${active === status ? "border-primary bg-primary text-white" : status === "PENDING" && count > 0 ? "border-red-300 bg-red-50 text-red-700" : "bg-white hover:bg-muted"}`}
+                  className={`min-h-9 rounded-md border px-2 py-1.5 text-center text-[11px] font-bold leading-tight sm:text-xs ${active === status ? "border-primary bg-primary text-white" : status === "PENDING" && count > 0 ? "border-red-300 bg-red-50 text-red-700" : "bg-white hover:bg-muted"}`}
                 >
                   {demoStatusLabels[status]} <span className="ml-1 rounded bg-black/10 px-1.5 py-0.5 text-xs">{count}</span>
                 </button>
@@ -269,25 +275,24 @@ function OrderCard({ order, onUpdate }: { order: DemoOrder; onUpdate: (orderId: 
   const actions = demoStatusActions[order.status] || [];
   return (
     <Card className="border-l-4 border-l-primary">
-      <CardContent className="p-4">
+      <CardContent className="p-3 sm:p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h4 className="text-lg font-black">{order.orderNumber} - Table {order.tableNumber}</h4>
-            <p className="text-sm text-muted-foreground">{order.source}{order.waiterName ? ` | Waiter: ${order.waiterName}` : ""}{order.customerName ? ` | Customer: ${order.customerName}` : ""}</p>
-            <p className="text-xs text-muted-foreground">{formatPkDateTime(new Date(order.createdAt))}</p>
+            <h4 className="text-base font-black sm:text-lg">Table {order.tableNumber} - {order.orderNumber}</h4>
+            <p className="text-xs text-muted-foreground">{order.waiterName ? `Waiter: ${order.waiterName}` : order.customerName ? `Customer: ${order.customerName}` : order.source}</p>
           </div>
-          <span className="rounded-md bg-primary/10 px-3 py-1 text-sm font-bold text-primary">{demoStatusLabels[order.status]}</span>
+          <span className="rounded-md bg-primary/10 px-2 py-1 text-xs font-bold text-primary">{demoStatusLabels[order.status]}</span>
         </div>
-        <div className="mt-4 grid gap-2">
+        <div className="mt-3 grid gap-1.5">
           {order.items.map((item) => (
-            <div key={item.id} className="flex items-center justify-between gap-3 rounded-md bg-muted px-3 py-2 text-sm">
+            <div key={item.id} className="flex items-center justify-between gap-2 rounded-md bg-muted px-2 py-1.5 text-xs sm:text-sm">
               <span className="font-semibold">{item.quantity} x {item.name}</span>
               <span>{formatCurrency(item.price * item.quantity)}</span>
             </div>
           ))}
         </div>
-        <div className="mt-4 grid gap-3 sm:flex sm:flex-wrap sm:items-center sm:justify-between">
-          <p className="text-xl font-black">{formatCurrency(order.total)}</p>
+        <div className="mt-3 grid gap-2 sm:flex sm:flex-wrap sm:items-center sm:justify-between">
+          <p className="text-lg font-black">{formatCurrency(order.total)}</p>
           <div className="grid w-full grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:w-auto sm:flex sm:flex-wrap">
             {actions.map((action) => (
               <Button key={action.next} className="w-full sm:w-auto" onClick={() => onUpdate(order.id, action.next)} variant={action.tone === "danger" ? "destructive" : action.tone === "success" ? "default" : "outline"}>

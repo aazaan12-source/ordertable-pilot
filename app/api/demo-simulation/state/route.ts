@@ -63,6 +63,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(nextState, { headers: { "Cache-Control": "no-store" } });
     }
 
+    if (body.type === "clear-paid") {
+      const nextState = setDemoState(session, {
+        ...state,
+        orders: state.orders.filter((order) => order.status !== "PAID")
+      });
+      await savePersistentDemoState(session, nextState);
+      return NextResponse.json(nextState, { headers: { "Cache-Control": "no-store" } });
+    }
+
     return NextResponse.json({ error: "Invalid demo action." }, { status: 400 });
   } catch (error) {
     console.error("DEMO_SIMULATION_STATE_FAILED", error);
