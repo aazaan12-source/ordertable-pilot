@@ -34,9 +34,20 @@ function DemoSimulationDashboardContent() {
   const [state, setState] = useState(emptyDemoState);
   const [active, setActive] = useState<DemoOrderStatus>("PENDING");
   const announcedRequests = useRef<Set<string>>(new Set());
+  const initialized = useRef(false);
 
   function refresh() {
-    setState(loadDemoState(session));
+    const nextState = loadDemoState(session);
+    if (!initialized.current) {
+      initialized.current = true;
+      const nextRequests = nextState.requests.map((request) => request.status === "PENDING" ? { ...request, status: "RESOLVED" as const } : request);
+      if (nextRequests.some((request, index) => request.status !== nextState.requests[index]?.status)) {
+        saveDemoState(session, { ...nextState, requests: nextRequests });
+      }
+      setState({ ...nextState, requests: nextRequests });
+      return;
+    }
+    setState(nextState);
   }
 
   useEffect(() => {

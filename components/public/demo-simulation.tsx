@@ -29,12 +29,31 @@ export function DemoSimulation({ qrCodes }: { qrCodes: DemoQr[] }) {
   const [active, setActive] = useState<DemoOrderStatus>("PENDING");
   const [attention, setAttention] = useState(false);
   const knownPending = useRef(0);
+  const initialized = useRef(false);
+  const announcedRequests = useRef<Set<string>>(new Set());
 
   async function loadState() {
     try {
       const response = await fetch(`/api/demo-simulation/state?session=${session}`, { cache: "no-store" });
       if (!response.ok) return;
       const nextState = await response.json() as DemoState;
+      const pendingDemoRequests = nextState.requests.filter((request) => request.status === "PENDING");
+      if (!initialized.current) {
+        initialized.current = true;
+        pendingDemoRequests.forEach((request) => {
+          announcedRequests.current.add(request.id);
+          void postDemoAction({ type: "resolve-request", requestId: request.id });
+        });
+        nextState.requests = nextState.requests.map((request) => request.status === "PENDING" ? { ...request, status: "RESOLVED" } : request);
+      } else {
+        const freshRequest = pendingDemoRequests.find((request) => !announcedRequests.current.has(request.id));
+        if (freshRequest) {
+          announcedRequests.current.add(freshRequest.id);
+          setAttention(true);
+          window.setTimeout(() => setAttention(false), 5000);
+          speakDemoRequest(freshRequest);
+        }
+      }
       const nextPending = nextState.orders.filter((order) => order.status === "PENDING").length;
       if (nextPending > knownPending.current) {
         setActive("PENDING");
@@ -205,6 +224,15 @@ export function DemoSimulation({ qrCodes }: { qrCodes: DemoQr[] }) {
       </div>
     </section>
   );
+}
+
+function speakDemoRequest(request: DemoRequest) {
+  if (typeof window === "undefined" || !("speechSynthesis" in window)) return;
+  const text = request.type === "CALL_WAITER"
+    ? `Demo call waiter from table number ${request.tableNumber}`
+    : `Demo bill request from table number ${request.tableNumber}`;
+  window.speechSynthesis.cancel();
+  window.speechSynthesis.speak(new SpeechSynthesisUtterance(text));
 }
 
 async function postDemoAction(body: Record<string, unknown>) {

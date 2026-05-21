@@ -107,16 +107,17 @@ export function ManagerAlerts() {
       if (!response.ok) return;
       const payload = await response.json();
       const nextRequests: WaiterRequest[] = payload.requests || [];
-      setRequests(nextRequests);
 
       if (!initialized.current) {
         nextRequests.forEach((request) => seen.current.add(request.id));
         saveAnnouncedIds();
+        setRequests([]);
         initialized.current = true;
         return;
       }
 
       const fresh = nextRequests.filter((request) => !seen.current.has(request.id));
+      setRequests(fresh);
       fresh.forEach((request) => markAnnounced(request.id));
       if (fresh.length > 0) {
         const latest = fresh.sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()).at(-1)!;

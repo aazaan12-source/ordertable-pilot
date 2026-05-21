@@ -1,25 +1,29 @@
 import { NextRequest, NextResponse } from "next/server";
-import { DemoOrder, DemoOrderStatus, DemoRequest } from "@/components/public/demo-simulation-store";
+import { DemoOrder, DemoOrderStatus, DemoRequest, DemoState } from "@/components/public/demo-simulation-store";
 import { cleanDemoSession, getDemoState, setDemoState } from "@/lib/demo-simulation-state";
+import { db } from "@/lib/db";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET(request: NextRequest) {
   const session = cleanDemoSession(request.nextUrl.searchParams.get("session"));
-  return NextResponse.json(getDemoState(session), { headers: { "Cache-Control": "no-store" } });
+  const state = await loadPersistentDemoState(session) || getDemoState(session);
+  setDemoState(session, state);
+  return NextResponse.json(state, { headers: { "Cache-Control": "no-store" } });
 }
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const session = cleanDemoSession(body.session);
-    const state = getDemoState(session);
+    const state: DemoState = await loadPersistentDemoState(session) || getDemoState(session);
 
     if (body.type === "order") {
       const order = sanitizeOrder(body.order);
       if (!order) return NextResponse.json({ error: "Invalid demo order." }, { status: 400 });
       const nextState = setDemoState(session, { ...state, orders: [order, ...state.orders] });
+      await savePersistentDemoState(session, nextState);
       return NextResponse.json(nextState, { headers: { "Cache-Control": "no-store" } });
     }
 
@@ -27,6 +31,7 @@ export async function POST(request: NextRequest) {
       const demoRequest = sanitizeRequest(body.request);
       if (!demoRequest) return NextResponse.json({ error: "Invalid demo request." }, { status: 400 });
       const nextState = setDemoState(session, { ...state, requests: [demoRequest, ...state.requests] });
+      await savePersistentDemoState(session, nextState);
       return NextResponse.json(nextState, { headers: { "Cache-Control": "no-store" } });
     }
 
@@ -38,6 +43,7 @@ export async function POST(request: NextRequest) {
         ...state,
         orders: state.orders.map((order) => order.id === orderId ? { ...order, status, paymentStatus: status === "PAID" ? "PAID" : order.paymentStatus } : order)
       });
+      await savePersistentDemoState(session, nextState);
       return NextResponse.json(nextState, { headers: { "Cache-Control": "no-store" } });
     }
 
@@ -47,11 +53,13 @@ export async function POST(request: NextRequest) {
         ...state,
         requests: state.requests.map((request) => request.id === requestId ? { ...request, status: "RESOLVED" } : request)
       });
+      await savePersistentDemoState(session, nextState);
       return NextResponse.json(nextState, { headers: { "Cache-Control": "no-store" } });
     }
 
     if (body.type === "reset") {
       const nextState = setDemoState(session, { orders: [], requests: [] });
+      await savePersistentDemoState(session, nextState);
       return NextResponse.json(nextState, { headers: { "Cache-Control": "no-store" } });
     }
 
@@ -60,6 +68,40 @@ export async function POST(request: NextRequest) {
     console.error("DEMO_SIMULATION_STATE_FAILED", error);
     return NextResponse.json({ error: "Unable to update demo simulation." }, { status: 500 });
   }
+}
+
+async function loadPersistentDemoState(session: string): Promise<DemoState | null> {
+  const log = await db.activityLog.findFirst({
+    where: { action: demoStateAction(session) },
+    orderBy: { createdAt: "desc" },
+    select: { description: true }
+  });
+  if (!log) return null;
+  try {
+    const parsed = JSON.parse(log.description);
+    return {
+      orders: Array.isArray(parsed.orders) ? parsed.orders : [],
+      requests: Array.isArray(parsed.requests) ? parsed.requests : []
+    };
+  } catch {
+    return null;
+  }
+}
+
+async function savePersistentDemoState(session: string, state: { orders: DemoOrder[]; requests: DemoRequest[] }) {
+  await db.activityLog.create({
+    data: {
+      action: demoStateAction(session),
+      description: JSON.stringify({
+        orders: state.orders.slice(0, 80),
+        requests: state.requests.slice(0, 80)
+      })
+    }
+  });
+}
+
+function demoStateAction(session: string) {
+  return `DEMO_SIMULATION_STATE:${session}`;
 }
 
 function sanitizeOrder(value: unknown): DemoOrder | null {
