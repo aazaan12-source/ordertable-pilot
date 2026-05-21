@@ -295,7 +295,18 @@ function OrderCard({ order, onUpdate }: { order: DemoOrder; onUpdate: (orderId: 
           <p className="text-lg font-black">{formatCurrency(order.total)}</p>
           <div className="grid w-full grid-cols-1 gap-2 min-[420px]:grid-cols-2 sm:w-auto sm:flex sm:flex-wrap">
             {actions.map((action) => (
-              <Button key={action.next} className="w-full sm:w-auto" onClick={() => onUpdate(order.id, action.next)} variant={action.tone === "danger" ? "destructive" : action.tone === "success" ? "default" : "outline"}>
+              <Button
+                key={action.next}
+                className={`w-full shadow-sm sm:w-auto ${
+                  action.tone === "danger"
+                    ? ""
+                    : action.tone === "success"
+                      ? "border border-primary/20 bg-primary text-primary-foreground hover:brightness-95"
+                      : "border border-[#103a31]/20 bg-[#103a31] text-white hover:bg-[#0c2f28]"
+                }`}
+                onClick={() => onUpdate(order.id, action.next)}
+                variant={action.tone === "danger" ? "destructive" : "default"}
+              >
                 {action.label}
               </Button>
             ))}
