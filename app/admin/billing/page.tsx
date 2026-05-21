@@ -135,6 +135,7 @@ async function markPaymentNotReceived(formData: FormData) {
       status: "DUE",
       paymentClaimedAt: null,
       paymentRejectedAt: new Date(),
+      paymentRejectionSeenAt: null,
       paymentRejectionNote: note
     }
   });

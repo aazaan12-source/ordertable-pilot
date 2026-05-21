@@ -65,6 +65,9 @@ export default async function ManagerBillingPage() {
   const unseenReminderIds = invoices
     .filter((invoice) => invoice.paymentReminderAt && (!invoice.paymentReminderSeenAt || invoice.paymentReminderSeenAt < invoice.paymentReminderAt))
     .map((invoice) => invoice.id);
+  const unseenRejectionIds = invoices
+    .filter((invoice) => invoice.paymentRejectedAt && (!invoice.paymentRejectionSeenAt || invoice.paymentRejectionSeenAt < invoice.paymentRejectedAt))
+    .map((invoice) => invoice.id);
 
   if (unseenReminderIds.length > 0) {
     await db.billingInvoice.updateMany({
@@ -72,12 +75,20 @@ export default async function ManagerBillingPage() {
       data: { paymentReminderSeenAt: new Date() }
     });
   }
+  if (unseenRejectionIds.length > 0) {
+    await db.billingInvoice.updateMany({
+      where: { id: { in: unseenRejectionIds }, restaurantId: restaurant.id },
+      data: { paymentRejectionSeenAt: new Date() }
+    });
+  }
 
   const openInvoices = invoices.filter((invoice) => invoice.status === "DUE" || invoice.status === "OVERDUE");
   const confirmedInvoices = invoices.filter((invoice) => invoice.status === "PAID");
   const reminderInvoices = invoices.filter((invoice) => invoice.paymentReminderAt && invoice.status !== "PAID");
-  const unpaidInvoices = invoices.filter((invoice) => invoice.status === "DUE" || invoice.status === "OVERDUE" || Boolean(invoice.paymentClaimedAt && invoice.status !== "PAID"));
-  const otherInvoices = invoices.filter((invoice) => invoice.status !== "PAID" && !unpaidInvoices.some((openInvoice) => openInvoice.id === invoice.id));
+  const rejectedInvoices = invoices.filter((invoice) => invoice.paymentRejectedAt && invoice.status !== "PAID");
+  const pendingPaymentInvoices = invoices.filter((invoice) => Boolean(invoice.paymentClaimedAt && invoice.status !== "PAID"));
+  const unpaidInvoices = invoices.filter((invoice) => (invoice.status === "DUE" || invoice.status === "OVERDUE") && !invoice.paymentClaimedAt);
+  const otherInvoices = invoices.filter((invoice) => invoice.status !== "PAID" && !unpaidInvoices.some((openInvoice) => openInvoice.id === invoice.id) && !pendingPaymentInvoices.some((pendingInvoice) => pendingInvoice.id === invoice.id));
 
   return (
     <main className="p-4 lg:p-6">
@@ -103,6 +114,21 @@ export default async function ManagerBillingPage() {
               <p key={invoice.id} className="rounded-md border border-amber-200 bg-white p-2">
                 <span className="font-semibold">{invoice.billingMonth}:</span> {invoice.paymentReminderMessage || "Please pay this due invoice."}
                 {invoice.paymentReminderAt ? <span className="block text-xs text-muted-foreground">Sent {formatPkDateTime(invoice.paymentReminderAt)}</span> : null}
+              </p>
+            ))}
+          </div>
+        </div>
+      ) : null}
+
+      {rejectedInvoices.length > 0 ? (
+        <div className="mt-5 rounded-lg border border-red-300 bg-red-50 p-4 text-sm text-red-950">
+          <p className="font-bold">Payment transaction not received yet</p>
+          <p className="mt-1">Platform billing rejected one or more submitted payment claims. Please verify the transfer and submit the corrected transaction details.</p>
+          <div className="mt-3 grid gap-2">
+            {rejectedInvoices.slice(0, 3).map((invoice) => (
+              <p key={invoice.id} className="rounded-md border border-red-200 bg-white p-2">
+                <span className="font-semibold">{invoice.billingMonth}:</span> {invoice.paymentRejectionNote || "Payment was not received yet."}
+                {invoice.paymentRejectedAt ? <span className="block text-xs text-muted-foreground">Updated {formatPkDateTime(invoice.paymentRejectedAt)}</span> : null}
               </p>
             ))}
           </div>
@@ -139,6 +165,15 @@ export default async function ManagerBillingPage() {
           </div>
           {unpaidInvoices.map((invoice) => <ManagerInvoiceCard key={invoice.id} invoice={invoice} accounts={accounts} />)}
           {unpaidInvoices.length === 0 ? <p className="rounded-lg border bg-white p-6 text-center text-muted-foreground">No unpaid bills right now.</p> : null}
+          {pendingPaymentInvoices.length > 0 ? (
+            <div className="space-y-3 pt-2">
+              <div>
+                <h3 className="text-base font-bold">Payment made - awaiting confirmation</h3>
+                <p className="text-sm text-muted-foreground">These bills are removed from unpaid because you submitted payment. Platform billing will confirm after receiving the funds.</p>
+              </div>
+              {pendingPaymentInvoices.map((invoice) => <ManagerInvoiceCard key={invoice.id} invoice={invoice} accounts={accounts} />)}
+            </div>
+          ) : null}
           {otherInvoices.map((invoice) => <ManagerInvoiceCard key={invoice.id} invoice={invoice} accounts={accounts} />)}
         </section>
 
@@ -235,7 +270,7 @@ function ManagerInvoiceCard({ invoice, accounts }: { invoice: any; accounts: any
               message="Submit payment request? The invoice will be marked as waiting for confirmation until platform billing verifies receipt."
               pendingText="Submitting..."
             >
-              I Have Paid
+              Payment Made
             </ConfirmSubmitButton>
             <Input className="md:col-span-3" name="paymentClaimFromAccount" placeholder="Paid from account title / wallet / bank account" />
             <Textarea className="md:col-span-3" name="paymentClaimNote" placeholder="Optional note, e.g. screenshot reference or transfer remarks" />

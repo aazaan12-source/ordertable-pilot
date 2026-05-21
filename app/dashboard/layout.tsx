@@ -6,18 +6,21 @@ import { getManagerRestaurant } from "@/lib/permissions";
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { restaurant } = await getManagerRestaurant();
-  const remindedInvoices = await db.billingInvoice.findMany({
+  const billingNotifications = await db.billingInvoice.findMany({
     where: {
       restaurantId: restaurant.id,
       status: { in: ["DUE", "OVERDUE"] },
-      paymentClaimedAt: null,
-      paymentReminderAt: { not: null }
+      OR: [
+        { paymentClaimedAt: null, paymentReminderAt: { not: null } },
+        { paymentRejectedAt: { not: null } }
+      ]
     },
-    select: { paymentReminderAt: true, paymentReminderSeenAt: true }
+    select: { paymentReminderAt: true, paymentReminderSeenAt: true, paymentRejectedAt: true, paymentRejectionSeenAt: true }
   });
-  const billingAlertCount = remindedInvoices.filter((invoice) => {
-    if (!invoice.paymentReminderAt) return false;
-    return !invoice.paymentReminderSeenAt || invoice.paymentReminderSeenAt < invoice.paymentReminderAt;
+  const billingAlertCount = billingNotifications.filter((invoice) => {
+    const unseenReminder = invoice.paymentReminderAt && (!invoice.paymentReminderSeenAt || invoice.paymentReminderSeenAt < invoice.paymentReminderAt);
+    const unseenRejection = invoice.paymentRejectedAt && (!invoice.paymentRejectionSeenAt || invoice.paymentRejectionSeenAt < invoice.paymentRejectedAt);
+    return unseenReminder || unseenRejection;
   }).length;
   return (
     <div className="lg:flex">

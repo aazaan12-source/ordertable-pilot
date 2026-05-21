@@ -340,6 +340,7 @@ model BillingInvoice {
   paymentClaimFromAccount String?
   paymentClaimNote String?
   paymentRejectedAt DateTime?
+  paymentRejectionSeenAt DateTime?
   paymentRejectionNote String?
   paymentConfirmedAt DateTime?
   paymentConfirmedById String?
@@ -356,6 +357,7 @@ model BillingInvoice {
   @@index([paymentClaimedAt])
   @@index([paymentReminderAt])
   @@index([paymentReminderSeenAt])
+  @@index([paymentRejectionSeenAt])
 }
 
 model BillingPaymentAccount {
