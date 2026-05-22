@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OrderTable Manager Activation</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <div>
+          <p class="eyebrow">OrderTable Manager Desktop</p>
+          <h1>Activate your restaurant dashboard software.</h1>
+          <p class="lead">Enter the license key provided by OrderTable after payment. The desktop app will verify your key online and then open the live manager dashboard in this installed window.</p>
+        </div>
+        <div class="status-card">
+          <p class="label">Requires</p>
+          <ul>
+            <li>Internet connection</li>
+            <li>Active license key</li>
+            <li>Restaurant manager login</li>
+          </ul>
+        </div>
+      </section>
+
+      <section class="panel">
+        <form id="activation-form">
+          <label>
+            Platform URL
+            <input id="platform-url" name="platformUrl" value="https://ordertable-pilot.vercel.app" />
+          </label>
+          <label>
+            License Key
+            <input id="license-key" name="licenseKey" placeholder="OT-XXXXXX-XXXXXX-XXXXXX-XXXXXX" autocomplete="off" required />
+          </label>
+          <button id="activate-button" type="submit">Activate & Open Dashboard</button>
+          <p id="message" class="message"></p>
+        </form>
+      </section>
+
+      <section class="footnote">
+        <p>Do not share your license key. Super Admin can suspend, expire, or limit devices for every key.</p>
+      </section>
+    </main>
+    <script src="./activation.js"></script>
+  </body>
+</html>
+

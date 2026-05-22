@@ -10,6 +10,7 @@ const links = [
   { href: "/admin/restaurants/new", label: "Add Restaurant" },
   { href: "/admin/onboarding-requests", label: "Onboarding Requests" },
   { href: "/admin/billing", label: "Billing" },
+  { href: "/admin/software", label: "Software" },
   { href: "/admin/reports", label: "Platform Reports" },
   { href: "/admin/settings", label: "Settings" }
 ];

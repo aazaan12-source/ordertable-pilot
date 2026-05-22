@@ -25,3 +25,6 @@ Thumbs.db
 
 # generated local files
 *.tsbuildinfo
+
+# desktop installer binaries are generated locally or uploaded to release storage
+public/software/*.exe

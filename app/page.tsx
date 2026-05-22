@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { DemoSimulation } from "@/components/public/demo-simulation";
 import { appBaseUrl } from "@/lib/site-url";
 import { qrDataUrl } from "@/lib/qr";
+import { getSoftwareReleasePayload } from "@/lib/software-licensing";
 
 export const dynamic = "force-dynamic";
 
@@ -41,10 +42,13 @@ async function submitRestaurantRequest(formData: FormData) {
 }
 
 export default async function PublicHomePage() {
-  const demoQrCodes = await Promise.all([1, 2, 3, 4, 5, 6].map(async (tableNumber) => {
-    const url = `${appBaseUrl()}/demo/simulation/order?table=${tableNumber}&session=public-demo`;
-    return { tableNumber, url, dataUrl: await qrDataUrl(url) };
-  }));
+  const [demoQrCodes, softwareRelease] = await Promise.all([
+    Promise.all([1, 2, 3, 4, 5, 6].map(async (tableNumber) => {
+      const url = `${appBaseUrl()}/demo/simulation/order?table=${tableNumber}&session=public-demo`;
+      return { tableNumber, url, dataUrl: await qrDataUrl(url) };
+    })),
+    getSoftwareReleasePayload()
+  ]);
 
   return (
     <main className="min-h-screen bg-background">
@@ -113,6 +117,25 @@ export default async function PublicHomePage() {
       <section className="mx-auto max-w-6xl px-4 py-10">
         <DemoSimulation qrCodes={demoQrCodes} />
       </section>
+
+      {softwareRelease.available ? (
+        <section className="border-y bg-white">
+          <div className="mx-auto grid max-w-6xl gap-5 px-4 py-10 lg:grid-cols-[1fr_auto] lg:items-center">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-wide text-primary">Desktop manager software</p>
+              <h2 className="mt-1 text-3xl font-black">Install OrderTable Manager on your restaurant PC.</h2>
+              <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">
+                Download the Windows desktop app for live order management, printer-ready dashboard use, controlled license activation, and update checks from the platform team.
+                A license key is required after installation.
+              </p>
+              <p className="mt-2 text-xs text-muted-foreground">Current version: {softwareRelease.version}. Contact OrderTable after payment to receive your activation key.</p>
+            </div>
+            <a href={softwareRelease.downloadUrl} className="inline-flex h-11 items-center justify-center rounded-md bg-primary px-5 text-sm font-bold text-primary-foreground hover:brightness-95">
+              Download Installer
+            </a>
+          </div>
+        </section>
+      ) : null}
 
       <section className="mx-auto grid max-w-6xl gap-5 px-4 py-8 md:grid-cols-4">
         <Feature icon={QrCode} title="Table QR Codes" body="Create QR codes for each table and keep the customer flow app-free." />

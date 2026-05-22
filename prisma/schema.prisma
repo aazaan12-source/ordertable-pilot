@@ -105,6 +105,12 @@ enum DemoSimulationRunStatus {
   PARTIAL
 }
 
+enum SoftwareLicenseStatus {
+  ACTIVE
+  SUSPENDED
+  EXPIRED
+}
+
 model User {
   id           String      @id @default(cuid())
   name         String
@@ -122,6 +128,7 @@ model User {
   updatedAt    DateTime    @updatedAt
   activityLogs ActivityLog[]
   adminPasswordResetOtps AdminPasswordResetOtp[]
+  createdSoftwareLicenses SoftwareLicense[]
 
   @@index([restaurantId])
 }
@@ -158,6 +165,7 @@ model Restaurant {
   billingPaymentAccounts BillingPaymentAccount[]
   publicOrderAttempts  PublicOrderAttempt[]
   activityLogs         ActivityLog[]
+  softwareLicenses     SoftwareLicense[]
 }
 
 model RestaurantWaiter {
@@ -477,6 +485,87 @@ model DemoSimulationRun {
   @@index([status, startedAt])
   @@index([lastStage])
   @@index([expiresAt])
+}
+
+model SoftwareRelease {
+  id                  String   @id @default(cuid())
+  version             String   @unique
+  title               String
+  downloadUrl         String
+  fileName            String?
+  checksum            String?
+  releaseNotes        String?
+  isPublished         Boolean  @default(false)
+  minSupportedVersion String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([isPublished, createdAt])
+}
+
+model SoftwareLicense {
+  id              String                @id @default(cuid())
+  restaurantId    String?
+  restaurant      Restaurant?           @relation(fields: [restaurantId], references: [id], onDelete: SetNull)
+  clientName      String
+  contactName     String?
+  contactEmail    String?
+  contactPhone    String?
+  licenseKey      String                @unique
+  keyPreview      String
+  status          SoftwareLicenseStatus @default(ACTIVE)
+  maxDevices      Int                   @default(1)
+  expiresAt       DateTime?
+  notes           String?
+  issuedAt        DateTime              @default(now())
+  lastValidatedAt DateTime?
+  createdById     String?
+  createdBy       User?                 @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  devices         SoftwareLicenseDevice[]
+  validations     SoftwareLicenseValidation[]
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@index([restaurantId])
+  @@index([status])
+  @@index([expiresAt])
+}
+
+model SoftwareLicenseDevice {
+  id              String          @id @default(cuid())
+  licenseId       String
+  license         SoftwareLicense @relation(fields: [licenseId], references: [id], onDelete: Cascade)
+  deviceId        String
+  deviceName      String?
+  platform        String?
+  appVersion      String?
+  isActive        Boolean         @default(true)
+  firstActivatedAt DateTime       @default(now())
+  lastValidatedAt DateTime        @default(now())
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@unique([licenseId, deviceId])
+  @@index([licenseId, isActive])
+  @@index([deviceId])
+}
+
+model SoftwareLicenseValidation {
+  id          String           @id @default(cuid())
+  licenseId   String?
+  license     SoftwareLicense? @relation(fields: [licenseId], references: [id], onDelete: SetNull)
+  licenseKeyPreview String?
+  deviceId    String?
+  appVersion  String?
+  status      String
+  message     String
+  ipAddress   String?
+  userAgent   String?
+  createdAt   DateTime         @default(now())
+
+  @@index([licenseId])
+  @@index([status, createdAt])
+  @@index([deviceId])
 }
 
 model AdminPasswordResetOtp {
