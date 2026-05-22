@@ -1,23 +1,15 @@
 import Link from "next/link";
-import { db } from "@/lib/db";
 import { getManagerRestaurant } from "@/lib/permissions";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { FinancialAmount } from "@/components/dashboard/financial-amount";
 import { FinancialPrivacyToggle } from "@/components/dashboard/financial-privacy-toggle";
+import { DashboardOverviewStats } from "@/components/dashboard/dashboard-overview-stats";
+import { getDashboardSummary } from "@/lib/dashboard-live-data";
 
 export const dynamic = "force-dynamic";
 
 export default async function DashboardHome() {
   const { restaurant } = await getManagerRestaurant();
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const [pending, paid, revenue, waiterRequests] = await Promise.all([
-    db.order.count({ where: { restaurantId: restaurant.id, status: "PENDING", createdAt: { gte: today } } }),
-    db.order.count({ where: { restaurantId: restaurant.id, status: "PAID", createdAt: { gte: today } } }),
-    db.order.aggregate({ where: { restaurantId: restaurant.id, status: "PAID", createdAt: { gte: today } }, _sum: { total: true } }),
-    db.waiterRequest.count({ where: { restaurantId: restaurant.id, status: "PENDING" } })
-  ]);
+  const summary = await getDashboardSummary(restaurant.id);
 
   return (
     <main className="p-4 lg:p-6">
@@ -31,26 +23,7 @@ export default async function DashboardHome() {
           <Link href="/dashboard/orders"><Button>Open Live Orders</Button></Link>
         </div>
       </div>
-      <div className="grid gap-4 md:grid-cols-4">
-        <Link href="/dashboard/orders?status=PENDING#live-orders" className="block rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <Stat title="Pending orders" value={pending} actionText="Open pending live orders" interactive />
-        </Link>
-        <Stat title="Paid orders" value={paid} />
-        <Stat title="Revenue today" value={<FinancialAmount value={revenue._sum.total?.toString() || 0} />} />
-        <Stat title="Open requests" value={waiterRequests} />
-      </div>
+      <DashboardOverviewStats initialSummary={summary} />
     </main>
-  );
-}
-
-function Stat({ title, value, actionText, interactive = false }: { title: string; value: React.ReactNode; actionText?: string; interactive?: boolean }) {
-  return (
-    <Card className={interactive ? "transition hover:border-primary hover:shadow-sm active:translate-y-px" : ""}>
-      <CardHeader><CardTitle className="text-sm text-muted-foreground">{title}</CardTitle></CardHeader>
-      <CardContent>
-        <p className="text-3xl font-bold">{value}</p>
-        {actionText ? <p className="mt-2 text-xs font-semibold text-primary">{actionText}</p> : null}
-      </CardContent>
-    </Card>
   );
 }

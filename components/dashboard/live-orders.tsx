@@ -75,6 +75,7 @@ export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Or
   const ordersRef = useRef(initialOrders);
   const optimisticStatusRef = useRef(new Map<string, string>());
   const refreshRef = useRef({ inFlight: false, sequence: 0, queued: false });
+  const streamConnectedRef = useRef(false);
   const wakeLock = useRef<WakeLockSentinelLike | null>(null);
 
   useEffect(() => {
@@ -149,7 +150,24 @@ export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Or
     });
   }
 
-  async function loadOrders() {
+  function receiveOrders(incomingOrders: Order[]) {
+    const nextOrders = applyOptimisticStatuses(incomingOrders);
+    const nextPending = nextOrders.filter((order) => order.status === "PENDING");
+    const freshPending = nextPending.filter((order) => !seenPending.current.has(order.id));
+    if (freshPending.length > 0) {
+      setActive("PENDING");
+      setNewPending(true);
+      playNotification();
+      speakNewOrder(freshPending.at(-1)?.table.tableNumber);
+      nextPending.forEach((order) => seenPending.current.add(order.id));
+      saveAnnouncedOrderIds();
+    }
+    setOrders(nextOrders);
+    setWarning("");
+  }
+
+  async function loadOrders(force = false) {
+    if (streamConnectedRef.current && !force) return;
     if (refreshRef.current.inFlight) {
       refreshRef.current.queued = true;
       return;
@@ -164,19 +182,7 @@ export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Or
       if (!response.ok) throw new Error("orders failed");
       const data = await response.json();
       if (sequence !== refreshRef.current.sequence) return;
-      const nextOrders = applyOptimisticStatuses(data.orders);
-      const nextPending = nextOrders.filter((order) => order.status === "PENDING");
-      const freshPending = nextPending.filter((order) => !seenPending.current.has(order.id));
-      if (freshPending.length > 0) {
-        setActive("PENDING");
-        setNewPending(true);
-        playNotification();
-        speakNewOrder(freshPending.at(-1)?.table.tableNumber);
-        nextPending.forEach((order) => seenPending.current.add(order.id));
-        saveAnnouncedOrderIds();
-      }
-      setOrders(nextOrders);
-      setWarning("");
+      receiveOrders(data.orders);
     } catch {
       setWarning("Connection issue. Retrying...");
     } finally {
@@ -193,13 +199,13 @@ export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Or
     const tick = async () => {
       await loadOrders();
       if (cancelled) return;
-      timer = setTimeout(tick, document.hidden ? 1200 : 650);
+      timer = setTimeout(tick, document.hidden ? 2500 : 1200);
     };
     void tick();
-    const reconnect = () => void loadOrders();
+    const reconnect = () => void loadOrders(true);
     const wakeAndRefresh = () => {
       void requestWakeLock();
-      void loadOrders();
+      void loadOrders(true);
     };
     window.addEventListener("online", reconnect);
     window.addEventListener("ordertable-network-online", reconnect);
@@ -214,6 +220,48 @@ export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Or
       window.removeEventListener("focus", wakeAndRefresh);
       document.removeEventListener("visibilitychange", wakeAndRefresh);
       void releaseWakeLock();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (typeof EventSource === "undefined") return undefined;
+    let closedByCleanup = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+    let source: EventSource | undefined;
+
+    const connect = () => {
+      if (closedByCleanup) return;
+      source?.close();
+      source = new EventSource(`/api/dashboard/orders/stream?t=${Date.now()}`);
+      source.addEventListener("open", () => {
+        streamConnectedRef.current = true;
+        setWarning("");
+      });
+      source.addEventListener("orders", (event) => {
+        try {
+          const payload = JSON.parse((event as MessageEvent).data) as { orders: Order[] };
+          receiveOrders(payload.orders);
+          streamConnectedRef.current = true;
+        } catch {
+          setWarning("Live stream message could not be read. Retrying...");
+        }
+      });
+      source.addEventListener("error", () => {
+        streamConnectedRef.current = false;
+        source?.close();
+        if (closedByCleanup) return;
+        setWarning("Live stream reconnecting...");
+        void loadOrders(true);
+        reconnectTimer = setTimeout(connect, 900);
+      });
+    };
+
+    connect();
+    return () => {
+      closedByCleanup = true;
+      streamConnectedRef.current = false;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      source?.close();
     };
   }, []);
 
@@ -254,7 +302,7 @@ export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Or
         setWarning(payload.error || "Could not update order. Retrying...");
         return;
       }
-      void loadOrders();
+      void loadOrders(true);
     } catch {
       optimisticStatusRef.current.delete(orderId);
       setOrders(previousOrders);
@@ -303,7 +351,7 @@ export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Or
               List
             </Button>
           </div>
-          <Button variant="outline" onClick={loadOrders} className="shrink-0">
+          <Button variant="outline" onClick={() => loadOrders(true)} className="shrink-0">
             <RefreshCw className="h-4 w-4" />
             Refresh
           </Button>

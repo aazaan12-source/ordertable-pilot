@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/permissions";
-import { db } from "@/lib/db";
+import { getDashboardOrders } from "@/lib/dashboard-live-data";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -11,12 +11,7 @@ export async function GET() {
     if (!user || user.role !== "RESTAURANT_MANAGER" || !user.restaurantId) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const orders = await db.order.findMany({
-      where: { restaurantId: user.restaurantId },
-      include: { table: true, items: true, waiterRequests: true },
-      orderBy: { createdAt: "desc" },
-      take: 100
-    });
+    const orders = await getDashboardOrders(user.restaurantId);
     return NextResponse.json(
       { orders },
       { headers: { "Cache-Control": "no-store, max-age=0" } }

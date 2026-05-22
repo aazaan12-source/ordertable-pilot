@@ -1,18 +1,13 @@
-import { db } from "@/lib/db";
 import { getManagerRestaurant } from "@/lib/permissions";
 import { LiveOrders } from "@/components/dashboard/live-orders";
+import { getDashboardOrders } from "@/lib/dashboard-live-data";
 
 export const dynamic = "force-dynamic";
 
 export default async function OrdersPage({ searchParams }: { searchParams: Promise<{ status?: string }> }) {
   const { restaurant } = await getManagerRestaurant();
   const { status } = await searchParams;
-  const orders = await db.order.findMany({
-    where: { restaurantId: restaurant.id },
-    include: { table: true, items: true, waiterRequests: true },
-    orderBy: { createdAt: "desc" },
-    take: 100
-  });
+  const orders = await getDashboardOrders(restaurant.id);
 
   return (
     <main id="live-orders" className="scroll-mt-4 p-4 lg:p-6">
