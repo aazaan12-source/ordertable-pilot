@@ -157,7 +157,10 @@ export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Or
     refreshRef.current.inFlight = true;
     const sequence = ++refreshRef.current.sequence;
     try {
-      const response = await fetch("/api/dashboard/orders", { cache: "no-store" });
+      const response = await fetch(`/api/dashboard/orders?t=${Date.now()}`, {
+        cache: "no-store",
+        headers: { "Cache-Control": "no-store" }
+      });
       if (!response.ok) throw new Error("orders failed");
       const data = await response.json();
       if (sequence !== refreshRef.current.sequence) return;
@@ -165,6 +168,7 @@ export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Or
       const nextPending = nextOrders.filter((order) => order.status === "PENDING");
       const freshPending = nextPending.filter((order) => !seenPending.current.has(order.id));
       if (freshPending.length > 0) {
+        setActive("PENDING");
         setNewPending(true);
         playNotification();
         speakNewOrder(freshPending.at(-1)?.table.tableNumber);
@@ -189,9 +193,9 @@ export function LiveOrders({ initialOrders, initialStatus }: { initialOrders: Or
     const tick = async () => {
       await loadOrders();
       if (cancelled) return;
-      timer = setTimeout(tick, document.hidden ? 3000 : 1200);
+      timer = setTimeout(tick, document.hidden ? 1200 : 650);
     };
-    timer = setTimeout(tick, 700);
+    void tick();
     const reconnect = () => void loadOrders();
     const wakeAndRefresh = () => {
       void requestWakeLock();

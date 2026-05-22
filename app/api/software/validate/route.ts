@@ -100,7 +100,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       ok: true,
       message: "License activated.",
-      dashboardUrl: `${appBaseUrl()}/dashboard`,
+      dashboardUrl: `${appBaseUrl()}/dashboard/orders?desktop=1`,
       appBaseUrl: appBaseUrl(),
       restaurant: license.restaurant,
       license: {

@@ -86,7 +86,8 @@ function createActivationWindow(message) {
     webPreferences: {
       preload: path.join(__dirname, "preload.js"),
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      backgroundThrottling: false
     }
   });
   activationWindow.loadFile(path.join(__dirname, "renderer", "activation.html"));
@@ -108,10 +109,11 @@ function createDashboardWindow(dashboardUrl) {
     title: "OrderTable Manager",
     webPreferences: {
       contextIsolation: true,
-      nodeIntegration: false
+      nodeIntegration: false,
+      backgroundThrottling: false
     }
   });
-  dashboardWindow.loadURL(dashboardUrl || `${platformUrl()}/dashboard`);
+  dashboardWindow.loadURL(dashboardUrl || `${platformUrl()}/dashboard/orders?desktop=1`);
   dashboardWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
     return { action: "deny" };
@@ -143,7 +145,13 @@ function createMenu() {
         {
           label: "Open Dashboard",
           click: () => {
-            if (!dashboardWindow) createDashboardWindow(`${platformUrl()}/dashboard`);
+            if (!dashboardWindow) createDashboardWindow(`${platformUrl()}/dashboard/orders?desktop=1`);
+          }
+        },
+        {
+          label: "Refresh Live Orders",
+          click: () => {
+            if (dashboardWindow) dashboardWindow.webContents.reloadIgnoringCache();
           }
         },
         {
