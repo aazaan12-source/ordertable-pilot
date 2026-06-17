@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 export const maxDuration = 60;
 
 const encoder = new TextEncoder();
-const changePollMs = 700;
+const changePollMs = 3000;
 
 function streamEvent(event: string, data: unknown) {
   return encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`);
