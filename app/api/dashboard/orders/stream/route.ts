@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/permissions";
 import { getDashboardOrders, getDashboardOrdersChangeToken } from "@/lib/dashboard-live-data";
+import { createLiveOrderDbListener } from "@/lib/live-order-db-listener";
 import { onLiveOrdersChanged } from "@/lib/live-order-events";
 
 export const dynamic = "force-dynamic";
@@ -33,11 +34,13 @@ export async function GET(request: Request) {
       const timers: ReturnType<typeof setInterval>[] = [];
       let closeTimer: ReturnType<typeof setTimeout> | undefined;
       let unsubscribe = () => {};
+      let unsubscribeDb = async () => {};
 
       const close = () => {
         if (closed) return;
         closed = true;
         unsubscribe();
+        void unsubscribeDb();
         for (const timer of timers) clearInterval(timer);
         if (closeTimer) clearTimeout(closeTimer);
         try {
@@ -78,6 +81,14 @@ export async function GET(request: Request) {
       unsubscribe = onLiveOrdersChanged(restaurantId, () => {
         void pushOrders(true);
       });
+
+      try {
+        unsubscribeDb = await createLiveOrderDbListener(restaurantId, () => {
+          void pushOrders(true);
+        });
+      } catch (error) {
+        console.error("LIVE_ORDER_DB_LISTENER_START_FAILED", error);
+      }
 
       async function pushIfChanged() {
         if (closed || checking) return;
