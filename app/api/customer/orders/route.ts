@@ -6,6 +6,7 @@ import { calculateTotals, toNumber } from "@/lib/pricing";
 import { clientIpFromHeaders } from "@/lib/security";
 import { rateLimit } from "@/lib/rate-limit";
 import { nextOrderNumber } from "@/lib/order-utils";
+import { emitLiveOrdersChanged } from "@/lib/live-order-events";
 
 const createOrderSchema = z.object({
   restaurantSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(80),
@@ -127,6 +128,8 @@ export async function POST(request: NextRequest) {
     }
 
     if (!order) throw new Error("Order could not be created.");
+
+    emitLiveOrdersChanged(restaurant.id);
 
     Promise.allSettled([
       db.restaurantTable.update({ where: { id: table.id }, data: { status: "ACTIVE_ORDER" } }),

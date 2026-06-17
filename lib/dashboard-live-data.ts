@@ -9,6 +9,19 @@ export async function getDashboardOrders(restaurantId: string) {
   });
 }
 
+export async function getDashboardOrdersChangeToken(restaurantId: string) {
+  const [latest, count] = await Promise.all([
+    db.order.findFirst({
+      where: { restaurantId },
+      select: { id: true, updatedAt: true },
+      orderBy: { updatedAt: "desc" }
+    }),
+    db.order.count({ where: { restaurantId } })
+  ]);
+
+  return `${count}:${latest?.id || "none"}:${latest?.updatedAt.getTime() || 0}`;
+}
+
 export async function getDashboardSummary(restaurantId: string) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -25,4 +38,3 @@ export async function getDashboardSummary(restaurantId: string) {
     waiterRequests
   };
 }
-

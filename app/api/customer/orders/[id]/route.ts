@@ -5,6 +5,7 @@ import { calculateTotals, toNumber } from "@/lib/pricing";
 import { getCancelInfo, nextTableStatusAfterClosing, serializeOrder } from "@/lib/order-utils";
 import { clientIpFromHeaders, userAgentFromHeaders } from "@/lib/security";
 import { rateLimit } from "@/lib/rate-limit";
+import { emitLiveOrdersChanged } from "@/lib/live-order-events";
 
 const updateOrderSchema = z.object({
   specialNote: z.string().max(500).optional().nullable(),
@@ -112,6 +113,8 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
       });
     });
 
+    emitLiveOrdersChanged(order.restaurantId);
+
     return NextResponse.json({ orderId: updated.id, orderNumber: updated.orderNumber });
   } catch (error) {
     console.error("customer edit order failed", error);
@@ -165,6 +168,8 @@ export async function DELETE(request: Request, { params }: { params: Promise<{ i
         }
       });
     });
+
+    emitLiveOrdersChanged(order.restaurantId);
 
     return NextResponse.json({ ok: true });
   } catch (error) {

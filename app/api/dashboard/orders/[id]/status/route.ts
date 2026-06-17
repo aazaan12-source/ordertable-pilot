@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { getCurrentUser } from "@/lib/permissions";
 import { paymentStatusForOrderStatus, tableStatusByOrder } from "@/lib/order-utils";
+import { emitLiveOrdersChanged } from "@/lib/live-order-events";
 
 const schema = z.object({
   status: z.nativeEnum(OrderStatus),
@@ -40,6 +41,8 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
         cancellationReason: nextStatus === "CANCELLED" ? "Cancelled by restaurant manager" : order.cancellationReason
       }
     });
+
+    emitLiveOrdersChanged(user.restaurantId);
 
     Promise.allSettled([
       db.restaurantTable.update({

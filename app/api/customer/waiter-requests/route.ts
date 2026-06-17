@@ -4,6 +4,7 @@ import { z } from "zod";
 import { db } from "@/lib/db";
 import { clientIpFromHeaders, userAgentFromHeaders } from "@/lib/security";
 import { rateLimit } from "@/lib/rate-limit";
+import { emitLiveOrdersChanged } from "@/lib/live-order-events";
 
 const schema = z.object({
   restaurantSlug: z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/).max(80).optional(),
@@ -109,6 +110,8 @@ export async function POST(request: Request) {
     }));
 
     const [waiterRequest] = await db.$transaction(writes) as [{ id: string }, ...unknown[]];
+
+    emitLiveOrdersChanged(restaurantId);
 
     return NextResponse.json({ id: waiterRequest.id });
   } catch (error) {

@@ -59,6 +59,7 @@ export function OrderStatusPanel({ initialOrder }: { initialOrder: OrderSnapshot
   const [lastStatus, setLastStatus] = useState(initialOrder.status);
   const lastStatusRef = useRef(initialOrder.status);
   const refreshRef = useRef({ inFlight: false, sequence: 0 });
+  const streamConnectedRef = useRef(false);
 
   useEffect(() => {
     lastStatusRef.current = lastStatus;
@@ -69,6 +70,7 @@ export function OrderStatusPanel({ initialOrder }: { initialOrder: OrderSnapshot
   }, [initialOrder.id]);
 
   async function loadOrder(silent = false) {
+    if (streamConnectedRef.current && silent) return;
     if (refreshRef.current.inFlight) return;
     refreshRef.current.inFlight = true;
     const sequence = ++refreshRef.current.sequence;
@@ -103,6 +105,61 @@ export function OrderStatusPanel({ initialOrder }: { initialOrder: OrderSnapshot
     return () => {
       cancelled = true;
       clearTimeout(timer);
+    };
+  }, [order.id]);
+
+  useEffect(() => {
+    if (typeof EventSource === "undefined") return undefined;
+    let closedByCleanup = false;
+    let reconnectTimer: ReturnType<typeof setTimeout> | undefined;
+    let source: EventSource | undefined;
+
+    function receiveOrder(nextOrder: OrderSnapshot) {
+      if (nextOrder.status !== lastStatusRef.current) {
+        setStatusNotice(`Order status updated to ${nextOrder.statusLabel}. Tap here to view the latest order status.`);
+        setLastStatus(nextOrder.status);
+      }
+      setOrder(nextOrder);
+      setWarning("");
+    }
+
+    const connect = () => {
+      if (closedByCleanup) return;
+      source?.close();
+      source = new EventSource(`/api/customer/orders/${order.id}/stream?t=${Date.now()}`);
+      source.addEventListener("open", () => {
+        streamConnectedRef.current = true;
+        setWarning("");
+      });
+      source.addEventListener("order", (event) => {
+        try {
+          const payload = JSON.parse((event as MessageEvent).data) as { order: OrderSnapshot };
+          receiveOrder(payload.order);
+          streamConnectedRef.current = true;
+        } catch {
+          setWarning("Live order status could not be read. Retrying...");
+        }
+      });
+      source.addEventListener("missing", () => {
+        streamConnectedRef.current = false;
+        setWarning("Order could not be found.");
+        source?.close();
+      });
+      source.addEventListener("error", () => {
+        streamConnectedRef.current = false;
+        source?.close();
+        if (closedByCleanup) return;
+        void loadOrder(true);
+        reconnectTimer = setTimeout(connect, 1200);
+      });
+    };
+
+    connect();
+    return () => {
+      closedByCleanup = true;
+      streamConnectedRef.current = false;
+      if (reconnectTimer) clearTimeout(reconnectTimer);
+      source?.close();
     };
   }, [order.id]);
 
