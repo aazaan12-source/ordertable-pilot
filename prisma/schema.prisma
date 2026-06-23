@@ -154,6 +154,7 @@ model Restaurant {
   updatedAt            DateTime           @updatedAt
   users                User[]
   tables               RestaurantTable[]
+  departments          Department[]
   categories           Category[]
   menuItems            MenuItem[]
   orders               Order[]
@@ -202,10 +203,27 @@ model RestaurantTable {
   @@index([tableNumber])
 }
 
+model Department {
+  id           String     @id @default(cuid())
+  restaurantId String
+  restaurant   Restaurant @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  name         String
+  sortOrder    Int        @default(0)
+  isActive     Boolean    @default(true)
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  categories   Category[]
+
+  @@unique([restaurantId, name])
+  @@index([restaurantId])
+}
+
 model Category {
   id           String      @id @default(cuid())
   restaurantId String
   restaurant   Restaurant  @relation(fields: [restaurantId], references: [id], onDelete: Cascade)
+  departmentId String?
+  department   Department? @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   name         String
   imageUrl     String?
   sortOrder    Int         @default(0)
@@ -215,6 +233,7 @@ model Category {
   menuItems    MenuItem[]
 
   @@index([restaurantId])
+  @@index([departmentId])
 }
 
 model MenuItem {

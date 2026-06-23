@@ -6,14 +6,16 @@ import { getManagerRestaurant } from "@/lib/permissions";
 import { orderSourceLabels } from "@/lib/order-utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { ReportRangeControls, GroupedSalesTable } from "@/components/reports/report-sections";
+import { resolveReportRange, buildCategoryRows, buildDepartmentRows } from "@/lib/reports";
 import { formatCurrency, formatPkDateTime, formatPkTime } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
 
 type ReportQuery = {
+  range?: string;
   from?: string;
   to?: string;
-  generated?: string;
   tableNumber?: string;
   source?: string;
   paymentStatus?: string;
@@ -35,17 +37,12 @@ type DailyRevenueRow = {
   total: number;
 };
 
-const dayMs = 24 * 60 * 60 * 1000;
 const reportTimeZone = "Asia/Karachi";
 
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<ReportQuery> }) {
   const { restaurant } = await getManagerRestaurant();
   const query = await searchParams;
-  const from = safeDateInput(query.from) || "";
-  const to = safeDateInput(query.to) || "";
-  const reportGenerated = query.generated === "1";
-  const hasDateRange = Boolean(from && to);
-  const showDateError = reportGenerated && !hasDateRange;
+  const range = resolveReportRange(query.range, query.from, query.to);
   const selectedTableNumber = positiveInt(query.tableNumber);
   const source = enumValue(query.source, OrderSource);
   const paymentStatus = enumValue(query.paymentStatus, PaymentStatus);
@@ -58,19 +55,22 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   });
   const selectedTable = selectedTableNumber ? tables.find((table) => table.tableNumber === selectedTableNumber) : null;
 
-  const reportWhere = hasDateRange ? {
+  const reportWhere = {
     restaurantId: restaurant.id,
-    createdAt: { gte: startOfDay(from), lt: endExclusive(to) },
+    createdAt: { gte: range.fromDate, lt: range.toExclusiveDate },
     ...(selectedTable ? { tableId: selectedTable.id } : {}),
     ...(source ? { source } : {}),
     ...(paymentStatus ? { paymentStatus } : {}),
     ...(paymentMethod ? { paymentMethod } : {})
-  } : null;
+  };
 
-  const [orders, history] = reportWhere ? await Promise.all([
+  const [orders, history] = await Promise.all([
     db.order.findMany({
       where: reportWhere,
-      include: { table: true, items: true },
+      include: {
+        table: true,
+        items: { include: { menuItem: { include: { category: { include: { department: true } } } } } }
+      },
       orderBy: { createdAt: "asc" }
     }),
     db.order.findMany({
@@ -79,7 +79,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       orderBy: { createdAt: "desc" },
       take: 40
     })
-  ]) : [[], []];
+  ]);
 
   const nonCancelled = orders.filter((order) => order.status !== "CANCELLED");
   const paidOrders = orders.filter((order) => order.paymentStatus === "PAID");
@@ -89,19 +89,30 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const netPaidRevenue = paidOrders.reduce((sum, order) => sum + Number(order.total), 0);
   const averagePaidOrder = paidOrders.length ? netPaidRevenue / paidOrders.length : 0;
   const productRows = buildProductRows(nonCancelled);
+  const categoryRows = buildCategoryRows(orders);
+  const departmentRows = buildDepartmentRows(orders);
   const topProduct = productRows[0];
   const weakProducts = productRows.slice(-5).reverse();
   const tableRows = buildTableRows(nonCancelled);
   const dailyRevenueRows = buildDailyRevenueRows(nonCancelled);
-  const printParams = new URLSearchParams(hasDateRange ? {
-    from,
-    to,
+
+  const filterFields = [
+    ...(selectedTableNumber ? [{ name: "tableNumber", value: String(selectedTableNumber) }] : []),
+    ...(source ? [{ name: "source", value: source }] : []),
+    ...(paymentStatus ? [{ name: "paymentStatus", value: paymentStatus }] : []),
+    ...(paymentMethod ? [{ name: "paymentMethod", value: paymentMethod }] : [])
+  ];
+
+  // Print/PDF routes take concrete from/to dates, so resolve the preset to dates.
+  const printParams = new URLSearchParams({
+    from: range.fromStr,
+    to: range.toStr,
     autoPrint: "1",
     ...(selectedTableNumber ? { tableNumber: String(selectedTableNumber) } : {}),
     ...(source ? { source } : {}),
     ...(paymentStatus ? { paymentStatus } : {}),
     ...(paymentMethod ? { paymentMethod } : {})
-  } : {});
+  });
   const pdfParams = new URLSearchParams(printParams);
   pdfParams.delete("autoPrint");
 
@@ -110,36 +121,30 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold">Reports</h1>
-          <p className="text-sm text-muted-foreground">Choose dates, table, payment, or order source to understand sales and product performance.</p>
+          <p className="text-sm text-muted-foreground">Category, department, product, table, and daily sales for the selected period.</p>
         </div>
-        {hasDateRange ? (
-          <div className="flex flex-wrap gap-2">
-            <Link href={`/dashboard/reports/monthly/print?${printParams.toString()}`} target="_blank">
-              <Button><Printer className="h-4 w-4" />Print</Button>
-            </Link>
-            <Link href={`/dashboard/reports/monthly/pdf?${pdfParams.toString()}`} target="_blank">
-              <Button variant="outline"><Download className="h-4 w-4" />PDF</Button>
-            </Link>
-          </div>
-        ) : null}
+        <div className="flex flex-wrap gap-2">
+          <Link href={`/dashboard/reports/monthly/print?${printParams.toString()}`} target="_blank">
+            <Button><Printer className="h-4 w-4" />Print</Button>
+          </Link>
+          <Link href={`/dashboard/reports/monthly/pdf?${pdfParams.toString()}`} target="_blank">
+            <Button variant="outline"><Download className="h-4 w-4" />PDF</Button>
+          </Link>
+        </div>
       </div>
+
+      <ReportRangeControls range={range} hiddenFields={filterFields} className="mt-5" />
 
       <Card className="mt-5">
         <CardHeader>
-          <CardTitle>Generate Revenue Report</CardTitle>
-          <p className="text-sm text-muted-foreground">Use calendar dates for daily, weekly, monthly, or custom-duration reports.</p>
+          <CardTitle>Filters</CardTitle>
+          <p className="text-sm text-muted-foreground">Narrow the report by table, order source, or payment.</p>
         </CardHeader>
         <CardContent>
-          <form className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
-            <input type="hidden" name="generated" value="1" />
-            <label className="text-sm font-semibold">
-              From date
-              <input type="date" name="from" defaultValue={from} className="mt-1 block h-10 w-full rounded-md border bg-white px-3 text-sm" />
-            </label>
-            <label className="text-sm font-semibold">
-              To date
-              <input type="date" name="to" defaultValue={to} className="mt-1 block h-10 w-full rounded-md border bg-white px-3 text-sm" />
-            </label>
+          <form className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <input type="hidden" name="range" value={range.key} />
+            {range.key === "custom" ? <input type="hidden" name="from" value={range.fromStr} /> : null}
+            {range.key === "custom" ? <input type="hidden" name="to" value={range.toStr} /> : null}
             <label className="text-sm font-semibold">
               Table
               <select name="tableNumber" defaultValue={selectedTableNumber ? String(selectedTableNumber) : ""} className="mt-1 block h-10 w-full rounded-md border bg-white px-3 text-sm">
@@ -150,27 +155,13 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
             <Select name="source" label="Source" value={source || ""} options={[["", "All"], ["ONLINE_QR", "Customer QR"], ["ONLINE_QR_CUSTOMER", "Customer QR New"], ["WAITER_ASSISTED_QR", "Waiter Assisted"], ["MANUAL_DASHBOARD", "Manual"], ["WAITER_ENTRY", "Waiter Entry"]]} />
             <Select name="paymentStatus" label="Payment" value={paymentStatus || ""} options={[["", "All"], ["UNPAID", "Unpaid"], ["PAID", "Paid"], ["PARTIAL", "Partial"], ["REFUNDED", "Refunded"]]} />
             <Select name="paymentMethod" label="Method" value={paymentMethod || ""} options={[["", "All"], ["CASH", "Cash"], ["CARD", "Card"], ["JAZZCASH", "JazzCash"], ["EASYPAISA", "EasyPaisa"], ["BANK_TRANSFER", "Bank Transfer"], ["OTHER", "Other"]]} />
-            <Button className="md:col-span-3 xl:col-span-6">Generate Report</Button>
+            <Button className="self-end">Apply Filters</Button>
           </form>
-          {showDateError ? (
-            <p className="mt-3 rounded-md border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-800">
-              Please select both From date and To date, then press Generate Report.
-            </p>
-          ) : null}
         </CardContent>
       </Card>
 
-      {!hasDateRange ? (
-        <Card className="mt-5">
-          <CardContent className="p-8 text-center">
-            <p className="text-lg font-bold">Select a date range to generate a report.</p>
-            <p className="mt-2 text-sm text-muted-foreground">Print and PDF buttons will appear after the report is generated.</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <>
       <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <Stat title="Report period" value={`${from} to ${to}`} />
+        <Stat title="Report period" value={range.key === "custom" ? `${range.fromStr} to ${range.toStr}` : `${range.label} (${range.fromStr} to ${range.toStr})`} />
         <Stat title="Orders" value={orders.length} />
         <Stat title="Paid orders" value={paidOrders.length} />
         <Stat title="Unpaid orders" value={unpaidOrders.length} />
@@ -178,6 +169,23 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         <Stat title="Discounts" value={formatCurrency(discounts)} />
         <Stat title="Net paid revenue" value={formatCurrency(netPaidRevenue)} />
         <Stat title="Average paid order" value={formatCurrency(averagePaidOrder)} />
+      </div>
+
+      <div className="mt-6 grid gap-5 xl:grid-cols-2">
+        <GroupedSalesTable
+          title="Department-wise Sales"
+          subtitle="Revenue grouped by department. Items not yet assigned to a department appear under Unassigned."
+          groupLabel="Department"
+          rows={departmentRows}
+          emptyText="No department sales in this period."
+        />
+        <GroupedSalesTable
+          title="Category-wise Sales"
+          subtitle="Revenue grouped by menu category."
+          groupLabel="Category"
+          rows={categoryRows}
+          emptyText="No category sales in this period."
+        />
       </div>
 
       <div className="mt-6 grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
@@ -234,7 +242,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
                   ) : null}
                 </>
               ) : (
-                <p className="text-muted-foreground">Generate a report after orders are available to see product decisions.</p>
+                <p className="text-muted-foreground">No products sold in this period yet.</p>
               )}
             </CardContent>
           </Card>
@@ -319,9 +327,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         </CardContent>
       </Card>
 
-      <p className="mt-5 text-xs text-muted-foreground">Generated {formatPkDateTime(new Date())}. Cancelled orders are shown in order history but excluded from product revenue and table revenue decisions.</p>
-        </>
-      )}
+      <p className="mt-5 text-xs text-muted-foreground">Generated {formatPkDateTime(new Date())}. Cancelled orders are shown in order history but excluded from sales breakdowns.</p>
     </main>
   );
 }
@@ -373,20 +379,6 @@ function buildDailyRevenueRows(orders: { createdAt: Date; total: unknown }[]): D
     map.set(date, current);
   }
   return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
-}
-
-function safeDateInput(value?: string) {
-  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return null;
-  const date = new Date(`${value}T00:00:00`);
-  return Number.isNaN(date.getTime()) ? null : value;
-}
-
-function startOfDay(value: string) {
-  return new Date(`${value}T00:00:00`);
-}
-
-function endExclusive(value: string) {
-  return new Date(new Date(`${value}T00:00:00`).getTime() + dayMs);
 }
 
 function positiveInt(value?: string) {

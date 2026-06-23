@@ -9,6 +9,7 @@ const links = [
   { href: "/dashboard/orders", label: "Live Orders", icon: ClipboardList },
   { href: "/dashboard/orders/new", label: "Create Manual Order", icon: PlusCircle },
   { href: "/dashboard/tables", label: "Tables", icon: Table2 },
+  { href: "/dashboard/menu/departments", label: "Departments", icon: Menu },
   { href: "/dashboard/menu/categories", label: "Categories", icon: Menu },
   { href: "/dashboard/menu/items", label: "Menu Items", icon: Menu },
   { href: "/dashboard/qr-codes", label: "QR Codes", icon: QrCode },

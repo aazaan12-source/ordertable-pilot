@@ -1,0 +1,83 @@
+# DigitalOcean App Platform spec for ordertable-pilot
+# Deploy with:  doctl apps create --spec .do/app.yaml
+# Update with:  doctl apps update <APP_ID> --spec .do/app.yaml
+#
+# This provisions:
+#   - a Next.js web service (built from the GitHub repo)
+#   - a managed PostgreSQL database
+#   - a pre-deploy job that runs Prisma migrations before each release
+name: ordertable-pilot
+# Bangalore is the closest DigitalOcean region to Pakistan — keeping the app and
+# its managed database here minimizes round-trip latency for local users, which is
+# the single biggest factor in how fast the app feels. The database below has no
+# explicit region, so it co-locates with the app in this region.
+region: blr
+
+databases:
+  - name: ordertable-db
+    engine: PG
+    version: "16"
+    # Smallest managed Postgres. Bump size/num_nodes for production load.
+    size: db-s-1vcpu-1gb
+    num_nodes: 1
+
+services:
+  - name: web
+    github:
+      repo: aazaan12-source/ordertable-pilot
+      branch: main
+      deploy_on_push: true
+    environment_slug: node-js
+    build_command: npm run build
+    run_command: npm start
+    http_port: 3000
+    instance_count: 1
+    instance_size_slug: basic-xxs
+    routes:
+      - path: /
+    envs:
+      # DigitalOcean injects the managed DB connection string here.
+      # DO Postgres requires SSL, so the binding already includes sslmode=require.
+      - key: DATABASE_URL
+        scope: RUN_AND_BUILD_TIME
+        value: ${ordertable-db.DATABASE_URL}
+      - key: DIRECT_URL
+        scope: RUN_AND_BUILD_TIME
+        value: ${ordertable-db.DATABASE_URL}
+      - key: PRISMA_CONNECTION_LIMIT
+        scope: RUN_AND_BUILD_TIME
+        value: "1"
+      - key: PRISMA_POOL_TIMEOUT
+        scope: RUN_AND_BUILD_TIME
+        value: "20"
+      # Public URL of this app (https). DO resolves ${APP_URL} at deploy time.
+      - key: NEXTAUTH_URL
+        scope: RUN_AND_BUILD_TIME
+        value: ${APP_URL}
+      - key: APP_URL
+        scope: RUN_AND_BUILD_TIME
+        value: ${APP_URL}
+      # SET THIS as an encrypted secret in the DO dashboard / doctl before deploy.
+      - key: NEXTAUTH_SECRET
+        scope: RUN_AND_BUILD_TIME
+        type: SECRET
+        value: REPLACE_WITH_LONG_RANDOM_SECRET
+
+jobs:
+  - name: migrate
+    kind: PRE_DEPLOY
+    github:
+      repo: aazaan12-source/ordertable-pilot
+      branch: main
+    environment_slug: node-js
+    build_command: npm run build
+    run_command: npx prisma migrate deploy
+    instance_size_slug: basic-xxs
+    instance_count: 1
+    envs:
+      - key: DATABASE_URL
+        scope: RUN_AND_BUILD_TIME
+        value: ${ordertable-db.DATABASE_URL}
+      - key: DIRECT_URL
+        scope: RUN_AND_BUILD_TIME
+        value: ${ordertable-db.DATABASE_URL}

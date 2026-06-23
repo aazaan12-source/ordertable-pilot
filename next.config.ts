@@ -8,6 +8,13 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
+  compress: true,
+  // Tree-shake large barrel-import packages so only the icons/components used are
+  // bundled, reducing client JS and speeding up first load.
+  experimental: {
+    optimizePackageImports: ["lucide-react"]
+  },
   async headers() {
     return [
       {

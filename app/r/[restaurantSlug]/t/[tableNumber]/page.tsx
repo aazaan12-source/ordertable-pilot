@@ -82,21 +82,25 @@ export default async function CustomerTablePage({
   if (!restaurant.orderingEnabled) return <Message title="Ordering paused" body="Online ordering is temporarily paused. Please call the waiter." />;
 
   const activeStatuses: OrderStatus[] = ["PENDING", "ACCEPTED", "PREPARING", "READY", "SERVED", "BILL_REQUESTED"];
-  const activeOrder = await db.order.findFirst({
-    where: {
-      restaurantId: restaurant.id,
-      tableId: restaurant.tables[0].id,
-      status: { in: activeStatuses },
-      paymentStatus: { not: "PAID" }
-    },
-    include: { items: { orderBy: { createdAt: "asc" } } },
-    orderBy: { createdAt: "desc" }
-  });
-  const globalWaiters = await db.restaurantWaiter.findMany({
-    where: { isActive: true },
-    orderBy: [{ name: "asc" }],
-    select: { id: true, name: true }
-  });
+  // These two reads are independent, so run them concurrently to save a round-trip
+  // on this high-traffic customer page.
+  const [activeOrder, globalWaiters] = await Promise.all([
+    db.order.findFirst({
+      where: {
+        restaurantId: restaurant.id,
+        tableId: restaurant.tables[0].id,
+        status: { in: activeStatuses },
+        paymentStatus: { not: "PAID" }
+      },
+      include: { items: { orderBy: { createdAt: "asc" } } },
+      orderBy: { createdAt: "desc" }
+    }),
+    db.restaurantWaiter.findMany({
+      where: { isActive: true },
+      orderBy: [{ name: "asc" }],
+      select: { id: true, name: true }
+    })
+  ]);
   const waiterOptions = Array.from(
     new Map(globalWaiters.map((waiter) => [waiter.name.toLocaleLowerCase(), waiter])).values()
   );
